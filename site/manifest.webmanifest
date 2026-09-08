@@ -1,0 +1,25 @@
+{
+ "name": "lintcha",
+ "short_name": "lintcha",
+ "start_url": "/",
+ "display": "browser",
+ "background_color": "#EFEAE0",
+ "theme_color": "#EFEAE0",
+ "icons": [
+  {
+   "src": "/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "/icon-180.png",
+   "sizes": "180x180",
+   "type": "image/png"
+  },
+  {
+   "src": "/icon-32.png",
+   "sizes": "32x32",
+   "type": "image/png"
+  }
+ ]
+}

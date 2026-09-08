@@ -1,0 +1,125 @@
+/* Self-hosted fonts (SIL Open Font License), latin subsets fetched from Google Fonts on 2026-09-06, no network needed at runtime. */
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 400 600; font-display: swap; src: url("fonts/archivo.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/ibm-plex-mono-400.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/ibm-plex-mono-600.woff2") format("woff2"); }
+:root, [data-theme="dark"] {
+  --bg:#0d0e0f; --panel:#141618; --panel-2:#1b1e21; --field:#101214;
+  --line:#26292c; --line-soft:#1d2023;
+  --ink:#f4f5f6; --ink-2:#99a1a7; --ink-3:#7a8288;
+  --btn:#f4f5f6; --btn-ink:#0d0e0f; --btn-quiet-line:#33373a;
+  --pos:#3fa07a; --neg:#d9584f; --eye:#111213;
+  --c1:#d96a92; --c2:#d1823f; --c3:#8b78dc; --c4:#3f9fa8; --c5:#6ba148; --c6:#4f88d4;
+  --bar-track:#22262a; --shell:#0d0e0f; --card-line:#24272a; --card-bg:#141618;
+}
+[data-theme="light"] {
+  --bg:#f3efe8; --panel:#fffdf9; --panel-2:#ebe5db; --field:#fffdf9;
+  --line:#ded7ca; --line-soft:#e7e1d6;
+  --ink:#1a1917; --ink-2:#5e5a53; --ink-3:#6f6960;
+  --btn:#1a1917; --btn-ink:#f7f4ee; --btn-quiet-line:#cfc7b8;
+  --pos:#237a5c; --neg:#b23a33; --eye:#1a1917;
+  --c1:#c4557f; --c2:#b56c2a; --c3:#7461c8; --c4:#2f8790; --c5:#588c36; --c6:#3a71bd;
+  --bar-track:#e3ddd1; --shell:#f3efe8; --card-line:#e2dbcf; --card-bg:#fffdf9;
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:Archivo,"Hanken Grotesk","Helvetica Neue",sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--btn-quiet-line); }
+a:hover { color:var(--ink-2); border-bottom-color:var(--ink-2); }
+summary::-webkit-details-marker { display:none; }
+summary { list-style:none; cursor:pointer; }
+@keyframes breathe { 0%,100% { transform:translateY(0) scale(1); } 50% { transform:translateY(-3px) scale(1.03); } }
+@keyframes resolve { 0% { transform:translateY(0) scale(1); } 35% { transform:translateY(-9px) scale(1.1); } 100% { transform:translateY(0) scale(1); } }
+[data-crit] { animation:breathe 5.2s ease-in-out infinite; }
+@keyframes floatA { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-9px); } }
+@keyframes floatB { 0%,100% { transform:translate(0,0) rotate(0deg); } 33% { transform:translate(5px,-6px) rotate(4deg); } 66% { transform:translate(-4px,4px) rotate(-3deg); } }
+@keyframes floatC { 0%,100% { transform:translateY(0) scale(1); } 50% { transform:translateY(6px) scale(1.06); } }
+[data-strip] > :nth-child(1) { animation:floatA 5.2s ease-in-out infinite; }
+[data-strip] > :nth-child(2) { animation:floatB 6.6s ease-in-out infinite; }
+[data-strip] > :nth-child(3) { animation:floatC 4.8s ease-in-out infinite; }
+[data-strip] > :nth-child(4) { animation:floatB 5.9s ease-in-out infinite reverse; }
+[data-strip] > :nth-child(5) { animation:floatA 6.9s ease-in-out infinite; }
+[data-strip] > :nth-child(6) { animation:floatC 5.5s ease-in-out infinite reverse; }
+[data-rail] > :nth-child(1) { animation:floatB 6.2s ease-in-out infinite; }
+[data-rail] > :nth-child(2) { animation:floatA 5.0s ease-in-out infinite; }
+[data-rail] > :nth-child(3) { animation:floatC 7.1s ease-in-out infinite; }
+[data-inputgrid] > div:nth-child(4) > :nth-child(1) { animation:floatA 6.7s ease-in-out infinite reverse; }
+[data-inputgrid] > div:nth-child(4) > :nth-child(2) { animation:floatC 5.3s ease-in-out infinite; }
+[data-inputgrid] > div:nth-child(4) > :nth-child(3) { animation:floatB 7.4s ease-in-out infinite reverse; }
+[data-resolved="1"] [data-crit] { animation:resolve 720ms cubic-bezier(.3,1.5,.5,1) both; }
+[data-resolved="1"] [data-strip] > [data-crit], [data-resolved="1"] [data-rail] > [data-crit], [data-resolved="1"] [data-inputgrid] > div:nth-child(4) > [data-crit] { animation:resolve 720ms cubic-bezier(.3,1.5,.5,1) both; }
+[data-resolved="1"] [data-crit][data-v="pos"] [data-ink] { fill:var(--pos); transition:fill 400ms ease 120ms; }
+[data-resolved="1"] [data-crit][data-v="neg"] [data-ink] { fill:var(--neg); transition:fill 400ms ease 120ms; }
+[data-resolved="1"] [data-strip] > :nth-child(1), [data-resolved="1"] [data-inputgrid] > div:nth-child(2) > :nth-child(1) { animation-delay:0ms; }
+[data-resolved="1"] [data-strip] > :nth-child(2), [data-resolved="1"] [data-inputgrid] > div:nth-child(2) > :nth-child(2) { animation-delay:120ms; }
+[data-resolved="1"] [data-strip] > :nth-child(3), [data-resolved="1"] [data-inputgrid] > div:nth-child(2) > :nth-child(3) { animation-delay:240ms; }
+[data-resolved="1"] [data-strip] > :nth-child(4), [data-resolved="1"] [data-inputgrid] > div:nth-child(4) > :nth-child(1) { animation-delay:360ms; }
+[data-resolved="1"] [data-strip] > :nth-child(5), [data-resolved="1"] [data-inputgrid] > div:nth-child(4) > :nth-child(2) { animation-delay:480ms; }
+[data-resolved="1"] [data-strip] > :nth-child(6), [data-resolved="1"] [data-inputgrid] > div:nth-child(4) > :nth-child(3) { animation-delay:600ms; }
+@media (prefers-reduced-motion: reduce) { [data-crit], [data-resolved="1"] [data-crit], [data-deco] { animation:none !important; } }
+@media (max-width:900px) {
+  [data-inputgrid] { grid-template-columns:1fr !important; }
+  [data-rail] { display:none !important; }
+  [data-strip] { display:block !important; }
+}
+/* --ink-3 was #6b7277 (dark) and #8d867c (light) in the delivered shell: 3.96 and 3.14 against the ground, below AA 4.5 for text.
+   Lifted to #7a8288 (4.95) and #6f6960 (4.74) on 2026-09-06, the smallest step that clears the gate. */
+/* the language select built by ui-controls.js carries .lc-select and nothing else (CONTROLS_CONTRACT.md section 4) */
+.lc-select { font-family:'IBM Plex Mono',monospace; font-size:12px; padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; }
+[hidden] { display:none !important; }
+html[lang="en"] [data-not-en] { display:none; }   /* the line that says the profile has to be in English shows on the translated pages only */
+/* brand lockup: mark and wordmark on one line, the mark larger than the word and centred on it; the capital L is set larger
+   than the rest of the word; the tagline sits under the row, small. The mark is monochrome black and inverts on the dark theme. */
+.lockup { display:flex; flex-direction:column; align-items:flex-start; gap:2px; border:0; }
+.lockup-row { display:flex; align-items:center; gap:14px; }
+.lockup .mark { display:block; width:64px; height:64px; }
+.lockup .wordmark { font-size:44px; font-weight:600; letter-spacing:-0.03em; line-height:1; }
+.lockup .wordmark::first-letter { font-size:1.32em; }
+.lockup .tagline { font-size:13px; color:var(--ink-3); margin:4px 0 0 78px; }
+.lockup-small { flex-direction:row; align-items:center; gap:10px; margin:0 0 1.2rem; text-decoration:none; }
+.lockup-small .mark { width:40px; height:40px; }
+.lockup-small .wordmark { display:inline-block; font-size:26px; }
+.lockup .mark { mix-blend-mode:multiply; }   /* the png ground is white: multiply drops it onto the paper */
+:root[data-theme="dark"] .lockup .mark { filter:invert(1); mix-blend-mode:screen; }   /* inverted to the light ink, its ground drops onto the dark shell */
+@media (max-width:900px) { .lockup .mark { width:48px; height:48px; } .lockup .wordmark { font-size:34px; } .lockup .tagline { margin-left:62px; } }
+/* header: a row of links (the tool, the method, two announced sections) next to the theme and language controls */
+.toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.nav { display:flex; align-items:center; gap:16px; margin-right:10px; font-family:'IBM Plex Mono',monospace; font-size:12px; }
+.nav a { color:var(--ink-2); border-bottom:1px solid transparent; padding-bottom:1px; }
+.nav a:hover { color:var(--ink); border-bottom-color:var(--ink-2); }
+.nav a[aria-current="page"] { color:var(--ink); border-bottom-color:var(--ink); }
+.nav .soon { color:var(--ink-3); opacity:0.75; cursor:default; white-space:nowrap; }
+.nav .soon small { font-size:10px; border:1px solid var(--line); border-radius:999px; padding:1px 6px; margin-left:4px; vertical-align:1px; }
+/* theme button: names the theme that is active, with a sun on light and a moon on dark (inline svg, currentColor) */
+[data-theme-toggle] { display:inline-flex; align-items:center; gap:7px; }
+:root[data-theme="dark"] [data-theme-toggle] .icon-sun { display:none; }
+:root[data-theme="light"] [data-theme-toggle] .icon-moon { display:none; }
+/* footer contact: two hand-drawn glyphs and the role link, quiet until hovered */
+footer .contact { display:inline-flex; align-items:center; gap:14px; margin-left:auto; }
+footer .contact a { color:var(--ink-3); border-bottom:0; display:inline-flex; align-items:center; }
+footer .contact a:hover { color:var(--ink); }
+footer .contact svg { display:block; }
+/* margin creatures: placed by app.js on a vertical rhythm in the gutters beside the content column, behind everything, never over text */
+#page { position:relative; z-index:0; }
+#deco { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:-1; }
+body[data-page="method"] { position:relative; z-index:0; }
+[data-deco] { position:absolute; line-height:0; opacity:0.55; animation:breathe 6.4s ease-in-out infinite; }
+[data-deco]:nth-child(3n+2) { animation-duration:7.3s; animation-delay:-2s; }
+[data-deco]:nth-child(3n) { animation-duration:5.6s; animation-delay:-4s; }
+/* resting state: nothing has been checked yet, so the margin figures sit in the neutral ink until a read resolves them */
+[data-inputgrid][data-resolved="0"] [data-crit] [data-ink] { fill:var(--ink-3); }
+/* assembled charter preview (check page, section 02): the exact text the copy button copies. Added clauses carry a left
+   rule and a text label from i18n (never colour alone); bracketed slots are highlighted by a background token, with no
+   character inserted, so the preview's text equals the copied string byte for byte. */
+.preview { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; background:var(--panel-2); border:1px solid var(--card-line); border-radius:12px; padding:16px 18px; font-family:'IBM Plex Mono',monospace; font-size:13px; line-height:1.65; color:var(--ink); }
+.preview-added { display:block; padding-left:14px; border-left:3px solid var(--pos); }
+.preview-added::before { content:attr(data-label); display:block; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--pos); line-height:1.4; }
+.preview-slot { background:var(--bar-track); color:var(--ink); border-radius:4px; padding:0 2px; }
+/* block 02, the job: one row per question the charter leaves open; a row may carry the rules that wait on it, shown as
+   undecided (a separate state, not a colour of pass), never as a clause */
+.job-row { display:flex; flex-direction:column; gap:8px; padding:16px 2px; border-bottom:1px solid var(--line-soft); }
+.job-q { font-size:17px; font-weight:600; letter-spacing:-0.01em; }
+.job-after { font-size:15px; line-height:1.45; color:var(--ink-2); max-width:640px; }
+.job-rule { display:flex; align-items:flex-start; gap:12px; padding:8px 0 0 14px; border-left:3px solid var(--line); }
+.job-rule .job-rule-name { font-size:15px; font-weight:600; flex:0 0 auto; }
+.job-rule .job-rule-line { font-size:14px; line-height:1.45; color:var(--ink-2); }
+.tag-undecided { flex:0 0 auto; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-3); border:1px dashed var(--ink-3); border-radius:999px; padding:5px 11px; }
+#job-builder-host #builder { margin-top:20px; }

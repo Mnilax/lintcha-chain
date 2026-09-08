@@ -1,0 +1,5 @@
+{
+  "en": { "checker": "https://lintcha.com/", "method": "https://lintcha.com/method", "library": "https://lintcha.com/library/" },
+  "es": { "checker": "https://lintcha.com/es/", "method": "https://lintcha.com/es/method", "library": "https://lintcha.com/es/library/" },
+  "pt": { "checker": "https://lintcha.com/pt/", "method": "https://lintcha.com/pt/method", "library": "https://lintcha.com/pt/library/" }
+}

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "lintcha launch index",
+  "description": "site/launch-index.json: per namespace, counted hashes and nothing else. A key is the first eight bytes of sha256 of the normalized value as sixteen hex characters. A value has exactly three fields: n, how many launches in the window carry the value (two and upward, the count floor); d, from how many distinct deployers (one and upward; two and upward for the fee recipient, the only namespace whose single-deployer recurrence is not shipped); first, the utc date of the earliest of them. On the two skeleton namespaces a fourth field is required, v, the number of distinct spellings in the group (one and upward); it is forbidden on the other six. No address, no raw string, no name, no timestamp beyond a date, no other field at any level.",
+  "type": "object",
+  "additionalProperties": false,
+  "minProperties": 8,
+  "properties": {
+    "link":            { "$ref": "#/$defs/namespace" },
+    "logo":            { "$ref": "#/$defs/namespace" },
+    "recipient":       { "$ref": "#/$defs/recipient_namespace" },
+    "description":     { "$ref": "#/$defs/namespace" },
+    "ticker":          { "$ref": "#/$defs/namespace" },
+    "name":            { "$ref": "#/$defs/namespace" },
+    "ticker_skeleton": { "$ref": "#/$defs/skeleton_namespace" },
+    "name_skeleton":   { "$ref": "#/$defs/skeleton_namespace" }
+  },
+  "required": ["link", "logo", "recipient", "description", "ticker", "name", "ticker_skeleton", "name_skeleton"],
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "d", "first"],
+      "properties": {
+        "n":     { "type": "integer", "minimum": 2 },
+        "d":     { "type": "integer", "minimum": 1 },
+        "first": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      }
+    },
+    "recipient_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "d", "first"],
+      "properties": {
+        "n":     { "type": "integer", "minimum": 2 },
+        "d":     { "type": "integer", "minimum": 2 },
+        "first": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      }
+    },
+    "skeleton_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "d", "first", "v"],
+      "properties": {
+        "n":     { "type": "integer", "minimum": 2 },
+        "d":     { "type": "integer", "minimum": 1 },
+        "first": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "v":     { "type": "integer", "minimum": 1 }
+      }
+    },
+    "namespace": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[0-9a-f]{16}$" },
+      "additionalProperties": { "$ref": "#/$defs/entry" }
+    },
+    "skeleton_namespace": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[0-9a-f]{16}$" },
+      "additionalProperties": { "$ref": "#/$defs/skeleton_entry" }
+    },
+    "recipient_namespace": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[0-9a-f]{16}$" },
+      "additionalProperties": { "$ref": "#/$defs/recipient_entry" }
+    }
+  }
+}

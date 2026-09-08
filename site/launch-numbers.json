@@ -1,0 +1,58 @@
+{
+  "chain_id": 4663,
+  "window": {
+    "from_block": 56767595,
+    "to_block": 57623871,
+    "blocks": 856277,
+    "from_time": "2026-09-07T10:36:34.000Z",
+    "to_time": "2026-09-08T10:36:34.000Z",
+    "from_date": "2026-09-07",
+    "to_date": "2026-09-08",
+    "hours": 24
+  },
+  "collected": "2026-09-08",
+  "launches_scanned": 28567,
+  "launches_with_a_link": 20582,
+  "launches_with_a_link_share": 72,
+  "links": {
+    "distinct_raw": 16370,
+    "distinct_folded": 15985,
+    "shared_by_more_than_one_deployer_raw": 4388,
+    "shared_by_more_than_one_deployer_folded": 4401
+  },
+  "tickers_shared_by_more_than_one_deployer": 3832,
+  "lookalike_ticker_pairs": 253,
+  "lookalike_ticker_groups": 241,
+  "lookalike_name_groups": 89,
+  "names_shared_by_more_than_one_deployer": 3755,
+  "logos_shared_by_more_than_one_deployer": 2090,
+  "recipients_shared_by_more_than_one_deployer": 137,
+  "descriptions_compared": 4858,
+  "descriptions_shared_by_more_than_one_deployer": 547,
+  "description_min_words": 12,
+  "count_floor": 2,
+  "index": {
+    "entries": {
+      "link": 4894,
+      "logo": 2709,
+      "recipient": 137,
+      "description": 630,
+      "ticker": 4040,
+      "name": 4063,
+      "ticker_skeleton": 4065,
+      "name_skeleton": 4083
+    },
+    "entries_total": 24621,
+    "bytes": 1381421
+  },
+  "collector": {
+    "calls": 2512,
+    "http_429": 1,
+    "rpc_429": 0,
+    "retries": 1,
+    "other_errors": 0,
+    "seconds": 1063,
+    "launches_in_log": 28567,
+    "tokens_readable": 28567
+  }
+}
