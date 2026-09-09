@@ -1,0 +1,15 @@
+{
+  "name": "lintcha-chain",
+  "private": true,
+  "description": "Reads what a launch calls itself, and reports what those strings are shared with.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "verify": "node tools/verify-index.mjs",
+    "test": "node tools/verify-vendor.mjs && node tests/chain_token_states.mjs && node tests/launch_test.js && node tests/launch_abi_test.mjs && node tests/launch_gate_test.mjs && node tests/launch_index_test.mjs",
+    "i18n": "node tools/i18n-merge.mjs && node src/tools/i18n_check.js"
+  }
+}

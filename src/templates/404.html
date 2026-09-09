@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+{{theme_script}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{t:notfound.h1}}, {{t:site.wordmark}}</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="{{url}}">
+<link rel="icon" type="image/png" href="{{root}}icon-32.png">
+<link rel="apple-touch-icon" href="{{root}}icon-180.png">
+<link rel="manifest" href="{{root}}manifest.webmanifest">
+<link rel="stylesheet" href="{{root}}style.css">
+<link rel="stylesheet" href="{{root}}launch.css">
+<link rel="stylesheet" href="{{root}}chain.css">
+<script id="i18n-data" type="application/json">{{i18n_json}}</script>
+</head>
+<body data-lang="{{lang}}" data-root="{{root}}" data-page="chain">
+<div class="wash" aria-hidden="true"><div class="wash-l" data-wash></div><div class="wash-r" data-wash></div></div>
+<header class="topbar" data-topbar>
+  <div class="bar-in">
+    <a class="brand" href="{{root}}" data-i18n-attr="aria-label:app.name">
+      <img class="mark" src="{{root}}icon-512.png" alt="" width="30" height="30" decoding="async">
+      <span class="wordmark" data-i18n="site.wordmark"></span>
+    </a>
+    <nav class="nav" data-i18n-attr="aria-label:nav.label">{{nav}}<span class="nav-bar" data-navbar aria-hidden="true"></span></nav>
+    <div class="cluster">{{cluster}}</div>
+    <button type="button" class="theme" data-theme-toggle data-i18n-attr="data-label-dark:theme.dark;data-label-light:theme.light" aria-pressed="false"><span data-theme-label>{{t:theme.light}}</span></button>
+  </div>
+</header>
+<div class="strip">
+  <div class="strip-in">
+    <span data-i18n="strip.chain"></span><span class="strip-dot" aria-hidden="true">·</span><span class="strip-id" data-pulse data-i18n="strip.id" data-i18n-vars="chain_id"></span><span class="strip-dot" aria-hidden="true">·</span><span data-i18n="strip.reads"></span><span class="strip-dot" aria-hidden="true">·</span><span data-i18n="strip.window" data-i18n-vars="from_block,to_block"></span><span class="strip-live" data-livetile="reserved"></span>
+  </div>
+</div>
+{{contract_row}}
+<div id="top" class="page">
+  <section class="hero">
+    <h1 class="hero-h1" data-i18n="notfound.h1"></h1>
+    <p class="hero-intro" data-i18n="notfound.p"></p>
+    <p class="mono-line"><a href="{{root}}" data-i18n="app.name"></a></p>
+  </section>
+</div>
+<footer class="foot">
+  <div class="foot-in">
+    <div class="foot-links"><a href="{{repo}}" rel="noopener" target="_blank" data-i18n="footer.repo"></a><span class="foot-licence" data-i18n="footer.licence"></span><a href="{{anchor_method}}" data-i18n="footer.method"></a></div>
+    <p class="foot-p" data-i18n="footer.independence"></p>
+    <p class="foot-p" data-i18n="footer.reads"></p>
+  </div>
+</footer>
+<script src="{{root}}ui-controls.js"></script>
+<script src="{{root}}chain.js"></script>
+</body>
+</html>

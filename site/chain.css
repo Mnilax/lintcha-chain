@@ -1,0 +1,284 @@
+/* lintcha-chain, the design of the one page, built against the approved mock (Lintcha Chain4, 2026-09-09) and the two
+   briefs it settles (LINTCHA_CHAIN_04, _05). Loaded after the vendored style.css and launch.css; it restyles the shell
+   around the tool and the tool's own controls and rows by selector only, the vendored markup and wording are not
+   touched. Tokens first, then the shell top to bottom, then the vendored parts, then motion and its off switch. */
+
+/* ---------------------------------------------------------------- tokens: the mock's palette over the vendored one */
+:root, [data-theme="dark"] {
+  --bg:#08090a; --panel:#101214; --panel-2:#16191b; --field:#0c0e10;
+  --line:#22262a; --line-soft:#191c1f;
+  --ink:#f4f5f6; --ink-2:#99a1a7; --ink-3:#7a8288;
+  --accent:#d4fc50; --accent-ink:#08090a; --accent-line:#6b8a2e;
+  --btn-quiet-line:#31363a;
+  --st-shared:#c8ced3; --st-look:#7fb3d5; --st-unique:#7a8288;
+  --bar-track:#1d2124;
+}
+[data-theme="light"] {
+  --bg:#f3efe8; --panel:#fffdf9; --panel-2:#ebe5db; --field:#fffdf9;
+  --line:#ded7ca; --line-soft:#e7e1d6;
+  --ink:#1a1917; --ink-2:#5e5a53; --ink-3:#6f6960;
+  --accent:#4c6410; --accent-ink:#fffdf9; --accent-line:#8b9f57;
+  --btn-quiet-line:#cfc7b8;
+  --st-shared:#3f3b35; --st-look:#245d85; --st-unique:#6f6960;
+  --bar-track:#e3ddd1;
+}
+html { scroll-behavior:smooth; scroll-padding-top:calc(var(--topbar-h, 60px) + 8px); }
+body[data-page="chain"] { position:relative; z-index:0; background:var(--bg); color:var(--ink); }
+body[data-page="chain"] a { color:var(--accent); border-bottom:1px solid var(--accent-line); }
+body[data-page="chain"] a:hover { color:var(--ink); border-bottom-color:var(--ink); }
+body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, body[data-page="chain"] button:focus-visible, body[data-page="chain"] a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+/* the type: mono, six hundred, uppercase for every heading, number, nav item, badge and label; Archivo for prose */
+.mono, .sec-h, .num, .nav, .cluster, .theme, .strip, .badge, .kicker, .sub, .dg-num, .dg-title, .dg-list > div, .dg-index-t, .dg-boundary-label, .dg-inlabel-1, .specimen-label, .st, .chart-title, .foot-links, .contract-label, .token-btn, .btn-quiet, .cmd-code { font-family:'IBM Plex Mono',monospace; }
+.sec-h { font-size:22px; font-weight:600; letter-spacing:0.02em; text-transform:uppercase; margin:0; }
+.num { font-size:12px; font-weight:600; letter-spacing:0.14em; color:var(--ink-3); transition:color 300ms linear; }
+.num.is-active { color:var(--accent); }
+.sub { font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); margin:34px 0 12px; }
+.kicker { font-size:10px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); margin:0 0 34px; }
+.badge { display:inline-block; font-size:10px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; border-radius:999px; padding:3px 9px; }
+.badge-snapshot { color:var(--ink); background:var(--panel-2); border:1px solid var(--btn-quiet-line); }
+.badge-live { color:var(--accent-ink); background:var(--accent); }
+.badge-notdata { color:var(--ink-3); border:1px dashed var(--ink-3); }
+
+/* ---------------------------------------------------------------- the wash: acid at the page edges, behind everything */
+.wash { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.wash-l, .wash-r { position:absolute; top:0; bottom:0; width:min(24vw,300px); animation:lc-wash 8s ease-in-out infinite; }
+.wash-l { left:0; background:linear-gradient(to right, color-mix(in srgb, var(--accent) 11%, transparent) 0, color-mix(in srgb, var(--accent) 6%, transparent) 120px, transparent 100%), repeating-linear-gradient(to right, color-mix(in srgb, var(--accent) 9%, transparent) 0 1px, transparent 1px 72px); }
+.wash-r { right:0; background:linear-gradient(to left, color-mix(in srgb, var(--accent) 11%, transparent) 0, color-mix(in srgb, var(--accent) 6%, transparent) 120px, transparent 100%), repeating-linear-gradient(to left, color-mix(in srgb, var(--accent) 9%, transparent) 0 1px, transparent 1px 72px); }
+
+/* ---------------------------------------------------------------- the header: sticky bar, then the status strip */
+.topbar { position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--line); }
+.bar-in { max-width:1080px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.brand { display:flex; align-items:center; gap:10px; border:0 !important; color:var(--ink) !important; }
+.brand .mark { display:block; width:30px; height:30px; mix-blend-mode:multiply; }
+:root[data-theme="dark"] .brand .mark { filter:invert(1); mix-blend-mode:screen; }
+.brand .wordmark { font-size:22px; font-weight:600; letter-spacing:-0.03em; }
+.nav { position:relative; display:flex; align-items:center; gap:22px; margin:0 auto; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; }
+.topbar .nav a { color:var(--ink-2); border:0; padding:4px 0; }
+.topbar .nav a:hover { color:var(--ink); }
+.nav-bar { position:absolute; bottom:-2px; left:0; height:2px; width:0; background:var(--accent); opacity:0; transition:transform 420ms cubic-bezier(.3,.8,.3,1), width 420ms cubic-bezier(.3,.8,.3,1), opacity 200ms linear; }
+.cluster { display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; }
+.cluster .out { color:var(--ink-2); border:0; }
+.cluster .out:hover { color:var(--accent); }
+.cluster .arrow { font-weight:400; margin-left:0.35em; }
+.theme { font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; padding:8px 13px; border-radius:999px; border:1px solid var(--line); cursor:pointer; background:transparent; color:var(--ink-2); }
+.strip { border-bottom:1px solid var(--line); background:var(--bg); position:relative; z-index:1; }
+.strip-in { max-width:1080px; margin:0 auto; padding:9px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3); }
+.strip-dot { color:var(--line); }
+.strip-id { color:var(--accent); animation:lc-pulse 4s ease-in-out infinite; }
+.strip-live { margin-left:auto; }   /* reserved: a live tile drops in here later without moving anything */
+
+/* the token, header part: the contract row under the strip and the filled buy button in the cluster. Rendered by the
+   build only when site/token.json carries an address (the row) and a pons link (the button); nothing otherwise. */
+.buy { background:var(--accent) !important; color:var(--accent-ink) !important; padding:9px 16px; border-radius:999px; border:0 !important; }
+.buy:hover { opacity:0.86; }
+.contract { position:relative; z-index:1; border-bottom:1px solid var(--line); background:var(--panel); }
+.contract-in { max-width:1080px; margin:0 auto; padding:11px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.contract-label { font-size:10px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-3); }
+.contract-address { font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink); overflow-wrap:anywhere; }
+.contract .btn-copy { margin-left:auto; }
+.btn-copy { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; padding:7px 13px; border-radius:999px; border:1px solid var(--accent-line); background:transparent; color:var(--accent); cursor:pointer; }
+.btn-quiet { font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; padding:8px 14px; border-radius:999px; border:1px solid var(--btn-quiet-line); background:transparent; color:var(--ink-2); cursor:pointer; }
+
+/* ---------------------------------------------------------------- the page column and the sections */
+.page { position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 24px 40px; box-sizing:border-box; }
+.hero { padding:76px 0 4px; }
+.hero-h1 { font-family:'IBM Plex Mono',monospace; color:var(--ink); font-size:clamp(28px,3.4vw,48px); line-height:1.12; font-weight:600; letter-spacing:-0.02em; text-transform:uppercase; margin:0 0 28px; max-width:1040px; text-wrap:pretty; }
+.hero-l2 { color:var(--ink-2); }
+.hero-intro { font-size:18px; line-height:1.6; color:var(--ink-2); margin:0 0 14px; max-width:700px; }
+.hero-privacy { font-size:15px; line-height:1.6; color:var(--ink-3); margin:0; max-width:700px; }
+.sec { padding:52px 0; border-top:1px solid var(--line); scroll-margin-top:calc(var(--topbar-h, 60px) + 8px); }
+.sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:8px; }
+.sec-p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:14px 0 6px; max-width:720px; }
+.sec-p-lg { font-size:17px; max-width:780px; }
+.mono-line { font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-3); margin:18px 0 0; overflow-wrap:anywhere; }
+
+/* ---------------------------------------------------------------- section one, the process: four stages on one baseline,
+   the browser boundary notching around the index card; the geometry is measured and drawn by chain.js */
+.diagram { position:relative; padding:0 0 210px; }
+.dg-boundary { position:absolute; top:-16px; left:0; right:0; height:78%; border:1px solid var(--accent-line); border-bottom:0; border-radius:20px 20px 0 0; pointer-events:none; }
+.dg-edge { position:absolute; left:0; top:calc(78% - 16px); width:calc(50% - 130px); height:1px; background:var(--accent-line); pointer-events:none; }
+.dg-edge[data-edge-right] { left:auto; right:0; }
+.dg-vedge { position:absolute; right:0; top:0; width:1px; height:0; background:var(--accent-line); pointer-events:none; display:none; }
+.dg-boundary-label { position:absolute; top:-25px; left:22px; background:var(--bg); padding:0 10px; font-size:10px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent); }
+.dg-links { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+.dg-stages { position:relative; display:flex; flex-wrap:wrap; align-items:flex-start; gap:26px 44px; padding:14px 18px 0; }
+.dg-stage { flex:1 1 120px; max-width:420px; min-width:0; border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:14px; transition:border-color 400ms ease, box-shadow 400ms ease; }
+.dg-stage.is-on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent-line), 0 0 26px -8px var(--accent); }
+.dg-stage-index { background:var(--panel-2); }
+.dg-col { flex:1 1 120px; max-width:420px; min-width:0; display:grid; gap:0; }
+.dg-head { display:flex; align-items:baseline; gap:8px; margin-bottom:11px; }
+.dg-num { font-size:11px; font-weight:600; color:var(--ink-3); }
+.dg-title { font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink); }
+.dg-list { display:grid; gap:5px; }
+.dg-list > div { font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-2); border:1px solid var(--line-soft); border-radius:8px; padding:6px 8px; }
+.dg-note { font-size:13px; line-height:1.5; color:var(--ink-3); margin:11px 0 0; }
+.dg-index { border:1px solid var(--line); border-radius:10px; padding:11px; }
+.dg-index-t { font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink); margin-bottom:8px; }
+.dg-index-l { font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.75; color:var(--ink-3); }
+.dg-inbound { position:relative; height:60px; margin:0 auto; width:1px; }
+.dg-inbound-line { position:absolute; top:0; bottom:0; left:0; border-left:1px dashed var(--accent-line); }
+.dg-inbound-dot { position:absolute; top:0; left:-3px; width:6px; height:6px; border-radius:999px; background:var(--accent); animation:lc-fall 14s linear infinite; }
+.dg-inlabel { text-align:center; margin:0; }
+.dg-inlabel-1 { font-size:10px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); }
+.dg-inlabel-2 { font-size:13px; line-height:1.5; color:var(--ink-3); margin-top:8px; }
+.specimen { border:1px dashed var(--btn-quiet-line); border-radius:10px; padding:10px; }
+.specimen-label { font-size:9px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-3); margin-bottom:9px; }
+.specimen-list { display:grid; gap:7px; }
+.sp-item { border:1px solid var(--line-soft); border-radius:8px; padding:8px 9px; }
+.sp-item .st { border:0; padding:0; font-size:10px; }
+.sp-line { font-size:13px; line-height:1.45; color:var(--ink-2); margin-top:5px; }
+
+/* the three states, a word and a shape each, never the accent and never red or green: filled square, hollow diamond,
+   hollow ring. Used in the specimen (markup) and on the vendored result rows (chain.js reads the sentence and adds one). */
+.st { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; border:1px solid currentColor; border-radius:999px; padding:3px 9px; vertical-align:middle; }
+.st svg { flex:0 0 auto; }
+.st-shared { color:var(--st-shared); }
+.st-look { color:var(--st-look); }
+.st-unique { color:var(--st-unique); }
+.st-none { color:var(--ink-3); border-style:dashed; }
+
+/* ---------------------------------------------------------------- section two, the tool: the vendored form and rows, restyled */
+.sec-tool { padding-bottom:64px; }
+.sec-tool .sec-head { margin-bottom:20px; }
+.sec-tool main { display:block; }
+.sec-tool .launch-form { margin-top:0; }
+.sec-tool .launch-form label { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); position:relative; }
+.sec-tool .launch-form input, .sec-tool .launch-form textarea { font-weight:400; letter-spacing:0; text-transform:none; }
+.sec-tool .launch-two { grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+.sec-tool .caret { position:absolute; width:8px; height:18px; background:var(--accent); animation:lc-caret 1.15s steps(1,end) infinite; pointer-events:none; }
+.sec-tool #launch-read { font-family:'IBM Plex Mono',monospace !important; font-size:13px !important; font-weight:600 !important; letter-spacing:0.14em; text-transform:uppercase; padding:14px 28px !important; border:1px solid var(--accent) !important; background:transparent !important; color:var(--accent) !important; transition:background 220ms ease, color 220ms ease; }
+.sec-tool #launch-read:hover:not(:disabled) { background:var(--accent) !important; color:var(--accent-ink) !important; }
+.sec-tool #launch-read:disabled { opacity:0.6; cursor:default; }
+.sec-tool #launch-clear { font-family:'IBM Plex Mono',monospace !important; font-size:13px !important; font-weight:600 !important; letter-spacing:0.14em; text-transform:uppercase; padding:14px 24px !important; }
+.sec-tool #launch-state { font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-3); }
+.sec-tool #launch-results { position:relative; overflow:hidden; margin-top:36px; border-top:1px solid var(--line); padding-top:8px; }
+.sec-tool .sweep { position:absolute; left:0; right:0; top:0; height:2px; background:var(--accent); animation:lc-sweep 900ms cubic-bezier(.3,.7,.3,1) forwards; --sweep:640px; }
+.sec-tool .launch-group h3 { font-weight:600; letter-spacing:0.14em; }
+.sec-tool .launch-row { display:flex; flex-wrap:wrap; gap:8px 16px; padding:14px 2px; }
+.sec-tool .launch-check { flex:0 0 200px; max-width:100%; display:flex; flex-direction:column; align-items:flex-start; gap:7px; }
+.sec-tool .launch-row > div:last-child { flex:1 1 240px; min-width:0; display:grid; gap:8px; }
+.sec-tool .launch-line { line-height:1.55; }
+.sec-tool .launch-line .st { margin-right:8px; font-size:10px; padding:2px 8px; }
+.sec-tool .launch-fixed { display:none; }   /* the four paragraphs are lifted into section five by the build; the class stays for the vendored rule */
+
+/* section five, what it cannot tell you: the vendored fixed paragraphs, verbatim, larger */
+.sec .launch-fixed { margin-top:22px; max-width:780px; display:grid; gap:18px; }
+.sec .launch-fixed p { font-size:17px; line-height:1.6; color:var(--ink-2); margin:0; }
+
+/* ---------------------------------------------------------------- cells: the window, the collector figures, the live tiles */
+.cells { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:18px; overflow:hidden; margin-top:14px; }
+.cells-tight { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+.cell { background:var(--panel); padding:20px 22px; }
+.cell-sm { padding:16px 18px; }
+.cell .badge { margin-bottom:12px; }
+.cell-v { font-family:'IBM Plex Mono',monospace; font-size:20px; color:var(--ink); line-height:1.35; overflow-wrap:anywhere; white-space:pre-line; }
+.cell-sm .cell-v { font-size:17px; }
+.cell-l { font-size:13px; color:var(--ink-3); margin-top:8px; }
+.cell-sm .cell-l { margin-top:4px; }
+
+/* ---------------------------------------------------------------- what this reads, definitions, reproduce, faq, method */
+.reads { margin-top:14px; }
+.reads-row { display:flex; flex-wrap:wrap; gap:6px 16px; padding:13px 0; border-bottom:1px solid var(--line-soft); }
+.reads-id { flex:0 0 34px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-3); }
+.reads-check { flex:0 0 160px; font-size:15px; font-weight:600; }
+.reads-what { flex:1 1 240px; min-width:0; font-size:15px; line-height:1.55; color:var(--ink-2); }
+.defs { margin:22px 0 0; max-width:780px; display:grid; gap:18px; }
+.def { display:grid; grid-template-columns:minmax(0,140px) minmax(0,1fr); gap:6px 20px; }
+.def dt { font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink); }
+.def dd { margin:0; font-size:15px; line-height:1.6; color:var(--ink-2); }
+.defs-close { margin-top:24px; max-width:640px; }
+.cmd { display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:var(--panel-2); border:1px solid var(--line); border-radius:18px; padding:18px 20px; max-width:780px; margin-top:20px; }
+.cmd-code { font-size:15px; color:var(--accent); }
+.cmd .btn-quiet { margin-left:auto; }
+.faq { margin-top:22px; max-width:780px; display:grid; gap:26px; }
+.qa h3 { font-size:17px; font-weight:600; margin:0 0 8px; }
+.qa p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:0; }
+.tbl { border:1px solid var(--line); border-radius:18px; overflow:hidden; }
+.tbl-row { display:grid; grid-template-columns:minmax(0,150px) minmax(0,1fr); gap:6px 16px; padding:14px 20px; border-top:1px solid var(--line-soft); background:var(--panel); }
+.tbl-head { display:grid; grid-template-columns:minmax(0,150px) minmax(0,1fr); gap:16px; padding:12px 20px; background:var(--panel-2); border-top:0; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); }
+.tbl-k { font-family:'IBM Plex Mono',monospace; font-size:13px; }
+.tbl-v { font-size:15px; line-height:1.55; color:var(--ink-2); }
+.tbl-v code, .sec-p code { font-family:'IBM Plex Mono',monospace; font-size:13px; }
+.tbl-idx .tbl-row, .tbl-idx .tbl-head { grid-template-columns:minmax(0,1fr) 100px; }
+.tbl-idx .tbl-row { padding:11px 20px; font-family:'IBM Plex Mono',monospace; font-size:13px; }
+.tbl-idx .tbl-n { text-align:right; }
+.tbl-idx .tbl-total { background:var(--panel-2); border-top:1px solid var(--line); color:var(--ink); }
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; }
+.card { border:1px solid var(--line); border-radius:18px; background:var(--panel); padding:18px 20px; font-family:'IBM Plex Mono',monospace; font-size:13px; line-height:1.9; color:var(--ink-2); overflow-wrap:anywhere; }
+.card-t { font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); margin-bottom:8px; }
+.card-t + .card-t, .card > div + .card-t { margin-top:16px; }
+.card .to { color:var(--ink-3); }
+.skel { border:1px solid var(--line); border-radius:18px; background:var(--panel); padding:20px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-2); }
+.skel-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:6px 18px; line-height:1.9; }
+.skel-foot { border-top:1px solid var(--line-soft); margin-top:16px; padding-top:14px; display:grid; gap:6px; line-height:1.9; }
+.skel-foot .lbl { color:var(--ink-3); margin-right:0.6em; }
+.skel .to { color:var(--ink-3); }
+
+/* ---------------------------------------------------------------- section ten: three real charts, then the ornament */
+.chart { border:1px solid var(--line); border-radius:18px; background:var(--panel); padding:24px; margin-bottom:20px; }
+.chart-orn { background:var(--panel-2); overflow:hidden; margin-bottom:0; }
+.chart-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
+.chart-orn .chart-head { margin-bottom:16px; }
+.chart-title { font-size:14px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; margin:0; }
+.chart-caption { font-size:14px; line-height:1.55; color:var(--ink-3); margin:0 0 20px; max-width:620px; }
+.chart-rows { display:grid; gap:7px; margin-top:14px; }
+.chart-row { display:grid; grid-template-columns:64px minmax(0,1fr) 64px; gap:12px; align-items:center; }
+.chart-row-wide { grid-template-columns:104px minmax(0,1fr) 64px; }
+.chart-key { font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-3); text-align:right; }
+.chart-track { height:14px; background:var(--bar-track); border-radius:3px; overflow:hidden; }
+.chart-row-wide .chart-track { height:16px; }
+.chart-bar { display:block; height:100%; min-width:2px; background:var(--accent); border-radius:3px; transform-origin:left center; transition:transform 780ms cubic-bezier(.2,.7,.2,1); }
+.chart-val { font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-2); }
+.chart-val-zero { color:var(--ink-3); }
+.chart-axis { display:flex; justify-content:space-between; gap:12px; margin-top:14px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-3); border-top:1px solid var(--line-soft); padding-top:10px; }
+.orn { font-family:'IBM Plex Mono',monospace; font-size:14px; line-height:1.9; color:var(--accent); user-select:none; overflow:hidden; }
+.orn-row { display:flex; justify-content:space-between; gap:2px; }
+.orn span { opacity:0.1; animation-name:lc-drift; animation-timing-function:ease-in-out; animation-iteration-count:infinite; }
+
+/* ---------------------------------------------------------------- the token, section part: rendered only with an address */
+.token-sec { position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:52px 24px 8px; box-sizing:border-box; }
+.token-address { display:block; font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:14px 16px; max-width:780px; overflow-wrap:anywhere; margin-top:22px; }
+.token-btns { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:18px; }
+.token-btn { font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; padding:13px 22px; border-radius:999px; border:0 !important; }
+.token-btn-pons { background:var(--accent); color:var(--accent-ink) !important; }
+.token-btn-pons:hover { opacity:0.86; }
+.token-btn-uni { border:1px solid var(--accent-line) !important; padding:12px 22px; background:transparent; color:var(--accent) !important; }
+.token-btn-uni:hover { border-color:var(--accent) !important; }
+.token-sec .cells { max-width:780px; margin-top:26px; }
+.token-sec .cell { padding:18px 20px; }
+.token-sec .cell-v { font-size:22px; }
+
+/* ---------------------------------------------------------------- footer */
+.foot { position:relative; z-index:1; border-top:1px solid var(--line); background:var(--panel); }
+.foot-in { max-width:1080px; margin:0 auto; padding:30px 24px 48px; display:grid; gap:16px; }
+.foot-links { display:flex; gap:22px; flex-wrap:wrap; align-items:center; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; }
+.foot .foot-links a { border:0; color:var(--ink-2); }
+.foot .foot-links a:hover { color:var(--accent); }
+.foot-licence { color:var(--ink-3); }
+.foot-p { font-size:14px; line-height:1.6; color:var(--ink-3); margin:0; max-width:720px; }
+
+/* ---------------------------------------------------------------- motion, and the switch that stops all of it */
+@keyframes lc-drift { 0%,100% { opacity:0.06; } 50% { opacity:0.34; } }
+@keyframes lc-caret { 0%,45% { opacity:1; } 55%,100% { opacity:0; } }
+@keyframes lc-fall { 0% { top:0; opacity:0; } 3% { opacity:1; } 18% { top:100%; opacity:1; } 24% { opacity:0; } 100% { top:100%; opacity:0; } }
+@keyframes lc-wash { 0%,100% { opacity:0.55; } 50% { opacity:1; } }
+@keyframes lc-pulse { 0%,100% { opacity:0.35; } 50% { opacity:1; } }
+@keyframes lc-sweep { from { transform:translateY(0); opacity:0.9; } to { transform:translateY(var(--sweep,600px)); opacity:0; } }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior:auto; }
+  .orn span, [data-pulse], .caret, .sweep, [data-wash], [data-particle], .dg-inbound-dot { animation:none !important; }
+  [data-particle], .dg-inbound-dot, .sweep { display:none !important; }
+  .orn span { opacity:0.16 !important; }
+  .chart-bar { transition:none !important; transform:scaleX(1) !important; }
+  .nav-bar, .num, .dg-stage, .topbar { transition:none !important; }
+}
+
+/* ---------------------------------------------------------------- narrow */
+@media (max-width:640px) {
+  .bar-in { gap:12px 16px; }
+  .nav { margin:0; order:3; flex-basis:100%; }
+  .hero { padding-top:48px; }
+  .sec-tool .launch-row { flex-direction:column; }
+  .sec-tool .launch-check { flex-basis:auto; }
+}

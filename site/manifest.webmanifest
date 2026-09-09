@@ -1,6 +1,6 @@
 {
- "name": "lintcha",
- "short_name": "lintcha",
+ "name": "lintcha-chain",
+ "short_name": "lintcha-chain",
  "start_url": "/",
  "display": "browser",
  "background_color": "#EFEAE0",

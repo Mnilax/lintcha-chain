@@ -7,3 +7,8 @@ build/
 src/i18n/en.json
 src/i18n/es.json
 src/i18n/pt.json
+*.dc.html
+STEP*.md
+*_REPORT.md
+*.duplicate-of-*
+*.superseded-by-*

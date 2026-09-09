@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+{{theme_script}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{t:site.meta.title}}</title>
+<meta name="description" content="{{t:launch.meta.description}}">
+<link rel="canonical" href="{{url}}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{t:site.meta.title}}">
+<meta property="og:description" content="{{t:launch.meta.description}}">
+<meta property="og:image" content="{{og_image}}">
+<meta property="og:url" content="{{url}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{t:site.meta.title}}">
+<meta name="twitter:description" content="{{t:launch.meta.description}}">
+<meta name="twitter:image" content="{{og_image}}">
+<link rel="icon" type="image/png" href="{{root}}icon-32.png">
+<link rel="apple-touch-icon" href="{{root}}icon-180.png">
+<link rel="manifest" href="{{root}}manifest.webmanifest">
+<link rel="stylesheet" href="{{root}}style.css">
+<link rel="stylesheet" href="{{root}}launch.css">
+<link rel="stylesheet" href="{{root}}chain.css">
+<script id="i18n-data" type="application/json">{{i18n_json}}</script>
+</head>
+<body data-lang="{{lang}}" data-root="{{root}}" data-page="chain">
+<div class="wash" aria-hidden="true"><div class="wash-l" data-wash></div><div class="wash-r" data-wash></div></div>
+<header class="topbar" data-topbar>
+  <div class="bar-in">
+    <a class="brand" href="#top" data-i18n-attr="aria-label:app.name">
+      <img class="mark" src="{{root}}icon-512.png" alt="" width="30" height="30" decoding="async">
+      <span class="wordmark" data-i18n="site.wordmark"></span>
+    </a>
+    <nav class="nav" data-i18n-attr="aria-label:nav.label">{{nav}}<span class="nav-bar" data-navbar aria-hidden="true"></span></nav>
+    <div class="cluster">{{cluster}}</div>
+    <button type="button" class="theme" data-theme-toggle data-i18n-attr="data-label-dark:theme.dark;data-label-light:theme.light" aria-pressed="false"><span data-theme-label>{{t:theme.light}}</span></button>
+  </div>
+</header>
+<div class="strip">
+  <div class="strip-in">
+    <span data-i18n="strip.chain"></span><span class="strip-dot" aria-hidden="true">·</span><span class="strip-id" data-pulse data-i18n="strip.id" data-i18n-vars="chain_id"></span><span class="strip-dot" aria-hidden="true">·</span><span data-i18n="strip.reads"></span><span class="strip-dot" aria-hidden="true">·</span><span data-i18n="strip.window" data-i18n-vars="from_block,to_block"></span><span class="strip-live" data-livetile="reserved"></span>
+  </div>
+</div>
+{{contract_row}}
+<div id="top" class="page">
+
+  <section class="hero">
+    <h1 class="hero-h1"><span data-i18n="hero.l1"></span><br><span class="hero-l2" data-i18n="hero.l2"></span></h1>
+    <p class="hero-intro" data-i18n="launch.intro"></p>
+    <p class="hero-privacy" data-i18n="launch.privacy"></p>
+  </section>
+
+<!-- section:process -->
+  <section class="sec" data-sec="process">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="process.h2"></h2></div>
+    <p class="sec-p" data-i18n="process.p"></p>
+    <p class="kicker" data-i18n="process.kicker"></p>
+    <div class="diagram" data-diagram>
+      <div class="dg-boundary" data-boundary aria-hidden="true"></div>
+      <span class="dg-edge" data-edge-left aria-hidden="true"></span>
+      <span class="dg-edge" data-edge-right aria-hidden="true"></span>
+      <span class="dg-vedge" data-edge-vtop aria-hidden="true"></span>
+      <span class="dg-vedge" data-edge-vbot aria-hidden="true"></span>
+      <span class="dg-boundary-label" data-boundary-label data-i18n="process.boundary"></span>
+      <svg class="dg-links" data-links aria-hidden="true">
+        <path data-bpath d="" fill="none" stroke="var(--accent-line)" stroke-width="1"></path>
+        <path id="lc-in" data-inpath d="" fill="none" stroke="var(--accent-line)" stroke-width="1" stroke-dasharray="3 4"></path>
+        <path id="lc-l0" data-link="0" d="" fill="none" stroke="var(--accent-line)" stroke-width="1" stroke-dasharray="3 4"></path>
+        <path id="lc-l1" data-link="1" d="" fill="none" stroke="var(--accent-line)" stroke-width="1" stroke-dasharray="3 4"></path>
+        <path id="lc-l2" data-link="2" d="" fill="none" stroke="var(--accent-line)" stroke-width="1" stroke-dasharray="3 4"></path>
+        <circle data-particle data-inparticle r="3.2" fill="var(--accent)"><animateMotion dur="14s" begin="0s" repeatCount="indefinite"><mpath href="#lc-in"></mpath></animateMotion></circle>
+        <circle data-particle r="3.2" fill="var(--accent)"><animateMotion dur="4s" begin="0s" repeatCount="indefinite"><mpath href="#lc-l0"></mpath></animateMotion></circle>
+        <circle data-particle r="3.2" fill="var(--accent)"><animateMotion dur="4s" begin="1.3s" repeatCount="indefinite"><mpath href="#lc-l1"></mpath></animateMotion></circle>
+        <circle data-particle r="3.2" fill="var(--accent)"><animateMotion dur="4s" begin="2.6s" repeatCount="indefinite"><mpath href="#lc-l2"></mpath></animateMotion></circle>
+      </svg>
+      <div class="dg-stages">
+        <div class="dg-stage" data-stage="0">
+          <div class="dg-head"><span class="dg-num" data-stage-num></span><span class="dg-title" data-i18n="process.s1.t"></span></div>
+          <div class="dg-list">
+            <div data-i18n="process.s1.f1"></div>
+            <div data-i18n="process.s1.f2"></div>
+            <div data-i18n="process.s1.f3"></div>
+            <div data-i18n="process.s1.f4"></div>
+            <div data-i18n="process.s1.f5"></div>
+            <div data-i18n="process.s1.f6"></div>
+          </div>
+          <p class="dg-note" data-i18n="process.s1.note"></p>
+        </div>
+        <div class="dg-stage" data-stage="1">
+          <div class="dg-head"><span class="dg-num" data-stage-num></span><span class="dg-title" data-i18n="process.s2.t"></span></div>
+          <div class="dg-list">
+            <div data-i18n="process.s2.f1"></div>
+            <div data-i18n="process.s2.f2"></div>
+            <div data-i18n="process.s2.f3"></div>
+          </div>
+          <p class="dg-note" data-i18n="process.s2.note"></p>
+        </div>
+        <div class="dg-col" data-idxcol>
+          <div class="dg-stage dg-stage-index" data-stage="2">
+            <div class="dg-head"><span class="dg-num" data-stage-num></span><span class="dg-title" data-i18n="process.s3.t"></span></div>
+            <div class="dg-index">
+              <div class="dg-index-t" data-i18n="process.s3.index"></div>
+              <div class="dg-index-l">
+                <div data-i18n="process.s3.l1"></div>
+                <div data-i18n="process.s3.l2"></div>
+                <div data-i18n="process.s3.l3"></div>
+              </div>
+            </div>
+            <p class="dg-note" data-i18n="process.s3.note"></p>
+          </div>
+          <div class="dg-inbound" data-inbound><span class="dg-inbound-line" aria-hidden="true"></span><span class="dg-inbound-dot" data-particle aria-hidden="true"></span></div>
+          <p class="dg-inlabel dg-inlabel-1" data-inlabel data-i18n="process.in.l1"></p>
+          <p class="dg-inlabel dg-inlabel-2" data-inlabel data-i18n="process.in.l2"></p>
+        </div>
+        <div class="dg-stage" data-stage="3">
+          <div class="dg-head"><span class="dg-num" data-stage-num></span><span class="dg-title" data-i18n="process.s4.t"></span></div>
+          <div class="specimen">
+            <div class="specimen-label" data-i18n="process.sp.label"></div>
+            <div class="specimen-list">
+              <div class="sp-item"><div class="st st-shared"><svg width="7" height="7" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" fill="currentColor"></rect></svg><span data-i18n="state.shared"></span></div><div class="sp-line" data-i18n="process.sp.shared" data-i18n-vars="sp_n,sp_d"></div></div>
+              <div class="sp-item"><div class="st st-look"><svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" transform="rotate(45 5 5)" fill="none" stroke="currentColor" stroke-width="1.4"></rect></svg><span data-i18n="state.lookalike"></span></div><div class="sp-line" data-i18n="process.sp.look" data-i18n-vars="sp_v"></div></div>
+              <div class="sp-item"><div class="st st-unique"><svg width="8" height="8" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.4"></circle></svg><span data-i18n="state.unique"></span></div><div class="sp-line" data-i18n="process.sp.unique"></div></div>
+            </div>
+          </div>
+          <p class="dg-note" data-i18n="process.s4.note"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+<!-- /section:process -->
+
+<!-- section:tool -->
+  <section class="sec sec-tool" data-sec="tool">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="launch.h1"></h2></div>
+{{main}}
+  </section>
+<!-- /section:tool -->
+
+<!-- section:reads -->
+  <section class="sec" data-sec="reads">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="reads.h2"></h2></div>
+    <p class="sec-p" data-i18n="reads.p1"></p>
+    <div class="reads">
+      <div class="reads-row"><span class="reads-id" data-check="N1"></span><span class="reads-check" data-i18n="launch.check.N1"></span><span class="reads-what" data-i18n="reads.N1"></span></div>
+      <div class="reads-row"><span class="reads-id" data-check="N2"></span><span class="reads-check" data-i18n="launch.check.N2"></span><span class="reads-what" data-i18n="reads.N2"></span></div>
+      <div class="reads-row"><span class="reads-id" data-check="N3"></span><span class="reads-check" data-i18n="launch.check.N3"></span><span class="reads-what" data-i18n="reads.N3"></span></div>
+      <div class="reads-row"><span class="reads-id" data-check="I1"></span><span class="reads-check" data-i18n="launch.check.I1"></span><span class="reads-what" data-i18n="reads.I1"></span></div>
+      <div class="reads-row"><span class="reads-id" data-check="I2"></span><span class="reads-check" data-i18n="launch.check.I2"></span><span class="reads-what" data-i18n="reads.I2"></span></div>
+      <div class="reads-row"><span class="reads-id" data-check="I3"></span><span class="reads-check" data-i18n="launch.check.I3"></span><span class="reads-what" data-i18n="reads.I3"></span></div>
+      <div class="reads-row"><span class="reads-id" data-check="I4"></span><span class="reads-check" data-i18n="launch.check.I4"></span><span class="reads-what" data-i18n="reads.I4" data-i18n-vars="min_words"></span></div>
+    </div>
+    <p class="sec-p" data-i18n="reads.p2"></p>
+  </section>
+<!-- /section:reads -->
+
+<!-- section:definitions -->
+  <section class="sec" data-sec="definitions">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="definitions.h2"></h2></div>
+    <dl class="defs">
+      <div class="def"><dt data-i18n="definitions.shared.t"></dt><dd data-i18n="definitions.shared.d"></dd></div>
+      <div class="def"><dt data-i18n="definitions.lookalike.t"></dt><dd data-i18n="definitions.lookalike.d"></dd></div>
+      <div class="def"><dt data-i18n="definitions.deployer.t"></dt><dd data-i18n="definitions.deployer.d"></dd></div>
+      <div class="def"><dt data-i18n="definitions.window.t"></dt><dd data-i18n="definitions.window.d"></dd></div>
+      <div class="def"><dt data-i18n="definitions.carry.t"></dt><dd data-i18n="definitions.carry.d"></dd></div>
+    </dl>
+    <p class="sec-p defs-close" data-i18n="definitions.close"></p>
+  </section>
+<!-- /section:definitions -->
+
+<!-- section:limits -->
+  <section class="sec" data-sec="limits">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="limits.h2"></h2></div>
+{{fixed}}
+  </section>
+<!-- /section:limits -->
+
+<!-- section:window -->
+  <section class="sec" data-sec="window">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="window.h2"></h2></div>
+    <div class="cells">
+      <div class="cell"><span class="badge badge-snapshot" data-i18n="window.badge"></span><div class="cell-v" data-i18n="window.blocks_v" data-i18n-vars="from_block,to_block"></div><div class="cell-l" data-i18n="window.blocks" data-i18n-vars="blocks"></div></div>
+      <div class="cell"><span class="badge badge-snapshot" data-i18n="window.badge"></span><div class="cell-v" data-i18n="window.stamps_v" data-i18n-vars="from_stamp,to_stamp"></div><div class="cell-l" data-i18n="window.utc" data-i18n-vars="hours"></div></div>
+      <div class="cell"><span class="badge badge-snapshot" data-i18n="window.badge"></span><div class="cell-v" data-i18n="window.launches_v" data-i18n-vars="launches"></div><div class="cell-l" data-i18n="window.read"></div></div>
+    </div>
+  </section>
+<!-- /section:window -->
+
+<!-- section:reproduce -->
+  <section class="sec" data-sec="reproduce">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="reproduce.h2"></h2></div>
+    <p class="sec-p sec-p-lg" data-i18n="reproduce.p1"></p>
+    <div class="cmd"><code class="cmd-code" data-i18n="reproduce.cmd"></code><button type="button" class="btn-quiet" data-copy-verify data-i18n-attr="data-label-copied:reproduce.copied"><span data-copy-label data-i18n="reproduce.copy"></span></button></div>
+    <p class="sec-p" data-i18n="reproduce.p2"></p>
+    <p class="mono-line" data-i18n="reproduce.hash" data-i18n-vars="index_hash"></p>
+  </section>
+<!-- /section:reproduce -->
+
+<!-- section:origin -->
+  <section class="sec" data-sec="origin">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="origin.h2"></h2></div>
+    <p class="sec-p sec-p-lg" data-i18n="origin.p1"></p>
+    <p class="sec-p" data-i18n="origin.p2"></p>
+    <p class="sec-p" data-i18n="origin.p3"></p>
+    <p class="mono-line"><a href="https://lintcha.com/" rel="noopener" data-i18n="origin.link"></a></p>
+    <div class="cells cells-tight">
+      <div class="cell cell-sm"><div class="cell-v" data-i18n="origin.calls_v" data-i18n-vars="calls"></div><div class="cell-l" data-i18n="origin.calls"></div></div>
+      <div class="cell cell-sm"><div class="cell-v" data-i18n="origin.limited_v" data-i18n-vars="limited"></div><div class="cell-l" data-i18n="origin.limited"></div></div>
+      <div class="cell cell-sm"><div class="cell-v" data-i18n="origin.retries_v" data-i18n-vars="retries"></div><div class="cell-l" data-i18n="origin.retries"></div></div>
+      <div class="cell cell-sm"><div class="cell-v" data-i18n="origin.errors_v" data-i18n-vars="errors"></div><div class="cell-l" data-i18n="origin.errors"></div></div>
+      <div class="cell cell-sm"><div class="cell-v" data-i18n="origin.seconds_v" data-i18n-vars="seconds"></div><div class="cell-l" data-i18n="origin.seconds"></div></div>
+      <div class="cell cell-sm"><div class="cell-v" data-i18n="origin.log_v" data-i18n-vars="in_log"></div><div class="cell-l" data-i18n="origin.log"></div></div>
+    </div>
+    <p class="mono-line" data-i18n="origin.collected" data-i18n-vars="collected,index_bytes,index_entries"></p>
+  </section>
+<!-- /section:origin -->
+
+<!-- section:method -->
+  <section class="sec" data-sec="method">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="method.h2"></h2></div>
+    <p class="sec-p sec-p-lg" data-i18n="method.p1"></p>
+    <h3 class="sub" data-i18n="method.window.h3"></h3>
+    <p class="sec-p" data-i18n="method.window.p" data-i18n-vars="hours,from_stamp,to_stamp"></p>
+    <h3 class="sub" data-i18n="method.collector.h3"></h3>
+    <p class="sec-p" data-i18n="method.collector.p"></p>
+    <h3 class="sub" data-i18n="method.norm.h3"></h3>
+{{method_norm}}
+    <h3 class="sub" data-i18n="method.alias.h3"></h3>
+{{method_alias}}
+    <h3 class="sub" data-i18n="method.floor.h3"></h3>
+    <p class="sec-p" data-i18n="method.floor.p" data-i18n-vars="count_floor,recipient_floor"></p>
+    <h3 class="sub" data-i18n="method.skeleton.h3"></h3>
+{{method_skeleton}}
+    <h3 class="sub" data-i18n="method.index.h3"></h3>
+    <p class="sec-p" data-i18n="method.index.p"></p>
+{{method_index}}
+  </section>
+<!-- /section:method -->
+
+<!-- section:viz -->
+  <section class="sec" data-sec="viz">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="viz.h2"></h2></div>
+    <p class="sec-p" data-i18n="viz.intro"></p>
+{{charts}}
+{{ornament}}
+  </section>
+<!-- /section:viz -->
+
+<!-- section:faq -->
+  <section class="sec" data-sec="faq">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="faq.h2"></h2></div>
+    <div class="faq">
+      <div class="qa"><h3 data-i18n="faq.safe.q"></h3><p data-i18n="faq.safe.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.copy.q"></h3><p data-i18n="faq.copy.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.day.q"></h3><p data-i18n="faq.day.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.hashes.q"></h3><p data-i18n="faq.hashes.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.desc.q"></h3><p data-i18n="faq.desc.a" data-i18n-vars="min_words"></p></div>
+      <div class="qa"><h3 data-i18n="faq.input.q"></h3><p data-i18n="faq.input.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.code.q"></h3><p data-i18n="faq.code.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.who.q"></h3><p data-i18n="faq.who.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.score.q"></h3><p data-i18n="faq.score.a"></p></div>
+    </div>
+  </section>
+<!-- /section:faq -->
+
+</div>
+{{token_section}}
+<footer class="foot">
+  <div class="foot-in">
+    <div class="foot-links"><a href="{{repo}}" rel="noopener" target="_blank" data-i18n="footer.repo"></a><span class="foot-licence" data-i18n="footer.licence"></span><a href="{{anchor_method}}" data-i18n="footer.method"></a></div>
+    <p class="foot-p" data-i18n="footer.independence"></p>
+    <p class="foot-p" data-i18n="footer.reads"></p>
+  </div>
+</footer>
+<script src="{{root}}ui-controls.js"></script>
+<script src="{{root}}launch-skeleton.js"></script>
+<script src="{{root}}launch-links.js"></script>
+<script src="{{root}}launch.js"></script>
+<script src="{{root}}launch-page.js"></script>
+<script src="{{root}}chain.js"></script>
+</body>
+</html>

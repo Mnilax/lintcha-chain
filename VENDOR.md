@@ -68,3 +68,10 @@ A path is added here in the same commit that creates the file.
 - `tools/build.mjs`
 - `tests/chain_browser.mjs`
 - `tests/chain_acceptance.sh`
+- `site/chain.js`
+- `site/404.html`
+- `src/templates/404.html`
+- `tools/build-viz.mjs`
+- `tools/build-method.mjs`
+- `tools/verify-index.mjs`
+- `tests/chain_token_states.mjs`
