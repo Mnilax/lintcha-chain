@@ -48,16 +48,15 @@ Files this repository writes itself. Paths only, never hashed: verify-vendor req
 directory to be in the table above or in this list, and reports a file in neither. Code is vendored, data is
 generated here: the index and the numbers file are rebuilt weekly by launch-refresh.yml and live in this list.
 
+A path is added here in the same commit that creates the file.
+
 - `site/launch-index.json`
 - `site/launch-numbers.json`
 - `site/manifest.webmanifest`
 - `site/token.json`
 - `site/index.html`
-- `site/404.html`
 - `site/chain.css`
 - `src/templates/shell.html`
-- `src/templates/index.html`
-- `src/templates/404.html`
 - `src/i18n-src/chain.en.json`
 - `src/i18n-src/chain.es.json`
 - `src/i18n-src/chain.pt.json`
@@ -67,9 +66,5 @@ generated here: the index and the numbers file are rebuilt weekly by launch-refr
 - `tools/verify-vendor.mjs`
 - `tools/i18n-merge.mjs`
 - `tools/build.mjs`
-- `tools/build-viz.mjs`
-- `tools/verify-index.mjs`
 - `tests/chain_browser.mjs`
 - `tests/chain_acceptance.sh`
-- `PAUSED.md`
-- `QUESTIONS.md`
