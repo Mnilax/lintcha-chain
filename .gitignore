@@ -12,3 +12,6 @@ STEP*.md
 *_REPORT.md
 *.duplicate-of-*
 *.superseded-by-*
+opus/
+*.zip
+LINTCHA_CHAIN_*.md

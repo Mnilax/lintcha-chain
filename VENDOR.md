@@ -8,16 +8,11 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `site/fonts/fontface.css` | `site/fonts/fontface.css` | `c678524952c9478b3c3ff76c0714026361fef39f821513948832f1eeab863abe` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/fonts/ibm-plex-mono-400.woff2` | `site/fonts/ibm-plex-mono-400.woff2` | `08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/fonts/ibm-plex-mono-600.woff2` | `site/fonts/ibm-plex-mono-600.woff2` | `0d1f0b8d0722224e32e9f28261bdc86c79115be73444ae5eceb73976a1bcdf83` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `site/icon-180.png` | `site/icon-180.png` | `9718fbd8d7d297e2beca8300f832ac652009e710a3936f080e2b322f88d42c16` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `site/icon-32.png` | `site/icon-32.png` | `0add4601359bf47c1ede7489f03a5385e58178d40a871bde4002074386414418` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `site/icon-512.png` | `site/icon-512.png` | `59cc07d078acda43ee006de38ef638a6df76b190b8c5a93cd572256256ea60e4` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch-links.js` | `site/launch-links.js` | `3c77649c0cdfd9618b3cdc02b3ee7bce7c9065c503aecac1706b061989675a04` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch-page.js` | `site/launch-page.js` | `c548079216284f80f7b70c487255673fae4f0739156adb3c9d7591a1cf1ad3af` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `site/launch-site.json` | not in lintcha, from working tree | `25d98cd3717f2de6bc51a3412bce6fbbdef147f35e521265ec31676a95d27ce8` | not in lintcha, from working tree |
 | `site/launch-skeleton.js` | `site/launch-skeleton.js` | `5a6edbbe2861a3ec0c1879856263e45e597e0d746efddaadbc9eaa42cf922c9f` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch.css` | `site/launch.css` | `4299de1090d13bffb55983bf3a23ec2a6aee4a8bba4869bce8df23047d1dad5a` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch.js` | `site/launch.js` | `272399671bc2905b8b478e55b26315e8fc9a54ed0c31f8bc7f4c8b02a7765f7f` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `site/og.png` | `site/og.png` | `91dc117c81fb3bf1278b22ae9aa6173faa7b17d3a0f31b7a63ca8df85a58bfb4` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/style.css` | `site/style.css` | `a4f92bfd1321431038fae84c667996d97019b6e0339885980ec82fd92cc0392d` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/ui-controls.js` | `site/ui-controls.js` | `5129055ba828f3e9bda59a82d912ac7fb3dffd53e6b8ca760e53e14acd47d81e` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `src/i18n-src/launch.en.json` | not in lintcha, from working tree | `549f1fe03ec4c1ce8df53d63757bda55fc827efebd42f8732588f14c73bff9fc` | not in lintcha, from working tree |
@@ -75,3 +70,10 @@ A path is added here in the same commit that creates the file.
 - `tools/build-method.mjs`
 - `tools/verify-index.mjs`
 - `tests/chain_token_states.mjs`
+- `site/icon-32.png`
+- `site/icon-180.png`
+- `site/icon-512.png`
+- `site/og.png`
+- `site/launch-site.json`
+- `site/mark-acid.png`
+- `site/sitemap.xml`

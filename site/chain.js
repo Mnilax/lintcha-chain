@@ -141,8 +141,9 @@
     if (id === active) return;
     active = id;
     q("[data-num]").forEach(function (n) { n.classList.toggle("is-active", n.getAttribute("data-num") === id); });
-    var items = q("[data-nav]"), target = null;
-    items.forEach(function (a) { if (a.getAttribute("data-nav") <= id) target = a; });
+    // the item whose section number is the highest at or below the section being read; the bar's order is not the page's
+    var items = q("[data-nav]"), target = null, best = -1, cur = parseInt(id, 10);
+    items.forEach(function (a) { var n = parseInt(a.getAttribute("data-nav"), 10); if (n <= cur && n > best) { best = n; target = a; } });
     if (!target) target = items[0];
     var bar = one("[data-navbar]");
     if (target && bar && target.offsetParent) { bar.style.opacity = "1"; bar.style.width = target.offsetWidth + "px"; bar.style.transform = "translateX(" + target.offsetLeft + "px)"; }

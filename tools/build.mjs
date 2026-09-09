@@ -1,7 +1,7 @@
 // lintcha-chain build. Node standard library only, no dependency. Reads the templates, substitutes every figure from
 // site/launch-numbers.json and site/launch-index.json, inlines the i18n island, writes the page into site/ (the served
 // directory). One page and a 404; English only is emitted while the i18n machinery stays whole.
-//   node tools/build.mjs [--origin https://your.host] [--token path/to/token.json] [--out dir]
+//   node tools/build.mjs [--origin https://your.host] [--token path/to/token.json] [--out dir] [--preview strings.json]
 // What it does, in order:
 //   - merges src/i18n-src/{launch,chain}.<lang>.json into src/i18n/<lang>.json (tools/i18n-merge.mjs; a duplicate key aborts)
 //   - lifts the theme script and the <main> block out of the vendored src/templates/launch.html, untouched: the script
@@ -15,7 +15,9 @@
 //     engine (tools/build-method.mjs)
 //   - refuses a digit in the text of a template or in an i18n string of this site (the gate, below)
 //   - writes site/index.html and site/404.html (the same shell around two approved strings, the wordmark and the nav
-//     pointing back at the page)
+//     pointing back at the page), and site/sitemap.xml with the one page under the site's origin
+//   - the origin (canonical, og:url, the sitemap) is read from site/launch-site.json, beside the three lintcha
+//     addresses, so a later move is one file; --origin overrides it for a test
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -28,7 +30,8 @@ const here = path.dirname(fileURLToPath(import.meta.url)), root = path.resolve(h
 const SRC = path.join(root, "src"), SITE = path.join(root, "site");
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => { const i = argv.indexOf("--" + name); return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1] : dflt; };
-const ORIGIN = (opt("origin", "") || "").replace(/\/$/, "");
+const SITE_FILE = JSON.parse(fs.readFileSync(path.join(SITE, "launch-site.json"), "utf8"));
+const ORIGIN = (opt("origin", SITE_FILE.origin || "") || "").replace(/\/$/, "");
 const OUT = path.resolve(root, opt("out", SITE));                       // where index.html is written; the tree's site/ unless a test says otherwise
 const TOKEN_FILE = path.resolve(root, opt("token", path.join(SITE, "token.json")));   // the token block's one input; a test may point at a temporary file
 const REPO = "https://github.com/Mnilax/lintcha-chain";                 // GITHUB and Repository go to this repository (LINTCHA_CHAIN_05, section 2)
@@ -40,17 +43,27 @@ const abort = m => { console.error("build aborted: " + m); process.exit(1); };
 // ---------------------------------------------------------------- the sections: the owner's order and numbers (2026-09-09), fixed
 // The number is a label the reader refers to and the anchor is named by (#s01 ... #s11), so a section keeps its number
 // even while an earlier one is not yet on the page.
-const ORDER = ["process", "tool", "reads", "definitions", "limits", "window", "reproduce", "origin", "method", "viz", "faq"];
+const ORDER = ["process", "tool", "reads", "definitions", "limits", "window", "reproduce", "run", "origin", "method", "viz", "not", "roadmap", "faq"];
 const NUM = {}; ORDER.forEach((k, i) => { NUM[k] = String(i + 1).padStart(2, "0"); });
 // Sections whose prose is still with the owner ("Propose the English to me before it lands"): removed whole from the
 // page, template markup included, so nothing unapproved renders and nothing renders empty. Remove a key here in the
 // same change that lands its strings; a missing string then aborts the build instead of shipping a blank.
-const PENDING = [];   // every section's English is approved (2026-09-09); the mechanism stays for the next string that waits
-const NAV = [{ key: "nav.tool", sec: "tool" }, { key: "nav.method", sec: "method" }, { key: "nav.faq", sec: "faq" }];
+const PENDING = [];   // every section's prose is approved (LINTCHA_CHAIN_06 part 3 on 2026-09-09); the mechanism stays for the next string that waits
+// seven items, in the order LINTCHA_CHAIN_06 part 2 gives them; an item whose section is pending is left out of the bar
+// rather than pointing at nothing
+const NAV = [{ key: "nav.tool", sec: "tool" }, { key: "nav.reads", sec: "reads" }, { key: "nav.method", sec: "method" }, { key: "nav.window", sec: "window" }, { key: "nav.verify", sec: "reproduce" }, { key: "nav.roadmap", sec: "roadmap" }, { key: "nav.faq", sec: "faq" }];
 
 // ---------------------------------------------------------------- strings
 const merged = mergeAll();
 const i18n = {}; for (const r of merged) i18n[r.lang] = JSON.parse(read(r.file));
+// --preview strings.json: a proposal's strings laid over English and the pending sections shown, for a look before the
+// owner approves them; never into the tree's site/, because the strings are not landed
+const PREVIEW = opt("preview", "");
+if (PREVIEW) {
+  if (OUT === SITE) abort("--preview writes only outside site/ (give --out)");
+  Object.assign(i18n.en, JSON.parse(read(path.resolve(root, PREVIEW))));
+  PENDING.length = 0;
+}
 const fill = (s, vars) => (vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s);
 function t(lang, key, vars) {
   const s = i18n[lang][key];
@@ -68,11 +81,11 @@ const numbers = JSON.parse(read(path.join(SITE, "launch-numbers.json")));
 const indexBytes = fs.readFileSync(path.join(SITE, "launch-index.json"));
 const index = JSON.parse(indexBytes.toString("utf8"));
 const stamp = iso => iso.slice(0, 10) + " " + iso.slice(11, 16);   // 2026-09-07T10:36:34.000Z -> 2026-09-07 10:36
-// The specimen (section one, stage four): three made-up figures drawn in the diagram to show the shape of a result.
-// They are marked SPECIMEN on the page, carry no badge, and are the only figures on the page that come from nowhere.
-// Chosen so they cannot be mistaken for a reading (the owner's, 2026-09-09): a round thousand carried by a thousand
-// deployers, ten spellings; the mock's 48 and 41 were a real day's values for one ticker.
-const SPECIMEN = { sp_n: 1000, sp_d: 1000, sp_v: 10 };
+// The specimen (section one, stage four): three slots in the diagram that show the shape of a result. They are marked
+// SPECIMEN on the page and carry no badge. A formatted number there read as a live figure (LINTCHA_CHAIN_06, 1.2), so
+// the slots carry the index's own field letters instead, the ones the method section defines: n launches, d deployers,
+// v spellings. No reading can produce a letter, and no digit reaches the page from here.
+const SPECIMEN = { sp_n: "n", sp_d: "d", sp_v: "v" };
 function figures(lang) {
   const nf = new Intl.NumberFormat(lang), w = numbers.window, c = numbers.collector || {};
   return Object.assign({
@@ -81,7 +94,7 @@ function figures(lang) {
     min_words: numbers.description_min_words, count_floor: numbers.count_floor, recipient_floor: recipientFloor(),
     index_hash: crypto.createHash("sha256").update(indexBytes).digest("hex"), index_bytes: nf.format(numbers.index.bytes), index_entries: nf.format(numbers.index.entries_total),
     calls: nf.format(c.calls), limited: nf.format(c.http_429), retries: nf.format(c.retries), errors: nf.format(c.other_errors), seconds: nf.format(c.seconds), in_log: nf.format(c.launches_in_log)
-  }, { sp_n: nf.format(SPECIMEN.sp_n), sp_d: nf.format(SPECIMEN.sp_d), sp_v: nf.format(SPECIMEN.sp_v) });
+  }, SPECIMEN);
 }
 function recipientFloor() {   // the fee recipient's second floor (d >= 2) is stated by the index schema, read from there
   const schema = JSON.parse(read(path.join(root, "tools", "launch-index-schema.json")));
@@ -141,7 +154,7 @@ ${prose}  <code class="token-address" data-token-address>${escText(token.address
 
 // ---------------------------------------------------------------- the nav: anchors on the one page, by section number
 // prefix "" on the page itself, "/" on the 404 page, whose anchors point back at the page
-const nav = prefix => NAV.map(n => `<a href="${prefix}#s${NUM[n.sec]}" data-nav="${NUM[n.sec]}" data-i18n="${n.key}"></a>`).join("");
+const nav = prefix => NAV.filter(n => !PENDING.includes(n.sec)).map(n => `<a href="${prefix}#s${NUM[n.sec]}" data-nav="${NUM[n.sec]}" data-i18n="${n.key}"></a>`).join("");
 
 // ---------------------------------------------------------------- data-i18n fill, as the vendored page expects (text at build time, refilled at runtime by the island)
 function fillI18n(html, lang, vars) {
@@ -164,7 +177,7 @@ function fillI18n(html, lang, vars) {
 //   - site/launch-numbers.json and site/launch-index.json (the window, the counts, the collector's figures, the hash)
 //   - the section order above (the section numbers, the stage numbers of the diagram, the check ids N1 to I4)
 //   - the engine's own tables (tools/build-method.mjs: the alias table, the skeleton table, the recipient pattern)
-//   - SPECIMEN above (three made-up figures, marked as such on the page and carrying no badge)
+//   - SPECIMEN above (three letters, not figures: n, d, v, marked as such on the page and carrying no badge)
 function digitsInText(html, name) {
   const text = html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<[^>]*>/g, " ").replace(/\{\{[^}]*\}\}/g, " ");
   const m = text.match(/\d/);
@@ -174,9 +187,10 @@ for (const lang of Object.keys(i18n)) for (const [k, v] of Object.entries(i18n[l
 
 // ---------------------------------------------------------------- the sections: pending ones removed, the rest numbered
 function sections(html) {
+  const fenced = /<!-- section:\w+ -->/.test(html);   // the 404 template carries no sections and nothing to remove
   for (const k of PENDING) {
     const re = new RegExp(`\\n?<!-- section:${k} -->[\\s\\S]*?<!-- /section:${k} -->\\n?`);
-    if (!re.test(html)) abort(`pending section "${k}" has no fenced block in the template`);
+    if (!re.test(html)) { if (fenced) abort(`pending section "${k}" has no fenced block in the template`); continue; }
     html = html.replace(re, "\n");
   }
   html = html.replace(/<!-- \/?section:\w+ -->\n?/g, "");
@@ -218,6 +232,8 @@ for (const lang of EMIT) {
   fs.writeFileSync(path.join(OUT, "index.html"), render("shell.html", lang));
   if (fs.existsSync(path.join(SRC, "templates", "404.html"))) fs.writeFileSync(path.join(OUT, "404.html"), render("404.html", lang, { url: abs("/404"), nav: nav("/"), anchor_method: "/#s" + NUM.method }));
 }
+// the sitemap: the one page, absolute, under the origin from launch-site.json; the 404 page is noindex and is not listed
+if (ORIGIN) fs.writeFileSync(path.join(OUT, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${ORIGIN}/</loc></url>\n</urlset>\n`);
 const out = fs.readFileSync(path.join(OUT, "index.html"));
 const state = !token.address ? "a, off (address null)" : token.uniswap ? "c, pons and uniswap" : token.pons ? "b, pons only" : "address without a buy link";
-console.log(`built ${path.relative(root, path.join(OUT, "index.html"))}: ${out.length} bytes, ${EMIT.join(",")} emitted of ${Object.keys(i18n).join(",")}; theme script hash present in _headers; token state ${state}; sections on the page ${ORDER.filter(k => !PENDING.includes(k)).map(k => NUM[k]).join(" ")}, pending ${PENDING.map(k => NUM[k] + " " + k).join(", ")}; window ${numbers.window.from_date} to ${numbers.window.to_date}, blocks ${numbers.window.from_block} to ${numbers.window.to_block}, ${numbers.launches_scanned} launches`);
+console.log(`built ${path.relative(root, path.join(OUT, "index.html"))}: ${out.length} bytes, ${EMIT.join(",")} emitted of ${Object.keys(i18n).join(",")}; origin ${ORIGIN || "(none, relative urls)"}; theme script hash present in _headers; token state ${state}; sections on the page ${ORDER.filter(k => !PENDING.includes(k)).map(k => NUM[k]).join(" ")}, pending ${PENDING.map(k => NUM[k] + " " + k).join(", ")}; window ${numbers.window.from_date} to ${numbers.window.to_date}, blocks ${numbers.window.from_block} to ${numbers.window.to_block}, ${numbers.launches_scanned} launches`);

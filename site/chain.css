@@ -50,10 +50,11 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .topbar { position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--line); }
 .bar-in { max-width:1080px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
 .brand { display:flex; align-items:center; gap:10px; border:0 !important; color:var(--ink) !important; }
-.brand .mark { display:block; width:30px; height:30px; mix-blend-mode:multiply; }
-:root[data-theme="dark"] .brand .mark { filter:invert(1); mix-blend-mode:screen; }
+/* the mark: the delivered mark-acid.png (acid on a transparent ground) used as a mask, so the shape is the file's and the
+   colour is the theme's accent: the file's own acid on dark, the darker acid of the light palette on light */
+.brand .mark { display:block; width:30px; height:30px; background:var(--accent); -webkit-mask:url(mark-acid.png) center/contain no-repeat; mask:url(mark-acid.png) center/contain no-repeat; }
 .brand .wordmark { font-size:22px; font-weight:600; letter-spacing:-0.03em; }
-.nav { position:relative; display:flex; align-items:center; gap:22px; margin:0 auto; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; }
+.nav { position:relative; display:flex; align-items:center; gap:18px; margin:0 auto; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; }
 .topbar .nav a { color:var(--ink-2); border:0; padding:4px 0; }
 .topbar .nav a:hover { color:var(--ink); }
 .nav-bar { position:absolute; bottom:-2px; left:0; height:2px; width:0; background:var(--accent); opacity:0; transition:transform 420ms cubic-bezier(.3,.8,.3,1), width 420ms cubic-bezier(.3,.8,.3,1), opacity 200ms linear; }
@@ -191,6 +192,16 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .cmd { display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:var(--panel-2); border:1px solid var(--line); border-radius:18px; padding:18px 20px; max-width:780px; margin-top:20px; }
 .cmd-code { font-size:15px; color:var(--accent); }
 .cmd .btn-quiet { margin-left:auto; }
+.cmds { display:grid; gap:10px; background:var(--panel-2); border:1px solid var(--line); border-radius:18px; padding:18px 20px; max-width:780px; margin-top:20px; }
+.cmd-line { display:grid; grid-template-columns:minmax(0,300px) minmax(0,1fr); gap:4px 18px; align-items:baseline; }
+.cmd-line code { font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--accent); overflow-wrap:anywhere; }
+.cmd-line span { font-size:14px; line-height:1.5; color:var(--ink-3); }
+.cmd-line-wide { grid-template-columns:minmax(0,1fr); }
+.road { margin:22px 0 0; max-width:780px; display:grid; gap:18px; }
+.road-phase { display:grid; grid-template-columns:minmax(0,140px) minmax(0,1fr); gap:6px 20px; }
+.road-t { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); padding-top:3px; }
+.road-l { display:grid; gap:6px; font-size:15px; line-height:1.6; color:var(--ink-2); }
+.road-close { margin-top:24px; max-width:640px; }
 .faq { margin-top:22px; max-width:780px; display:grid; gap:26px; }
 .qa h3 { font-size:17px; font-weight:600; margin:0 0 8px; }
 .qa p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:0; }
@@ -277,7 +288,10 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 /* ---------------------------------------------------------------- narrow */
 @media (max-width:640px) {
   .bar-in { gap:12px 16px; }
-  .nav { margin:0; order:3; flex-basis:100%; }
+  .nav { margin:0; order:3; flex-basis:100%; gap:12px; font-size:10px; letter-spacing:0.1em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* seven items fit the 342px row; overflow-x is the guard, not the plan */
+  .nav::-webkit-scrollbar { display:none; }
+  .nav-bar { bottom:0; }
+  .cmd-line { grid-template-columns:minmax(0,1fr); }
   .hero { padding-top:48px; }
   .sec-tool .launch-row { flex-direction:column; }
   .sec-tool .launch-check { flex-basis:auto; }

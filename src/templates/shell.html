@@ -29,7 +29,7 @@
 <header class="topbar" data-topbar>
   <div class="bar-in">
     <a class="brand" href="#top" data-i18n-attr="aria-label:app.name">
-      <img class="mark" src="{{root}}icon-512.png" alt="" width="30" height="30" decoding="async">
+      <span class="mark" aria-hidden="true"></span>
       <span class="wordmark" data-i18n="site.wordmark"></span>
     </a>
     <nav class="nav" data-i18n-attr="aria-label:nav.label">{{nav}}<span class="nav-bar" data-navbar aria-hidden="true"></span></nav>
@@ -196,6 +196,20 @@
   </section>
 <!-- /section:reproduce -->
 
+<!-- section:run -->
+  <section class="sec" data-sec="run">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="run.h2"></h2></div>
+    <p class="sec-p sec-p-lg" data-i18n="run.p1"></p>
+    <p class="sec-p sec-p-lg" data-i18n="run.p2"></p>
+    <div class="cmds">
+      <div class="cmd-line cmd-line-wide"><code>git clone {{repo}}</code></div>
+      <div class="cmd-line"><code>npm test</code><span data-i18n="run.test"></span></div>
+      <div class="cmd-line"><code>npm run build</code><span data-i18n="run.build"></span></div>
+      <div class="cmd-line"><code>npm run verify</code><span data-i18n="run.verify"></span></div>
+    </div>
+  </section>
+<!-- /section:run -->
+
 <!-- section:origin -->
   <section class="sec" data-sec="origin">
     <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="origin.h2"></h2></div>
@@ -245,6 +259,32 @@
 {{ornament}}
   </section>
 <!-- /section:viz -->
+
+<!-- section:not -->
+  <section class="sec" data-sec="not">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="not.h2"></h2></div>
+    <dl class="defs">
+      <div class="def"><dt data-i18n="not.scanner.t"></dt><dd data-i18n="not.scanner.d"></dd></div>
+      <div class="def"><dt data-i18n="not.score.t"></dt><dd data-i18n="not.score.d"></dd></div>
+      <div class="def"><dt data-i18n="not.signal.t"></dt><dd data-i18n="not.signal.d"></dd></div>
+      <div class="def"><dt data-i18n="not.wallet.t"></dt><dd data-i18n="not.wallet.d"></dd></div>
+      <div class="def"><dt data-i18n="not.feed.t"></dt><dd data-i18n="not.feed.d"></dd></div>
+      <div class="def"><dt data-i18n="not.affiliated.t"></dt><dd data-i18n="not.affiliated.d"></dd></div>
+    </dl>
+  </section>
+<!-- /section:not -->
+
+<!-- section:roadmap -->
+  <section class="sec" data-sec="roadmap">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="roadmap.h2"></h2></div>
+    <div class="road">
+      <div class="road-phase"><div class="road-t" data-i18n="roadmap.shipped.t"></div><div class="road-l"><div data-i18n="roadmap.shipped.l1"></div><div data-i18n="roadmap.shipped.l2"></div><div data-i18n="roadmap.shipped.l3"></div></div></div>
+      <div class="road-phase"><div class="road-t" data-i18n="roadmap.next.t"></div><div class="road-l"><div data-i18n="roadmap.next.l1"></div><div data-i18n="roadmap.next.l2"></div><div data-i18n="roadmap.next.l3"></div></div></div>
+      <div class="road-phase"><div class="road-t" data-i18n="roadmap.later.t"></div><div class="road-l"><div data-i18n="roadmap.later.l1"></div><div data-i18n="roadmap.later.l2"></div></div></div>
+    </div>
+    <p class="sec-p road-close" data-i18n="roadmap.close"></p>
+  </section>
+<!-- /section:roadmap -->
 
 <!-- section:faq -->
   <section class="sec" data-sec="faq">
