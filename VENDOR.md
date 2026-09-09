@@ -11,21 +11,18 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `site/icon-180.png` | `site/icon-180.png` | `9718fbd8d7d297e2beca8300f832ac652009e710a3936f080e2b322f88d42c16` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/icon-32.png` | `site/icon-32.png` | `0add4601359bf47c1ede7489f03a5385e58178d40a871bde4002074386414418` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/icon-512.png` | `site/icon-512.png` | `59cc07d078acda43ee006de38ef638a6df76b190b8c5a93cd572256256ea60e4` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `site/launch-index.json` | `site/launch-index.json` | `fd3e40d53697d5d4d296939eb94f8aca50a9ac4e08f7d441d91f6a83ce230748` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch-links.js` | `site/launch-links.js` | `3c77649c0cdfd9618b3cdc02b3ee7bce7c9065c503aecac1706b061989675a04` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `site/launch-numbers.json` | `site/launch-numbers.json` | `ee3c21833400c8f622b307dc83ea3c8292db202e703d1b510f6282a9b485f3c8` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch-page.js` | `site/launch-page.js` | `c548079216284f80f7b70c487255673fae4f0739156adb3c9d7591a1cf1ad3af` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch-site.json` | not in lintcha, from working tree | `25d98cd3717f2de6bc51a3412bce6fbbdef147f35e521265ec31676a95d27ce8` | not in lintcha, from working tree |
 | `site/launch-skeleton.js` | `site/launch-skeleton.js` | `5a6edbbe2861a3ec0c1879856263e45e597e0d746efddaadbc9eaa42cf922c9f` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch.css` | `site/launch.css` | `4299de1090d13bffb55983bf3a23ec2a6aee4a8bba4869bce8df23047d1dad5a` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/launch.js` | `site/launch.js` | `272399671bc2905b8b478e55b26315e8fc9a54ed0c31f8bc7f4c8b02a7765f7f` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `site/manifest.webmanifest` | `site/manifest.webmanifest` | `5e95b1d1edb5ac3e4b3f6e3016c39c3239dd19dcca2651fbde8a079bd5068473` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/og.png` | `site/og.png` | `91dc117c81fb3bf1278b22ae9aa6173faa7b17d3a0f31b7a63ca8df85a58bfb4` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/style.css` | `site/style.css` | `a4f92bfd1321431038fae84c667996d97019b6e0339885980ec82fd92cc0392d` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/ui-controls.js` | `site/ui-controls.js` | `5129055ba828f3e9bda59a82d912ac7fb3dffd53e6b8ca760e53e14acd47d81e` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `src/i18n/launch.en.json` | not in lintcha, from working tree | `549f1fe03ec4c1ce8df53d63757bda55fc827efebd42f8732588f14c73bff9fc` | not in lintcha, from working tree |
-| `src/i18n/launch.es.json` | not in lintcha, from working tree | `ce8f320aa7e0af2beaf7302d4fb576362a5b5b6f2204807d36eb9664e29f026b` | not in lintcha, from working tree |
-| `src/i18n/launch.pt.json` | not in lintcha, from working tree | `009eac2d55cc818a37dd69b25614f8866d6ecb54382799c5306cc1478180d949` | not in lintcha, from working tree |
+| `src/i18n-src/launch.en.json` | not in lintcha, from working tree | `549f1fe03ec4c1ce8df53d63757bda55fc827efebd42f8732588f14c73bff9fc` | not in lintcha, from working tree |
+| `src/i18n-src/launch.es.json` | not in lintcha, from working tree | `ce8f320aa7e0af2beaf7302d4fb576362a5b5b6f2204807d36eb9664e29f026b` | not in lintcha, from working tree |
+| `src/i18n-src/launch.pt.json` | not in lintcha, from working tree | `009eac2d55cc818a37dd69b25614f8866d6ecb54382799c5306cc1478180d949` | not in lintcha, from working tree |
 | `src/templates/launch.html` | not in lintcha, from working tree | `1854aa4c122fdb765d1ca94f52eaefbbf55d4d3d4264f2718d4242864542f04d` | not in lintcha, from working tree |
 | `src/tools/i18n_check.js` | `src/tools/i18n_check.js` | `6da44f81a71c05c737babe8959f194d5a009e031d33332a5e77c9f3c5caf2b87` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `tests/console_check.sh` | `tests/console_check.sh` | `b4d4483a4a8b50ce85a894f709718d454d5ba596ba2d5b8b64fa729b32bc66ac` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
@@ -44,3 +41,35 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `tools/launch/keccak.mjs` | not in lintcha, from working tree | `bef0295971781ce2e8afdf4f22e3f85ca639c13f6e460bbe4faf957dfaa8de5d` | not in lintcha, from working tree |
 | `tools/launch/rpc.mjs` | not in lintcha, from working tree | `d916e49c10f6fff56f43255fb799a54986e0fe719d03df231e1344e837f2152a` | not in lintcha, from working tree |
 | `tools/launch/schema.mjs` | not in lintcha, from working tree | `6d0b3c53f336996a9c3dcb11d0b13c66e90ed8191ae3301e016d6d2b50edb8f1` | not in lintcha, from working tree |
+
+## owned here
+
+Files this repository writes itself. Paths only, never hashed: verify-vendor requires every file under a vendored
+directory to be in the table above or in this list, and reports a file in neither. Code is vendored, data is
+generated here: the index and the numbers file are rebuilt weekly by launch-refresh.yml and live in this list.
+
+- `site/launch-index.json`
+- `site/launch-numbers.json`
+- `site/manifest.webmanifest`
+- `site/token.json`
+- `site/index.html`
+- `site/404.html`
+- `site/chain.css`
+- `src/templates/shell.html`
+- `src/templates/index.html`
+- `src/templates/404.html`
+- `src/i18n-src/chain.en.json`
+- `src/i18n-src/chain.es.json`
+- `src/i18n-src/chain.pt.json`
+- `src/i18n/en.json`
+- `src/i18n/es.json`
+- `src/i18n/pt.json`
+- `tools/verify-vendor.mjs`
+- `tools/i18n-merge.mjs`
+- `tools/build.mjs`
+- `tools/build-viz.mjs`
+- `tools/verify-index.mjs`
+- `tests/chain_browser.mjs`
+- `tests/chain_acceptance.sh`
+- `PAUSED.md`
+- `QUESTIONS.md`
