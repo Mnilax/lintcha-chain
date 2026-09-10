@@ -197,15 +197,34 @@
 <!-- /section:reproduce -->
 
 <!-- section:run -->
-  <section class="sec" data-sec="run">
+  <section class="sec sec-run" data-sec="run">
     <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="run.h2"></h2></div>
+    <p class="kicker" data-i18n="run.kicker"></p>
     <p class="sec-p sec-p-lg" data-i18n="run.p1"></p>
     <p class="sec-p sec-p-lg" data-i18n="run.p2"></p>
-    <div class="cmds">
-      <div class="cmd-line cmd-line-wide"><code>git clone {{repo}}</code></div>
-      <div class="cmd-line"><code>npm test</code><span data-i18n="run.test"></span></div>
-      <div class="cmd-line"><code>npm run build</code><span data-i18n="run.build"></span></div>
-      <div class="cmd-line"><code>npm run verify</code><span data-i18n="run.verify"></span></div>
+    <div class="cells cells-run">
+      <div class="cell">
+        <div class="cell-t" data-i18n="run.c1.t"></div>
+        <div class="cell-l" data-i18n="run.c1.p"></div>
+        <div class="cmd-line cmd-line-wide"><code>git clone {{repo}}</code></div>
+        <div class="cmd-line"><code>npm test</code><span data-i18n="run.test"></span></div>
+      </div>
+      <div class="cell">
+        <div class="cell-t" data-i18n="run.c2.t"></div>
+        <div class="cell-l" data-i18n="run.c2.p"></div>
+        <div class="cmd-line"><code>npm run build</code><span data-i18n="run.build"></span></div>
+      </div>
+      <div class="cell">
+        <div class="cell-t" data-i18n="run.c3.t"></div>
+        <div class="cell-l" data-i18n="run.c3.p"></div>
+        <div class="cmd-line"><code>npm run verify</code><span data-i18n="run.verify"></span></div>
+      </div>
+    </div>
+    <div class="cells cells-run-wide">
+      <div class="cell">
+        <div class="cell-t" data-i18n="run.wide.t"></div>
+        <div class="cell-l" data-i18n="run.wide.p"></div>
+      </div>
     </div>
   </section>
 <!-- /section:run -->
@@ -261,7 +280,7 @@
 <!-- /section:viz -->
 
 <!-- section:not -->
-  <section class="sec" data-sec="not">
+  <section class="sec sec-not" data-sec="not">
     <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="not.h2"></h2></div>
     <dl class="defs">
       <div class="def"><dt data-i18n="not.scanner.t"></dt><dd data-i18n="not.scanner.d"></dd></div>
@@ -274,6 +293,21 @@
   </section>
 <!-- /section:not -->
 
+<!-- section:lore -->
+  <section class="sec sec-lore" data-sec="lore">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="lore.h2"></h2></div>
+    <p class="kicker" data-i18n="lore.kicker"></p>
+    <div class="lore">
+      <div class="lore-card"><h3 class="lore-t" data-i18n="lore.name.t"></h3><p class="lore-p" data-i18n="lore.name.p"></p></div>
+      <div class="lore-card"><h3 class="lore-t" data-i18n="lore.mark.t"></h3><p class="lore-p" data-i18n="lore.mark.p"></p></div>
+      <div class="lore-card"><h3 class="lore-t" data-i18n="lore.day.t"></h3><p class="lore-p" data-i18n="lore.day.p"></p></div>
+      <div class="lore-card"><h3 class="lore-t" data-i18n="lore.number.t"></h3><p class="lore-p" data-i18n="lore.number.p"></p></div>
+      <div class="lore-card"><h3 class="lore-t" data-i18n="lore.token.t"></h3><p class="lore-p" data-i18n="lore.token.p"></p></div>
+      <div class="lore-card"><h3 class="lore-t" data-i18n="lore.site.t"></h3><p class="lore-p" data-i18n="lore.site.p"></p></div>
+    </div>
+  </section>
+<!-- /section:lore -->
+
 <!-- section:roadmap -->
   <section class="sec" data-sec="roadmap">
     <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="roadmap.h2"></h2></div>
@@ -282,6 +316,28 @@
       <div class="road-phase"><div class="road-t" data-i18n="roadmap.next.t"></div><div class="road-l"><div data-i18n="roadmap.next.l1"></div><div data-i18n="roadmap.next.l2"></div><div data-i18n="roadmap.next.l3"></div></div></div>
       <div class="road-phase"><div class="road-t" data-i18n="roadmap.later.t"></div><div class="road-l"><div data-i18n="roadmap.later.l1"></div><div data-i18n="roadmap.later.l2"></div></div></div>
     </div>
+    <p class="sec-p sec-p-lg road-intro" data-i18n="road.intro"></p>
+    <h3 class="sub" data-i18n="road.window.t"></h3>
+    <p class="sec-p" data-i18n="road.window.p1"></p>
+    <p class="sec-p" data-i18n="road.window.p2"></p>
+    <p class="sec-p" data-i18n="road.window.p3"></p>
+    <h3 class="sub" data-i18n="road.room.t"></h3>
+    <p class="sec-p" data-i18n="road.room.p"></p>
+    <h3 class="sub" data-i18n="road.token.t"></h3>
+    <p class="sec-p" data-i18n="road.token.p"></p>
+    <h3 class="sub" data-i18n="road.never.t"></h3>
+    <ul class="never">
+      <li data-i18n="road.never.l1"></li>
+      <li data-i18n="road.never.l2"></li>
+      <li data-i18n="road.never.l3"></li>
+      <li data-i18n="road.never.l4"></li>
+      <li data-i18n="road.never.l5"></li>
+      <li data-i18n="road.never.l6"></li>
+      <li data-i18n="road.never.l7"></li>
+      <li data-i18n="road.never.l8"></li>
+    </ul>
+    <h3 class="sub" data-i18n="road.check.t"></h3>
+    <p class="sec-p" data-i18n="road.check.p"></p>
     <p class="sec-p road-close" data-i18n="roadmap.close"></p>
   </section>
 <!-- /section:roadmap -->

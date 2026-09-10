@@ -43,17 +43,17 @@ const EMIT = ["en"];   // languages emitted; the string tables carry all three
 const abort = m => { console.error("build aborted: " + m); process.exit(1); };
 
 // ---------------------------------------------------------------- the sections: the owner's order and numbers (2026-09-09), fixed
-// The number is a label the reader refers to and the anchor is named by (#s01 ... #s11), so a section keeps its number
-// even while an earlier one is not yet on the page.
-const ORDER = ["process", "tool", "reads", "definitions", "limits", "window", "reproduce", "run", "origin", "method", "viz", "not", "roadmap", "faq"];
+// The number is a label the reader refers to and the anchor is named by, so a section keeps its number
+// even while an earlier one is not yet on the page. The page carries #s01 to #s15 and the token section is #s16.
+const ORDER = ["process", "tool", "reads", "definitions", "limits", "window", "reproduce", "run", "origin", "method", "viz", "not", "lore", "roadmap", "faq"];
 const NUM = {}; ORDER.forEach((k, i) => { NUM[k] = String(i + 1).padStart(2, "0"); });
 // Sections whose prose is still with the owner ("Propose the English to me before it lands"): removed whole from the
 // page, template markup included, so nothing unapproved renders and nothing renders empty. Remove a key here in the
 // same change that lands its strings; a missing string then aborts the build instead of shipping a blank.
 const PENDING = [];   // every section's prose is approved (LINTCHA_CHAIN_06 part 3 on 2026-09-09); the mechanism stays for the next string that waits
-// seven items, in the order LINTCHA_CHAIN_06 part 2 gives them; an item whose section is pending is left out of the bar
+// eight items, in the order LINTCHA_CHAIN_06 part 2 gives them, lore where the section sits; an item whose section is pending is left out of the bar
 // rather than pointing at nothing
-const NAV = [{ key: "nav.tool", sec: "tool" }, { key: "nav.reads", sec: "reads" }, { key: "nav.method", sec: "method" }, { key: "nav.window", sec: "window" }, { key: "nav.verify", sec: "reproduce" }, { key: "nav.roadmap", sec: "roadmap" }, { key: "nav.faq", sec: "faq" }];
+const NAV = [{ key: "nav.tool", sec: "tool" }, { key: "nav.reads", sec: "reads" }, { key: "nav.method", sec: "method" }, { key: "nav.window", sec: "window" }, { key: "nav.verify", sec: "reproduce" }, { key: "nav.lore", sec: "lore" }, { key: "nav.roadmap", sec: "roadmap" }, { key: "nav.faq", sec: "faq" }];
 
 // ---------------------------------------------------------------- strings
 const merged = mergeAll();
@@ -123,7 +123,7 @@ const engine = loadEngine(SITE);
 // ---------------------------------------------------------------- the token block: three states from one file, nothing while address is null
 //   a. no address: the header cluster is GITHUB and X, no contract row, no token section, no empty slot
 //   b. address and a pons link: BUY $LINTCHA (the one filled button on the site) joins the cluster, the contract row
-//      sits under the status strip, section fifteen carries the address, the pons button and the live tiles
+//      sits under the status strip, section sixteen carries the address, the pons button and the live tiles
 //   c. a uniswap link as well: the outline button arrives beside the pons one; each renders only when its link exists
 const token = JSON.parse(read(TOKEN_FILE));
 // the cluster's two accounts, from one file so a later move is one edit, like the origin: an empty value keeps the
@@ -142,7 +142,7 @@ function contractRow() {
   return `<div class="contract"><div class="contract-in"><span class="contract-label" data-i18n="token.contract"></span><code class="contract-address" data-token-address>${escText(token.address)}</code><button type="button" class="btn-copy" data-copy-address data-i18n-attr="data-label-copied:token.copied"><span data-copy-label data-i18n="token.copy"></span></button></div></div>\n`;
 }
 // the launch band: the full-width acid strip under the footer, the address in dark mono on it and the copy button at
-// its end. The third place the address appears (the contract row, section fifteen, here) and the second copy button;
+// its end. The third place the address appears (the contract row, section sixteen, here) and the second copy button;
 // both buttons are the handler's own in site/chain.js, which reads the first [data-token-address] on the page.
 function launchBand() {
   if (!token.address) return "";

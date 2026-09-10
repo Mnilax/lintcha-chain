@@ -5,7 +5,7 @@
 // --out, and checks what each state renders:
 //   a. all null           no contract row, no buy button, no token section, no launch band, the cluster is GITHUB and
 //                         X only, X on the default account, the made-up address nowhere in the page
-//   b. address and pons   one filled BUY button in the header cluster, the contract row, section fifteen with the pons
+//   b. address and pons   one filled BUY button in the header cluster, the contract row, section sixteen with the pons
 //                         button only, two live tiles showing a dash, the launch band under the footer
 //   c. pons and uniswap   both buttons, the uniswap one an outline
 // A fourth build takes a temporary links.json with both accounts filled and checks the cluster: three outbound items,
@@ -13,10 +13,14 @@
 // the tree's own site/links.json and the shipped default is what is under test there.
 //
 // The address appears three times on a built page with an address, and two of those places carry a copy button:
-//   data-token-address   3   the contract row under the status strip, section fifteen, the launch band under the footer
-//   data-copy-address    2   the contract row's button and the band's; section fifteen prints the address without one
+//   data-token-address   3   the contract row under the status strip, section sixteen, the launch band under the footer
+//   data-copy-address    2   the contract row's button and the band's; section sixteen prints the address without one
 // Both numbers are the count of places the build renders, not a number fitted to the output: the band added one address
 // and one button to the two addresses and one button the page carried before it.
+//
+// State a also carries the round B checks on the page's own shape, because none of them depend on the token:
+// the section numbering after lore joined the order, the bar's anchors against the sections that exist, the
+// six lore cards, the never list, roadmap.close still last, and the run section as three cards and one wide.
 //
 // Then it checks the tree's own site/token.json is all null, site/links.json is both null, and the tree's
 // site/index.html carries none of it.
@@ -38,6 +42,8 @@ const outHrefs = html => (html.match(/class="out" href="[^"]*"/g) || []).map(m =
 const clusterOf = html => { const m = /<div class="cluster">([\s\S]*?)<\/div>/.exec(html); return m ? m[1] : ""; };
 // the text inside one named address slot, or null when that slot is not on the page
 const slot = (html, cls) => { const m = new RegExp('class="' + cls + '" data-token-address>([^<]*)<').exec(html); return m ? m[1] : null; };
+// every first capture of a global pattern, in the order the page carries them
+const nums = (html, re) => [...html.matchAll(re)].map(m => m[1]);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chain-token-"));
 const address = "0x" + crypto.randomBytes(20).toString("hex");   // made up here, never written into the tree
@@ -71,18 +77,36 @@ ok(count(a, /data-i18n="nav\.telegram"/g) === 0 && count(a, /class="out"/g) === 
 ok(outHrefs(a).length === 2 && outHrefs(a)[1] === X_DEFAULT, "X points at the default account");
 ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are nowhere");
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
+// the order gained the lore section in round B, which moved every number after it and every anchor with it.
+// Both are read back off the built page here rather than trusted: the bar's anchors have to name sections that
+// are on the page, and the numbering has to run without a gap.
+const navNums = nums(a, /data-nav="(\d+)"/g);
+const secNums = nums(a, /<section class="sec[^"]*" id="s(\d+)"/g);
+ok(navNums.length === 8, "eight items in the bar");
+ok(navNums.every(n => secNums.includes(n)), "every anchor in the bar names a section that is on the page");
+ok(secNums.join(" ") === "01 02 03 04 05 06 07 08 09 10 11 12 13 14 15", "fifteen sections, numbered without a gap");
+ok(count(a, /data-nav="13" data-i18n="nav\.lore"/g) === 1, "lore is the bar item for section thirteen");
+ok(count(a, /class="sec sec-lore" id="s13"/g) === 1, "the lore section is section thirteen");
+ok(a.indexOf('id="s13"') < a.indexOf('id="s14"'), "lore comes before the roadmap");
+ok(count(a, /class="lore-card"/g) === 6, "six lore cards");
+ok(count(a, /class="never"/g) === 1 && count(a, /<li data-i18n="road\.never\.l\d">/g) === 8, "the never list, eight lines");
+ok(a.lastIndexOf('data-i18n="roadmap.close"') > a.lastIndexOf('data-i18n="road.check.p"'), "roadmap.close is still the last thing in the section");
+// the closing angle bracket matters: without it the first pattern also matches the opening tag of cells-run-wide
+ok(count(a, /class="cells cells-run">/g) === 1 && count(a, /class="cells cells-run-wide">/g) === 1, "the run section is three cards and one wide");
+ok(count(a, /class="cell-t"/g) === 4, "three step cards and the wide one, each with a title");
+ok(count(a, /<code>npm test<\/code>|<code>npm run build<\/code>|<code>npm run verify<\/code>/g) === 3 && count(a, /<code>git clone /g) === 1, "the same four commands, none added");
 
 console.log("state b: address and pons");
 const b = build("b", { address, pons, uniswap: null });
 ok(count(b, /class="buy"/g) === 1 && b.includes(`class="buy" href="${pons}"`), "one filled buy button, to the pons link");
-// three address slots: the contract row, section fifteen, the band; two copy buttons: the row's and the band's
+// three address slots: the contract row, section sixteen, the band; two copy buttons: the row's and the band's
 ok(count(b, /class="contract"/g) === 1 && count(b, /data-token-address>[^<]*</g) === 3, "the contract row, the section and the band carry the address");
 // the token section is numbered one past the last section of the page: the order in tools/build.mjs carries
-// fourteen sections and none is pending, so String(ORDER.length + 1) makes the token section fifteen. The
-// shipped test pinned s12, from an order three sections shorter; that assertion was already failing before
-// the band arrived and is corrected here from the order, not fitted to the output.
-ok(count(b, /class="sec token-sec" id="s15"/g) === 1, "the token section is section fifteen");
-ok(count(b, /data-sec="14"/g) === 1 && count(b, /data-sec="15"/g) === 1 && count(b, /data-sec="16"/g) === 0, "numbered straight after the last section of the page, no gap");
+// fifteen sections since lore joined it and none is pending, so String(ORDER.length + 1) makes the token
+// section sixteen. The number is read off the order, not fitted to the output: it moved from fifteen to
+// sixteen in round B for the one reason that the order grew by one.
+ok(count(b, /class="sec token-sec" id="s16"/g) === 1, "the token section is section sixteen");
+ok(count(b, /data-sec="15"/g) === 1 && count(b, /data-sec="16"/g) === 1 && count(b, /data-sec="17"/g) === 0, "numbered straight after the last section of the page, no gap");
 ok(count(b, /token-btn-pons/g) === 1 && count(b, /token-btn-uni/g) === 0, "pons button only");
 ok(count(b, /badge-live/g) === 2 && count(b, /class="cell-v" data-i18n="token.dash">—</g) === 2, "two live tiles, each a dash");
 ok(count(b, /data-copy-address/g) === 2, "two copy buttons: the contract row's and the band's");

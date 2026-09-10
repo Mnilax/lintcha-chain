@@ -25,18 +25,18 @@
 html { scroll-behavior:smooth; scroll-padding-top:calc(var(--topbar-h, 60px) + 8px); }
 body[data-page="chain"] { position:relative; z-index:0; background:var(--bg); color:var(--ink); }
 body[data-page="chain"] a { color:var(--accent); border-bottom:1px solid var(--accent-line); }
-body[data-page="chain"] a:hover { color:var(--ink); border-bottom-color:var(--ink); }
+body[data-page="chain"] a:hover { color:var(--ink); border-bottom-color:var(--accent); }
 body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, body[data-page="chain"] button:focus-visible, body[data-page="chain"] a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
 /* the type: mono, six hundred, uppercase for every heading, number, nav item, badge and label; Archivo for prose */
 .mono, .sec-h, .num, .nav, .cluster, .theme, .strip, .badge, .kicker, .sub, .dg-num, .dg-title, .dg-list > div, .dg-index-t, .dg-boundary-label, .dg-inlabel-1, .specimen-label, .st, .chart-title, .foot-links, .contract-label, .token-btn, .btn-quiet, .cmd-code { font-family:'IBM Plex Mono',monospace; }
 .sec-h { font-size:22px; font-weight:600; letter-spacing:0.02em; text-transform:uppercase; margin:0; }
-.num { font-size:12px; font-weight:600; letter-spacing:0.14em; color:var(--ink-3); transition:color 300ms linear; }
-.num.is-active { color:var(--accent); }
+.num { font-size:12px; font-weight:600; letter-spacing:0.14em; color:var(--accent); opacity:0.5; transition:opacity 300ms linear; }
+.num.is-active { opacity:1; }
 .sub { font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); margin:34px 0 12px; }
-.kicker { font-size:10px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); margin:0 0 34px; }
+.kicker { font-size:10px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); margin:0 0 34px; }
 .badge { display:inline-block; font-size:10px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; border-radius:999px; padding:3px 9px; }
-.badge-snapshot { color:var(--ink); background:var(--panel-2); border:1px solid var(--btn-quiet-line); }
+.badge-snapshot { color:var(--ink); background:var(--panel-2); border:1px solid var(--accent); }   /* the border carries the accent; the fill does not change */
 .badge-live { color:var(--accent-ink); background:var(--accent); }
 .badge-notdata { color:var(--ink-3); border:1px dashed var(--ink-3); }
 
@@ -226,6 +226,46 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .skel-foot .lbl { color:var(--ink-3); margin-right:0.6em; }
 .skel .to { color:var(--ink-3); }
 
+/* ---------------------------------------------------------------- the lore section: six cards, two columns while
+   there is room. Each card is a thin acid rule at its left edge and nothing else: no panel, no border box, so six
+   long paragraphs read as prose rather than as six boxes. */
+.lore { margin:22px 0 0; display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:26px 34px; }   /* two columns at the page's width: these are paragraphs, not tiles, and a third column would make them a stack of narrow strips */
+.lore-card { border-left:2px solid var(--accent); padding-left:18px; }
+.lore-t { font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; letter-spacing:0.04em; color:var(--ink); margin:0 0 8px; }
+.lore-p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:0; }
+
+/* the roadmap's added blocks: the columns and roadmap.close are untouched, these sit between them. The never list
+   takes an acid dash as its marker, which is the one place acid appears in this block. */
+.road-intro { margin-top:28px; }
+.never { margin:14px 0 0; padding:0; max-width:780px; list-style:none; display:grid; gap:10px; }
+.never li { position:relative; padding-left:22px; font-size:15px; line-height:1.6; color:var(--ink-2); }
+.never li::before { content:""; position:absolute; left:0; top:0.62em; width:7px; height:1px; background:var(--accent); }
+
+/* the same dash on what this is not, scoped to that section so the definitions list keeps its own shape */
+.sec-not .def dt { position:relative; padding-left:22px; }
+.sec-not .def dt::before { content:""; position:absolute; left:0; top:0.62em; width:7px; height:1px; background:var(--accent); }
+
+/* the run section in cards: three steps across, then one wide card under them. The cells grid is the page's card
+   block already, so the cards arrive with its hairlines and its radius and nothing new is invented. */
+/* three fixed columns rather than the shared auto-fit: with three items auto-fit leaves an empty track in the last
+   row at two-column widths, and an empty card is the one thing this page does not do. Three across, then one. */
+.cells-run { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.cells-run .cell, .cells-run-wide .cell { display:grid; align-content:start; gap:10px; }
+.cell-t { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); }
+.cells-run .cell-l, .cells-run-wide .cell-l { margin-top:0; }
+.cells-run .cmd-line, .cells-run-wide .cmd-line { grid-template-columns:minmax(0,1fr); gap:3px; }
+
+/* ---------------------------------------------------------------- the accents that need a selector of their own.
+   The rest of them are edits to the rule that already owned the thing: the section number, the kicker, the snapshot
+   badge's border and a link's underline under the cursor.
+   Acid deliberately stays off: the shared, lookalike and unique states, which carry their own colour, a word and a
+   shape; the chart figures, keys, values and axis; anything that could read as good or bad. */
+.tbl-v code, .sec-p code, .cells-run .cmd-line code, .cells-run-wide .cmd-line code { color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent); border-radius:4px; padding:1px 5px; }
+/* the arrow in a method table. Those tables are emitted by tools/build-method.mjs, which is not in this workset, so
+   the class name here is the one the rest of the site uses for an arrow and the rule is scoped inside the table: if
+   the arrow turns out to be a bare character in a text node, this matches nothing and changes nothing. */
+.tbl .arrow, .tbl-v .arrow, .tbl-k .arrow { color:var(--accent); }
+
 /* ---------------------------------------------------------------- section ten: three real charts, then the ornament */
 .chart { border:1px solid var(--line); border-radius:18px; background:var(--panel); padding:24px; margin-bottom:20px; }
 .chart-orn { background:var(--panel-2); overflow:hidden; margin-bottom:0; }
@@ -300,7 +340,7 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
 /* ---------------------------------------------------------------- narrow */
 @media (max-width:640px) {
   .bar-in { gap:12px 16px; }
-  .nav { margin:0; order:3; flex-basis:100%; gap:12px; font-size:10px; letter-spacing:0.1em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* seven items fit the 342px row; overflow-x is the guard, not the plan */
+  .nav { margin:0; order:3; flex-basis:100%; gap:10px; font-size:10px; letter-spacing:0.08em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* eight items since lore joined the order; the narrowest rows scroll, and overflow-x is that guard */
   .nav::-webkit-scrollbar { display:none; }
   .nav-bar { bottom:0; }
   .cmd-line { grid-template-columns:minmax(0,1fr); }
@@ -309,4 +349,7 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .sec-tool .launch-check { flex-basis:auto; }
   .band-in { padding:13px 24px; gap:10px 12px; }
   .band-address { font-size:12px; }
+  .lore-card { padding-left:14px; }
+  .cells-run { grid-template-columns:minmax(0,1fr); }
+  .cells-run .cmd-line code, .cells-run-wide .cmd-line code { font-size:13px; }
 }
