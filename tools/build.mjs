@@ -44,16 +44,21 @@ const abort = m => { console.error("build aborted: " + m); process.exit(1); };
 
 // ---------------------------------------------------------------- the sections: the owner's order and numbers (2026-09-09), fixed
 // The number is a label the reader refers to and the anchor is named by, so a section keeps its number
-// even while an earlier one is not yet on the page. The page carries #s01 to #s15 and the token section is #s16.
-const ORDER = ["process", "tool", "reads", "definitions", "limits", "window", "reproduce", "run", "origin", "method", "viz", "not", "lore", "roadmap", "faq"];
+// even while an earlier one is not yet on the page. The page carries #s01 to #s16 and the token section is #s17.
+// The chain block sits before "what this reads" (round C): the reader learns where the page is before being told
+// what it reads there, so every section from reads on moved one number down and the bar's anchors moved with them.
+const ORDER = ["process", "tool", "chain", "reads", "definitions", "limits", "window", "reproduce", "run", "origin", "method", "viz", "not", "lore", "roadmap", "faq"];
 const NUM = {}; ORDER.forEach((k, i) => { NUM[k] = String(i + 1).padStart(2, "0"); });
 // Sections whose prose is still with the owner ("Propose the English to me before it lands"): removed whole from the
 // page, template markup included, so nothing unapproved renders and nothing renders empty. Remove a key here in the
 // same change that lands its strings; a missing string then aborts the build instead of shipping a blank.
 const PENDING = [];   // every section's prose is approved (LINTCHA_CHAIN_06 part 3 on 2026-09-09); the mechanism stays for the next string that waits
-// eight items, in the order LINTCHA_CHAIN_06 part 2 gives them, lore where the section sits; an item whose section is pending is left out of the bar
-// rather than pointing at nothing
-const NAV = [{ key: "nav.tool", sec: "tool" }, { key: "nav.reads", sec: "reads" }, { key: "nav.method", sec: "method" }, { key: "nav.window", sec: "window" }, { key: "nav.verify", sec: "reproduce" }, { key: "nav.lore", sec: "lore" }, { key: "nav.roadmap", sec: "roadmap" }, { key: "nav.faq", sec: "faq" }];
+// Ten items, in the order their sections lie on the page, top to bottom. The bar is read as a map of the page, so
+// an item out of place reads as a section out of place; method stood third while its section was tenth, and run had
+// no item at all. The rule is mechanical from here: the bar is the order, filtered, and the build refuses to write a
+// page whose bar climbs out of order. An item whose section is pending is left out rather than pointing at nothing.
+const NAV = [{ key: "nav.tool", sec: "tool" }, { key: "nav.chain", sec: "chain" }, { key: "nav.reads", sec: "reads" }, { key: "nav.window", sec: "window" }, { key: "nav.verify", sec: "reproduce" }, { key: "nav.run", sec: "run" }, { key: "nav.method", sec: "method" }, { key: "nav.lore", sec: "lore" }, { key: "nav.roadmap", sec: "roadmap" }, { key: "nav.faq", sec: "faq" }];
+for (let i = 1; i < NAV.length; i++) if (ORDER.indexOf(NAV[i].sec) <= ORDER.indexOf(NAV[i - 1].sec)) abort(`the bar is out of order: "${NAV[i].sec}" cannot follow "${NAV[i - 1].sec}"`);
 
 // ---------------------------------------------------------------- strings
 const merged = mergeAll();

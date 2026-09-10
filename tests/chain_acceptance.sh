@@ -9,7 +9,7 @@
 # Criterion 11 as the owner rewrote it in the spec on 2026-09-09 (logged there under "Criteria changed by the owner"):
 # "the status strip" in place of "the mode line", which the design superseded; "reads strings" is read in the strip,
 # the definitions block, the limits section, the reproduce block and the independence line where the approved page
-# puts them (sections 04, 05, 07 and the footer).
+# puts them (sections 05, 06, 08 and the footer since the chain block joined the order in round C).
 set -u
 cd "$(dirname "$0")/.."
 DIR="${1:-site}"
@@ -69,9 +69,9 @@ run 11 "the status strip, the definitions block, the limits section, the reprodu
 const html = require(\"fs\").readFileSync(\"$DIR/index.html\", \"utf8\"); let bad = 0;
 const show = (label, re) => { const m = re.exec(html); console.log(label + \": \" + (m ? \"present, \\\"\" + m[1].replace(/\\s+/g, \" \").slice(0, 90) + \"\\\"\" : \"MISSING\")); if (!m) bad++; };
 show(\"status strip\", /data-i18n=\"strip.reads\"[^>]*>([^<]+)</);
-show(\"definitions block (section 04)\", /id=\"s04\"[\\s\\S]*?data-i18n=\"definitions.close\"[^>]*>([^<]+)</);
-show(\"limits section (section 05, the vendored paragraphs)\", /id=\"s05\"[\\s\\S]*?data-i18n=\"launch.fixed.p1\"[^>]*>([^<]+)</);
-show(\"reproduce block (section 07)\", /id=\"s07\"[\\s\\S]*?data-i18n=\"reproduce.cmd\"[^>]*>([^<]+)</);
+show(\"definitions block (section 05)\", /id=\"s05\"[\\s\\S]*?data-i18n=\"definitions.close\"[^>]*>([^<]+)</);
+show(\"limits section (section 06, the vendored paragraphs)\", /id=\"s06\"[\\s\\S]*?data-i18n=\"launch.fixed.p1\"[^>]*>([^<]+)</);
+show(\"reproduce block (section 08)\", /id=\"s08\"[\\s\\S]*?data-i18n=\"reproduce.cmd\"[^>]*>([^<]+)</);
 show(\"independence line (footer)\", /data-i18n=\"footer.independence\"[^>]*>([^<]+)</);
 process.exit(bad ? 1 : 0);'"
 

@@ -5,22 +5,24 @@
 // --out, and checks what each state renders:
 //   a. all null           no contract row, no buy button, no token section, no launch band, the cluster is GITHUB and
 //                         X only, X on the default account, the made-up address nowhere in the page
-//   b. address and pons   one filled BUY button in the header cluster, the contract row, section sixteen with the pons
-//                         button only, two live tiles showing a dash, the launch band under the footer
+//   b. address and pons   one filled BUY button in the header cluster, the contract row, section seventeen with the
+//                         pons button only, two live tiles showing a dash, the launch band under the footer
 //   c. pons and uniswap   both buttons, the uniswap one an outline
 // A fourth build takes a temporary links.json with both accounts filled and checks the cluster: three outbound items,
 // GITHUB then X then TELEGRAM, X on the substituted address. States a, b and c pass no --links, so they render against
 // the tree's own site/links.json and the shipped default is what is under test there.
 //
 // The address appears three times on a built page with an address, and two of those places carry a copy button:
-//   data-token-address   3   the contract row under the status strip, section sixteen, the launch band under the footer
-//   data-copy-address    2   the contract row's button and the band's; section sixteen prints the address without one
+//   data-token-address   3   the contract row under the status strip, section seventeen, the launch band under the footer
+//   data-copy-address    2   the contract row's button and the band's; section seventeen prints the address without one
 // Both numbers are the count of places the build renders, not a number fitted to the output: the band added one address
 // and one button to the two addresses and one button the page carried before it.
 //
-// State a also carries the round B checks on the page's own shape, because none of them depend on the token:
-// the section numbering after lore joined the order, the bar's anchors against the sections that exist, the
-// six lore cards, the never list, roadmap.close still last, and the run section as three cards and one wide.
+// State a also carries the checks on the page's own shape, because none of them depend on the token: the section
+// numbering after lore (round B) and the chain block (round C) joined the order, the bar's anchors against the
+// sections that exist and against each other, the six lore cards, the never list, roadmap.close still last, the run
+// section as three cards and one wide, the sprite in its three places, and the roadmap line against the three
+// phase lists it was folded out of.
 //
 // Then it checks the tree's own site/token.json is all null, site/links.json is both null, and the tree's
 // site/index.html carries none of it.
@@ -77,17 +79,25 @@ ok(count(a, /data-i18n="nav\.telegram"/g) === 0 && count(a, /class="out"/g) === 
 ok(outHrefs(a).length === 2 && outHrefs(a)[1] === X_DEFAULT, "X points at the default account");
 ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are nowhere");
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
-// the order gained the lore section in round B, which moved every number after it and every anchor with it.
-// Both are read back off the built page here rather than trusted: the bar's anchors have to name sections that
-// are on the page, and the numbering has to run without a gap.
+// The order gained the lore section in round B and the chain block in round C, and each moved every number after it
+// and every anchor with it. All of it is read back off the built page rather than trusted: the bar's anchors have to
+// name sections that are on the page, there have to be as many anchors as items, the numbers they point at have to
+// climb, and the numbering has to run without a gap. The climb is the round C check: the bar is read as a map of the
+// page, and an item out of place reads as a section out of place.
 const navNums = nums(a, /data-nav="(\d+)"/g);
+const navHrefs = nums(a, /<a href="#s(\d+)" data-nav=/g);
 const secNums = nums(a, /<section class="sec[^"]*" id="s(\d+)"/g);
-ok(navNums.length === 8, "eight items in the bar");
+ok(navNums.length === 10, "ten items in the bar");
+ok(navHrefs.length === navNums.length && navHrefs.join(" ") === navNums.join(" "), "as many section anchors as items in the bar, each anchor on its own item");
 ok(navNums.every(n => secNums.includes(n)), "every anchor in the bar names a section that is on the page");
-ok(secNums.join(" ") === "01 02 03 04 05 06 07 08 09 10 11 12 13 14 15", "fifteen sections, numbered without a gap");
-ok(count(a, /data-nav="13" data-i18n="nav\.lore"/g) === 1, "lore is the bar item for section thirteen");
-ok(count(a, /class="sec sec-lore" id="s13"/g) === 1, "the lore section is section thirteen");
-ok(a.indexOf('id="s13"') < a.indexOf('id="s14"'), "lore comes before the roadmap");
+ok(navNums.every((n, i) => i === 0 || Number(n) > Number(navNums[i - 1])), "the sections the bar points at climb: " + navNums.join(" "));
+ok(secNums.join(" ") === "01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16", "sixteen sections, numbered without a gap");
+ok(count(a, /class="sec sec-chain" id="s03"/g) === 1 && count(a, /data-nav="03" data-i18n="nav\.chain"/g) === 1, "the chain block is section three, and the bar names it there");
+ok(a.indexOf('id="s03"') < a.indexOf('id="s04"') && count(a, /<section class="sec" id="s04"[\s\S]{0,400}data-i18n="reads\.h2"/g) === 1, "the chain block comes before what this reads");
+ok(count(a, /data-nav="09" data-i18n="nav\.run"/g) === 1, "run has a bar item, at section nine");
+ok(count(a, /data-nav="14" data-i18n="nav\.lore"/g) === 1, "lore is the bar item for section fourteen");
+ok(count(a, /class="sec sec-lore" id="s14"/g) === 1, "the lore section is section fourteen");
+ok(a.indexOf('id="s14"') < a.indexOf('id="s15"'), "lore comes before the roadmap");
 ok(count(a, /class="lore-card"/g) === 6, "six lore cards");
 ok(count(a, /class="never"/g) === 1 && count(a, /<li data-i18n="road\.never\.l\d">/g) === 8, "the never list, eight lines");
 ok(a.lastIndexOf('data-i18n="roadmap.close"') > a.lastIndexOf('data-i18n="road.check.p"'), "roadmap.close is still the last thing in the section");
@@ -95,6 +105,31 @@ ok(a.lastIndexOf('data-i18n="roadmap.close"') > a.lastIndexOf('data-i18n="road.c
 ok(count(a, /class="cells cells-run">/g) === 1 && count(a, /class="cells cells-run-wide">/g) === 1, "the run section is three cards and one wide");
 ok(count(a, /class="cell-t"/g) === 4, "three step cards and the wide one, each with a title");
 ok(count(a, /<code>npm test<\/code>|<code>npm run build<\/code>|<code>npm run verify<\/code>/g) === 3 && count(a, /<code>git clone /g) === 1, "the same four commands, none added");
+// the sprite: three on the page and no fourth, the same eleven rectangles every time, and no file behind it
+const sprites = a.match(/<svg class="sprite [^"]*"[\s\S]*?<\/svg>/g) || [];
+ok(sprites.length === 3, "the sprite is on the page three times");
+ok(new Set(sprites.map(s => s.replace(/ class="sprite [^"]*"/, ""))).size === 1, "the three are one sprite in three sizes: the same markup apart from the size");
+ok(sprites.every(s => count(s, /<rect /g) === 11 && count(s, /class="cut"/g) === 2) && sprites.every(s => !/href|src|url\(/.test(s)), "eleven rectangles each, two of them the cut strokes, and no file behind any of it");
+ok(count(a, /class="sprite sprite-s"/g) === 1 && count(a, /class="sprite sprite-m"/g) === 1 && count(a, /class="sprite sprite-l"/g) === 1, "one small, one medium, one large");
+// the roadmap line: the three phase lists folded onto one rule, a tick for every item and not one item lost
+const road = a.slice(a.indexOf('id="s15"'), a.indexOf("<section", a.indexOf('id="s15"') + 1));
+const roadItems = count(road, /data-i18n="roadmap\.(shipped|next|later)\.l\d"/g);
+ok(roadItems === 8, "eight items across shipped, next and later, the same eight as the three columns carried");
+ok(count(road, /class="road-tick"/g) === roadItems, "one tick on the line for each of them: " + count(road, /class="road-tick"/g));
+ok(count(road, /class="road-stop road-up"/g) === 4 && count(road, /class="road-stop road-down"/g) === 4, "the labels alternate above and below the line");
+ok(count(road, /class="road-ph"/g) === 3 && count(road, /data-phase="shipped"|data-phase="next"|data-phase="later"/g) === 3, "the three phases keep their names on the line");
+ok(count(road, /class="road-sprite"/g) === 1 && road.indexOf('class="road-sprite"') > road.indexOf('data-phase="shipped"') && road.indexOf('class="road-sprite"') < road.indexOf('data-i18n="roadmap.next.l1"'), "the sprite stands where shipped ends and next begins");
+// Not one label on the line carries a time. The promise round B published is "no dates on this page", and a row of
+// milestones is exactly where a quarter or a year creeps in, so every label and every phase name is read off the
+// built line and tested: no digit, no year, no quarter, no month, no deadline, no week. The prose below the line is
+// round B's and is not under this check: "by the end of that week" down there is an argument about a stale window,
+// not a date on a plan, and the round's instruction was that not one of those strings changes.
+const line = road.slice(road.indexOf('class="road-line"'));
+const labels = [...line.matchAll(/class="road-(?:label|ph)"[^>]*>([^<]*)</g)].map(m => m[1].trim()).filter(Boolean);
+const DATED = [/\d/, /\bQ[1-4]\b/i, /\bH[12]\b/i, /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)\b/i, /\bquarters?\b/i, /\bdeadlines?\b/i, /\beta\b/i, /\bweeks?\b|\bmonths?\b|\byears?\b/i];
+const dated = labels.filter(l => DATED.some(re => re.test(l)));
+ok(labels.length === roadItems + 3, "every stop and every phase name on the line carries its label: " + labels.length);
+ok(dated.length === 0, "no label on the line carries a date, a year, a quarter, a month or a deadline" + (dated.length ? ": " + JSON.stringify(dated) : ""));
 
 console.log("state b: address and pons");
 const b = build("b", { address, pons, uniswap: null });
@@ -102,11 +137,11 @@ ok(count(b, /class="buy"/g) === 1 && b.includes(`class="buy" href="${pons}"`), "
 // three address slots: the contract row, section sixteen, the band; two copy buttons: the row's and the band's
 ok(count(b, /class="contract"/g) === 1 && count(b, /data-token-address>[^<]*</g) === 3, "the contract row, the section and the band carry the address");
 // the token section is numbered one past the last section of the page: the order in tools/build.mjs carries
-// fifteen sections since lore joined it and none is pending, so String(ORDER.length + 1) makes the token
-// section sixteen. The number is read off the order, not fitted to the output: it moved from fifteen to
-// sixteen in round B for the one reason that the order grew by one.
-ok(count(b, /class="sec token-sec" id="s16"/g) === 1, "the token section is section sixteen");
-ok(count(b, /data-sec="15"/g) === 1 && count(b, /data-sec="16"/g) === 1 && count(b, /data-sec="17"/g) === 0, "numbered straight after the last section of the page, no gap");
+// sixteen sections since the chain block joined it and none is pending, so String(ORDER.length + 1) makes the
+// token section seventeen. The number is read off the order, not fitted to the output: it moved from fifteen to
+// sixteen in round B and from sixteen to seventeen in round C, each time because the order grew by one.
+ok(count(b, /class="sec token-sec" id="s17"/g) === 1, "the token section is section seventeen");
+ok(count(b, /data-sec="16"/g) === 1 && count(b, /data-sec="17"/g) === 1 && count(b, /data-sec="18"/g) === 0, "numbered straight after the last section of the page, no gap");
 ok(count(b, /token-btn-pons/g) === 1 && count(b, /token-btn-uni/g) === 0, "pons button only");
 ok(count(b, /badge-live/g) === 2 && count(b, /class="cell-v" data-i18n="token.dash">—</g) === 2, "two live tiles, each a dash");
 ok(count(b, /data-copy-address/g) === 2, "two copy buttons: the contract row's and the band's");

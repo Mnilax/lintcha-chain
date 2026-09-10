@@ -54,7 +54,7 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
    colour is the theme's accent: the file's own acid on dark, the darker acid of the light palette on light */
 .brand .mark { display:block; width:30px; height:30px; background:var(--accent); -webkit-mask:url(mark-acid.png) center/contain no-repeat; mask:url(mark-acid.png) center/contain no-repeat; }
 .brand .wordmark { font-size:22px; font-weight:600; letter-spacing:-0.03em; }
-.nav { position:relative; display:flex; align-items:center; gap:18px; margin:0 auto; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; }
+.nav { position:relative; display:flex; align-items:center; gap:14px; margin:0 auto; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; }   /* ten items since the bar became the page's own order */
 .topbar .nav a { color:var(--ink-2); border:0; padding:4px 0; }
 .topbar .nav a:hover { color:var(--ink); }
 .nav-bar { position:absolute; bottom:-2px; left:0; height:2px; width:0; background:var(--accent); opacity:0; transition:transform 420ms cubic-bezier(.3,.8,.3,1), width 420ms cubic-bezier(.3,.8,.3,1), opacity 200ms linear; }
@@ -80,6 +80,17 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .contract .btn-copy { margin-left:auto; }
 .btn-copy { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; padding:7px 13px; border-radius:999px; border:1px solid var(--accent-line); background:transparent; color:var(--accent); cursor:pointer; }
 .btn-quiet { font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; padding:8px 14px; border-radius:999px; border:1px solid var(--btn-quiet-line); background:transparent; color:var(--ink-2); cursor:pointer; }
+
+/* ---------------------------------------------------------------- the sprite: the mark on a cell grid, three sizes
+   Eleven rectangles, no file and no request: the same caret the header wears, drawn on a sixteen by sixteen grid, and
+   the two strokes the mark has cut out of it drawn as their own rectangles. Those two blink, which is the one thing a
+   caret does on its own and the only motion here that claims nothing about the chain. They rest hidden, so a still
+   sprite is the mark exactly as it is. */
+.sprite { display:block; fill:var(--accent); flex:0 0 auto; }
+.sprite-s { width:20px; height:20px; }
+.sprite-m { width:40px; height:40px; }
+.sprite-l { width:64px; height:64px; }
+.sprite .cut { opacity:0; animation:lc-blink 1.06s steps(1,end) infinite; }
 
 /* ---------------------------------------------------------------- the page column and the sections */
 .page { position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 24px 40px; box-sizing:border-box; }
@@ -167,6 +178,9 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .sec .launch-fixed { margin-top:22px; max-width:780px; display:grid; gap:18px; }
 .sec .launch-fixed p { font-size:17px; line-height:1.6; color:var(--ink-2); margin:0; }
 
+/* the chain block: three paragraphs at reading width, no figure and no date in any of them */
+.sec-chain .sec-p { max-width:780px; }
+
 /* ---------------------------------------------------------------- cells: the window, the collector figures, the live tiles */
 .cells { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:18px; overflow:hidden; margin-top:14px; }
 .cells-tight { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
@@ -197,10 +211,31 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .cmd-line code { font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--accent); overflow-wrap:anywhere; }
 .cmd-line span { font-size:14px; line-height:1.5; color:var(--ink-3); }
 .cmd-line-wide { grid-template-columns:minmax(0,1fr); }
-.road { margin:22px 0 0; max-width:780px; display:grid; gap:18px; }
-.road-phase { display:grid; grid-template-columns:minmax(0,140px) minmax(0,1fr); gap:6px 20px; }
-.road-t { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); padding-top:3px; }
-.road-l { display:grid; gap:6px; font-size:15px; line-height:1.6; color:var(--ink-2); }
+/* the roadmap as a line: one tick per item of shipped, next and later, labels staggered above and below so they do
+   not collide, and the sprite standing where shipped ends. The line carries no axis, no date and no quarter: it shows
+   the order things are done in, which is the only thing the page is willing to say about what has not happened yet.
+   Not one string is rewritten to get here; the three columns became eight stops on one rule. */
+.road-line { --ph-h:28px; --up-h:128px; --tick-h:14px; --dn-h:104px; position:relative; display:grid; grid-template-columns:3fr 3fr 2fr; margin:34px 0 6px; }
+.road-line::before { content:""; position:absolute; left:0; right:0; top:calc(var(--ph-h) + var(--up-h) + var(--tick-h) / 2); height:1px; background:var(--line); }
+.road-group { position:relative; min-width:0; }
+.road-ph { height:var(--ph-h); font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-3); }
+.road-stops { position:relative; display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); height:calc(var(--up-h) + var(--tick-h) + var(--dn-h)); margin:0; padding:0; list-style:none; }
+.road-stop { position:relative; min-width:0; }
+.road-tick { position:absolute; top:var(--up-h); left:50%; width:2px; height:var(--tick-h); margin-left:-1px; background:var(--ink-3); }
+.road-label { position:absolute; left:50%; width:min(202px,200%); transform:translateX(-50%); padding-right:14px; box-sizing:border-box; font-size:13px; line-height:1.45; color:var(--ink-2); text-wrap:pretty; }
+.road-up .road-label { bottom:calc(var(--dn-h) + var(--tick-h) + 48px); }   /* the sprite stands in the first forty pixels above the line: the labels clear it */
+.road-down .road-label { top:calc(var(--up-h) + var(--tick-h) + 13px); }
+.road-group:first-child .road-stop:first-child .road-label { left:0; transform:none; }
+.road-group:last-child .road-stop:last-child .road-label { left:auto; right:0; transform:none; text-align:right; }
+[data-phase="shipped"] .road-ph, [data-phase="shipped"] .road-label { color:var(--accent); }
+[data-phase="shipped"] .road-tick { top:calc(var(--up-h) - 3px); height:calc(var(--tick-h) + 6px); background:var(--accent); }
+[data-phase="next"] .road-ph { color:var(--ink); }
+[data-phase="next"] .road-tick { background:var(--ink-2); }
+[data-phase="later"] .road-label { color:var(--ink-3); }
+[data-phase="later"] .road-tick { background:var(--line); }
+/* the sprite stands on the line where shipped ends and next begins: the left edge of the next group is that boundary,
+   so the position is the markup's own and not a percentage fitted by eye */
+.road-sprite { position:absolute; left:0; top:calc(var(--ph-h) + var(--up-h) + var(--tick-h) / 2); transform:translate(-50%,-100%); z-index:1; }
 .road-close { margin-top:24px; max-width:640px; }
 .faq { margin-top:22px; max-width:780px; display:grid; gap:26px; }
 .qa h3 { font-size:17px; font-weight:600; margin:0 0 8px; }
@@ -231,6 +266,8 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
    long paragraphs read as prose rather than as six boxes. */
 .lore { margin:22px 0 0; display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:26px 34px; }   /* two columns at the page's width: these are paragraphs, not tiles, and a third column would make them a stack of narrow strips */
 .lore-card { border-left:2px solid var(--accent); padding-left:18px; }
+.lore-card[data-lore-mark] { display:grid; grid-template-columns:auto minmax(0,1fr); gap:0 20px; }
+.lore-card[data-lore-mark] .sprite { grid-row:span 2; align-self:start; margin-top:2px; }
 .lore-t { font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; letter-spacing:0.04em; color:var(--ink); margin:0 0 8px; }
 .lore-p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:0; }
 
@@ -328,19 +365,36 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
 @keyframes lc-wash { 0%,100% { opacity:0.55; } 50% { opacity:1; } }
 @keyframes lc-pulse { 0%,100% { opacity:0.35; } 50% { opacity:1; } }
 @keyframes lc-sweep { from { transform:translateY(0); opacity:0.9; } to { transform:translateY(var(--sweep,600px)); opacity:0; } }
+@keyframes lc-blink { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior:auto; }
-  .orn span, [data-pulse], .caret, .sweep, [data-wash], [data-particle], .dg-inbound-dot { animation:none !important; }
+  .orn span, [data-pulse], .caret, .sweep, [data-wash], [data-particle], .dg-inbound-dot, .sprite .cut { animation:none !important; }
   [data-particle], .dg-inbound-dot, .sweep { display:none !important; }
   .orn span { opacity:0.16 !important; }
   .chart-bar { transition:none !important; transform:scaleX(1) !important; }
   .nav-bar, .num, .dg-stage, .topbar { transition:none !important; }
 }
 
+/* the roadmap line stands on its end below the width where eight stops stop fitting: the same ticks in the same
+   order, read top to bottom instead of left to right, and the sprite still where shipped ends */
+@media (max-width:980px) {
+  .road-line { grid-template-columns:minmax(0,1fr); margin-top:26px; }
+  .road-line::before { left:6px; right:auto; top:0; bottom:0; width:1px; height:auto; }
+  .road-group { padding-left:26px; }
+  .road-ph { height:auto; margin:18px 0 10px; }
+  .road-group:first-child .road-ph { margin-top:0; }
+  .road-stops { grid-auto-flow:row; grid-auto-columns:auto; height:auto; gap:12px; }
+  .road-stop { padding-left:0; }
+  .road-tick { top:8px; left:-26px; width:12px; height:2px; margin:0; }
+  [data-phase="shipped"] .road-tick { top:7px; left:-28px; width:16px; height:3px; }
+  .road-label, .road-group:first-child .road-stop:first-child .road-label, .road-group:last-child .road-stop:last-child .road-label { position:static; width:auto; padding-right:0; transform:none; text-align:left; }
+  .road-sprite { left:6px; top:0; transform:translate(-50%,-46%); }
+}
+
 /* ---------------------------------------------------------------- narrow */
 @media (max-width:640px) {
   .bar-in { gap:12px 16px; }
-  .nav { margin:0; order:3; flex-basis:100%; gap:10px; font-size:10px; letter-spacing:0.08em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* eight items since lore joined the order; the narrowest rows scroll, and overflow-x is that guard */
+  .nav { margin:0; order:3; flex-basis:100%; gap:9px; font-size:10px; letter-spacing:0.06em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* ten items since chain and run joined the bar; the narrowest rows scroll, and overflow-x is that guard */
   .nav::-webkit-scrollbar { display:none; }
   .nav-bar { bottom:0; }
   .cmd-line { grid-template-columns:minmax(0,1fr); }
@@ -350,6 +404,9 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .band-in { padding:13px 24px; gap:10px 12px; }
   .band-address { font-size:12px; }
   .lore-card { padding-left:14px; }
+  .lore-card[data-lore-mark] { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .lore-card[data-lore-mark] .sprite { grid-row:auto; }
+  .sprite-l { width:48px; height:48px; }
   .cells-run { grid-template-columns:minmax(0,1fr); }
   .cells-run .cmd-line code, .cells-run-wide .cmd-line code { font-size:13px; }
 }

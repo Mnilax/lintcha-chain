@@ -34,6 +34,7 @@
     </a>
     <nav class="nav" data-i18n-attr="aria-label:nav.label">{{nav}}<span class="nav-bar" data-navbar aria-hidden="true"></span></nav>
     <div class="cluster">{{cluster}}</div>
+    <svg class="sprite sprite-s" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g class="sprite-g"><rect x="7" y="2" width="2" height="2"></rect><rect x="6" y="4" width="2" height="2"></rect><rect x="4" y="8" width="2" height="2"></rect><rect x="3" y="10" width="2" height="2"></rect><rect x="2" y="12" width="2" height="1"></rect><rect x="8" y="4" width="2" height="2"></rect><rect x="9" y="6" width="2" height="2"></rect><rect x="11" y="10" width="2" height="2"></rect><rect x="12" y="12" width="2" height="1"></rect><rect class="cut" x="5" y="6" width="2" height="2"></rect><rect class="cut" x="10" y="8" width="2" height="2"></rect></g></svg>
     <button type="button" class="theme" data-theme-toggle data-i18n-attr="data-label-dark:theme.dark;data-label-light:theme.light" aria-pressed="false"><span data-theme-label>{{t:theme.light}}</span></button>
   </div>
 </header>
@@ -136,6 +137,16 @@
 {{main}}
   </section>
 <!-- /section:tool -->
+
+<!-- section:chain -->
+  <section class="sec sec-chain" data-sec="chain">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="chain.h2"></h2></div>
+    <p class="kicker" data-i18n="chain.kicker"></p>
+    <p class="sec-p sec-p-lg" data-i18n="chain.p1"></p>
+    <p class="sec-p sec-p-lg" data-i18n="chain.p2"></p>
+    <p class="sec-p sec-p-lg" data-i18n="chain.p3"></p>
+  </section>
+<!-- /section:chain -->
 
 <!-- section:reads -->
   <section class="sec" data-sec="reads">
@@ -299,7 +310,7 @@
     <p class="kicker" data-i18n="lore.kicker"></p>
     <div class="lore">
       <div class="lore-card"><h3 class="lore-t" data-i18n="lore.name.t"></h3><p class="lore-p" data-i18n="lore.name.p"></p></div>
-      <div class="lore-card"><h3 class="lore-t" data-i18n="lore.mark.t"></h3><p class="lore-p" data-i18n="lore.mark.p"></p></div>
+      <div class="lore-card" data-lore-mark><svg class="sprite sprite-l" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g class="sprite-g"><rect x="7" y="2" width="2" height="2"></rect><rect x="6" y="4" width="2" height="2"></rect><rect x="4" y="8" width="2" height="2"></rect><rect x="3" y="10" width="2" height="2"></rect><rect x="2" y="12" width="2" height="1"></rect><rect x="8" y="4" width="2" height="2"></rect><rect x="9" y="6" width="2" height="2"></rect><rect x="11" y="10" width="2" height="2"></rect><rect x="12" y="12" width="2" height="1"></rect><rect class="cut" x="5" y="6" width="2" height="2"></rect><rect class="cut" x="10" y="8" width="2" height="2"></rect></g></svg><h3 class="lore-t" data-i18n="lore.mark.t"></h3><p class="lore-p" data-i18n="lore.mark.p"></p></div>
       <div class="lore-card"><h3 class="lore-t" data-i18n="lore.day.t"></h3><p class="lore-p" data-i18n="lore.day.p"></p></div>
       <div class="lore-card"><h3 class="lore-t" data-i18n="lore.number.t"></h3><p class="lore-p" data-i18n="lore.number.p"></p></div>
       <div class="lore-card"><h3 class="lore-t" data-i18n="lore.token.t"></h3><p class="lore-p" data-i18n="lore.token.p"></p></div>
@@ -311,12 +322,33 @@
 <!-- section:roadmap -->
   <section class="sec" data-sec="roadmap">
     <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="roadmap.h2"></h2></div>
-    <div class="road">
-      <div class="road-phase"><div class="road-t" data-i18n="roadmap.shipped.t"></div><div class="road-l"><div data-i18n="roadmap.shipped.l1"></div><div data-i18n="roadmap.shipped.l2"></div><div data-i18n="roadmap.shipped.l3"></div></div></div>
-      <div class="road-phase"><div class="road-t" data-i18n="roadmap.next.t"></div><div class="road-l"><div data-i18n="roadmap.next.l1"></div><div data-i18n="roadmap.next.l2"></div><div data-i18n="roadmap.next.l3"></div></div></div>
-      <div class="road-phase"><div class="road-t" data-i18n="roadmap.later.t"></div><div class="road-l"><div data-i18n="roadmap.later.l1"></div><div data-i18n="roadmap.later.l2"></div></div></div>
-    </div>
     <p class="sec-p sec-p-lg road-intro" data-i18n="road.intro"></p>
+    <div class="road-line">
+      <div class="road-group" data-phase="shipped">
+        <div class="road-ph" data-i18n="roadmap.shipped.t"></div>
+        <ol class="road-stops">
+          <li class="road-stop road-up"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.shipped.l1"></span></li>
+          <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.shipped.l2"></span></li>
+          <li class="road-stop road-up"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.shipped.l3"></span></li>
+        </ol>
+      </div>
+      <div class="road-group" data-phase="next">
+        <span class="road-sprite"><svg class="sprite sprite-m" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g class="sprite-g"><rect x="7" y="2" width="2" height="2"></rect><rect x="6" y="4" width="2" height="2"></rect><rect x="4" y="8" width="2" height="2"></rect><rect x="3" y="10" width="2" height="2"></rect><rect x="2" y="12" width="2" height="1"></rect><rect x="8" y="4" width="2" height="2"></rect><rect x="9" y="6" width="2" height="2"></rect><rect x="11" y="10" width="2" height="2"></rect><rect x="12" y="12" width="2" height="1"></rect><rect class="cut" x="5" y="6" width="2" height="2"></rect><rect class="cut" x="10" y="8" width="2" height="2"></rect></g></svg></span>
+        <div class="road-ph" data-i18n="roadmap.next.t"></div>
+        <ol class="road-stops">
+          <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.next.l1"></span></li>
+          <li class="road-stop road-up"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.next.l2"></span></li>
+          <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.next.l3"></span></li>
+        </ol>
+      </div>
+      <div class="road-group" data-phase="later">
+        <div class="road-ph" data-i18n="roadmap.later.t"></div>
+        <ol class="road-stops">
+          <li class="road-stop road-up"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.later.l1"></span></li>
+          <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.later.l2"></span></li>
+        </ol>
+      </div>
+    </div>
     <h3 class="sub" data-i18n="road.window.t"></h3>
     <p class="sec-p" data-i18n="road.window.p1"></p>
     <p class="sec-p" data-i18n="road.window.p2"></p>
