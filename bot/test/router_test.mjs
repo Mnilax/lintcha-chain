@@ -24,14 +24,17 @@ t.ok(commandOf("hello") === null, "ordinary text");
 t.ok(commandOf("") === null, "an empty message");
 t.ok(commandOf(null) === null, "no text at all");
 
-// ---------------------------------------------------------------- the command this round does not have
-t.ok(!KNOWN_COMMANDS.includes("rule"), "rule is not a command of this round");
-t.ok(!KNOWN_COMMANDS.includes("rules"), "nor rules");
-t.ok(!KNOWN_COMMANDS.includes("unrule"), "nor unrule");
+// ---------------------------------------------------------------- the three commands round D2 adds
+// These three lines said the opposite in round D1, when the instruction was that /rule did not exist. It
+// exists now, so they are turned round rather than deleted: the file should say which round it is describing.
+t.ok(KNOWN_COMMANDS.includes("rule"), "rule is a command");
+t.ok(KNOWN_COMMANDS.includes("rules"), "and rules");
+t.ok(KNOWN_COMMANDS.includes("unrule"), "and unrule");
+t.ok(PRIVATE_COMMANDS.includes("rule"), "and all three are for a direct message only, like the other holder commands");
 
 // ---------------------------------------------------------------- an unknown command is silence
 forgetToken();
-for (const text of ["/moon", "/rule string SOLANA", "/help", "just talking", "/", "//"]) {
+for (const text of ["/moon", "/ruler", "/unruly", "/help", "just talking", "/", "//"]) {
   const a = await handleUpdate(msg(text), { env: {}, kv: fakeKV() });
   t.ok(a.length === 0, `nothing is said to ${JSON.stringify(text)}`);
 }
@@ -43,10 +46,10 @@ for (const c of KNOWN_COMMANDS) {
   const a = await handleUpdate(msg("/" + c), { env: {}, kv: fakeKV() });
   t.ok(a.length >= 1 && typeof a[0].text === "string" && a[0].text.trim().length > 0, `/${c} answers`);
 }
-t.ok(PUBLIC_COMMANDS.length === 6 && PRIVATE_COMMANDS.length === 3, "six commands anywhere and three in a direct message");
+t.ok(PUBLIC_COMMANDS.length === 6 && PRIVATE_COMMANDS.length === 6, "six commands anywhere and six in a direct message");
 
 // ---------------------------------------------------------------- three null: no address, no zero, no dash
-for (const c of ["ca", "price", "me", "verify", "top", "stats"]) {
+for (const c of ["ca", "price", "me", "verify", "top", "stats", "rule", "rules", "unrule"]) {
   forgetToken();
   const body = textOf(await handleUpdate(msg("/" + c), { env: {}, kv: fakeKV() }));
   t.ok(body === T.NO_TOKEN_YET, `/${c} gives the sentence about the token not existing yet`);
@@ -122,7 +125,7 @@ const vk = fakeKV();
 body = textOf(await handleUpdate(msg("/verify"), { env: {}, kv: vk }));
 t.ok(/hold\?t=[0-9a-f]{32}/.test(body), "/verify hands over a link with a fresh mark in it");
 t.ok([...vk.m.keys()].filter(k => k.startsWith("nonce:")).length === 1, "and exactly one mark was written");
-t.ok(body.includes("Needed: one million $LINTCHA."), "/verify states the threshold in words");
+t.ok(body.includes("Needed: five hundred thousand $LINTCHA."), "/verify states the threshold in words");
 t.ok(body.includes("nothing moves"), "/verify says the signature moves nothing");
 
 // /forget

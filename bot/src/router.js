@@ -10,16 +10,25 @@
 //   get three different sentences: the token does not exist yet, the site could not be read, the chain could
 //   not be read. Collapsing them would mean telling somebody there is no token when in fact there is a network
 //   fault, which is the exact failure this project spends its whole page arguing against.
+//
+// The three rule commands sit with the other holder commands, in a direct message, behind a live session, and
+// behind the same question about whether there is a token at all. The watcher itself does not need $LINTCHA to
+// exist — it reads the factory's log, which exists either way — but a rule is something holding buys, so the
+// gate that decides who holds is the gate a rule goes through.
+//
+// This file still sends nothing. A rule is stored by the watcher, so these three ask the watcher and turn its
+// answer into a sentence, which keeps the "what would it say" test possible for them too.
 
 import * as T from "./texts.js";
 import { readToken, hasToken, balanceOf, decimalsOf, totalSupply, venueOf, priceInPair } from "./chain.js";
 import { getSession, dropSession, newNonce } from "./verify.js";
+import { parseRule } from "./rules.js";
 import { code, link, esc } from "./telegram.js";
 import { formatUnits, shortAddress } from "./texts.js";
 
 /** the commands that answer anywhere, and the ones that only answer in a direct message */
 export const PUBLIC_COMMANDS = ["start", "ca", "price", "top", "stats", "site"];
-export const PRIVATE_COMMANDS = ["verify", "me", "forget"];
+export const PRIVATE_COMMANDS = ["verify", "me", "forget", "rule", "rules", "unrule"];
 export const KNOWN_COMMANDS = [...PUBLIC_COMMANDS, ...PRIVATE_COMMANDS];
 
 const send = (chat, text, options = {}) => ({ kind: "send", chat, text, ...options });
@@ -35,6 +44,13 @@ export function commandOf(text) {
   return m[1].toLowerCase();
 }
 
+/** Whatever followed the command, whitespace collapsed. Empty string when there was nothing. */
+export function argsOf(text) {
+  if (typeof text !== "string") return "";
+  const m = /^\/[A-Za-z_]+(?:@[A-Za-z0-9_]+)?\s+([\s\S]+)$/.exec(text.trim());
+  return m ? m[1].replace(/\s+/g, " ").trim() : "";
+}
+
 const isPrivate = msg => msg && msg.chat && msg.chat.type === "private";
 
 /**
@@ -46,6 +62,7 @@ export async function handleUpdate(update, deps) {
   const env = (deps && deps.env) || {};
   const kv = deps && deps.kv;
   const tape = (deps && deps.tape) || null;
+  const watch = (deps && deps.watch) || null;
 
   // somebody joined the room: one greeting, and nothing else ever gets said unprompted
   const joined = update && update.message && update.message.new_chat_members;
@@ -80,6 +97,9 @@ export async function handleUpdate(update, deps) {
     case "verify": return await verifyActions(env, kv, chat, msg);
     case "me": return await meActions(env, kv, chat, msg, token);
     case "forget": return await forgetActions(kv, chat, msg);
+    case "rule": return await ruleActions(kv, watch, chat, msg);
+    case "rules": return await rulesActions(kv, watch, chat, msg);
+    case "unrule": return await unruleActions(kv, watch, chat, msg);
     default: return [];
   }
 }
@@ -183,6 +203,68 @@ async function meActions(env, kv, chat, msg, token) {
   }
   lines.push("", "I know this address and nothing else about you. /forget drops it now; it expires on its own in three days.");
   return [send(chat, lines.join("\n"))];
+}
+
+// ---------------------------------------------------------------- rules
+//
+// The four rules and not one judgment among them. Everything below either stores a string, lists strings, or
+// removes one, and the reasons a rule is refused are the reasons it could not be read: an unknown kind, a
+// missing argument, something that is not an address, something that is not a count. Nothing is guessed at
+// and nothing is silently turned into a different rule than the one asked for.
+
+/** the one gate all three go through: a live holder session, and a watcher to keep the rule in */
+async function ruleGate(kv, watch, chat, msg) {
+  if (!kv) return { no: [send(chat, T.SITE_UNREADABLE)] };
+  const who = (msg.from && msg.from.id) || chat;
+  const address = await getSession(kv, who);
+  if (!address) return { no: [send(chat, T.RULE_HOLDERS_ONLY)] };
+  if (!watch) return { no: [send(chat, T.RULES_NOT_UP)] };
+  return { who };
+}
+
+async function ruleActions(kv, watch, chat, msg) {
+  const gate = await ruleGate(kv, watch, chat, msg);
+  if (gate.no) return gate.no;
+
+  const rest = argsOf(msg.text);
+  const space = rest.indexOf(" ");
+  const kind = space < 0 ? rest : rest.slice(0, space);
+  const arg = space < 0 ? "" : rest.slice(space + 1);
+  if (!kind) return [send(chat, T.RULE_KIND_UNKNOWN)];
+
+  const read = parseRule(kind, arg);
+  if (!read.ok) {
+    if (read.why === "kind") return [send(chat, T.RULE_KIND_UNKNOWN)];
+    if (read.why === "empty") return [send(chat, T.RULE_NEEDS_ARGUMENT)];
+    if (read.why === "long") return [send(chat, T.RULE_TOO_LONG)];
+    if (read.why === "address") return [send(chat, T.RULE_NEEDS_ADDRESS)];
+    return [send(chat, T.RULE_NEEDS_COUNT)];
+  }
+
+  const r = await watch.add(gate.who, read.kind, read.arg);
+  if (!r || !r.ok) {
+    if (r && r.why === "limit") return [send(chat, T.RULE_LIMIT_REACHED)];
+    return [send(chat, T.RULES_NOT_UP)];
+  }
+  return [send(chat, T.ruleAddedText(r.number, r.rule, r.count, r.limit), { preview: false })];
+}
+
+async function rulesActions(kv, watch, chat, msg) {
+  const gate = await ruleGate(kv, watch, chat, msg);
+  if (gate.no) return gate.no;
+  const r = await watch.list(gate.who);
+  if (!r || !r.ok) return [send(chat, T.RULES_NOT_UP)];
+  return [send(chat, T.rulesListText(r.rules, r.state), { preview: false })];
+}
+
+async function unruleActions(kv, watch, chat, msg) {
+  const gate = await ruleGate(kv, watch, chat, msg);
+  if (gate.no) return gate.no;
+  const rest = argsOf(msg.text);
+  if (!/^[0-9]+$/.test(rest)) return [send(chat, T.UNRULE_NEEDS_NUMBER)];
+  const r = await watch.remove(gate.who, Number(rest));
+  if (!r || !r.ok) return [send(chat, r && r.why === "number" ? T.UNRULE_NOT_YOURS : T.RULES_NOT_UP)];
+  return [send(chat, T.UNRULE_DONE)];
 }
 
 async function forgetActions(kv, chat, msg) {

@@ -294,7 +294,7 @@
   "road.never.l8": "nenhuma mudança de licença",
   "road.check.t": "como conferir",
   "road.check.p": "Os commits mostram o que foi entregue e quando. O hash do índice entregue é impresso acima do comando que o reconstrói, então qualquer pessoa pode rodar o comando e comparar. A tabela de cópias nomeia cada arquivo copiado do lintcha com o seu hash, e um teste recalcula todos eles em cada push. Se algo aqui ficar em silêncio por semanas, pergunte em público.",
-  "token.p1": "$LINTCHA é um token nesta cadeia e nada na ferramenta depende dele. A página lê strings quer você o tenha ou não, e tê-lo não compra nenhuma verificação extra, nenhum dado antecipado nem nenhum índice privado.",
+  "token.p1": "$LINTCHA é um token nesta cadeia e nada nesta página depende dele. A página lê strings quer você o tenha ou não, e tê-lo não compra nenhuma verificação extra nem nenhum índice privado. Quem o tem pode pedir ao bot que vigie o registo e escreva quando aparecer uma string que tenha nomeado; a verificação que faz é a desta página, e o índice que lê é o que se publica aqui.",
   "token.p2": "Os dois números abaixo são lidos da cadeia quando o bloco é ligado. Um número que não pode ser lido mostra um traço.",
   "notfound.h1": "Nada neste endereço",
   "notfound.p": "A página é uma só, na raiz. O link abaixo leva até lá."

@@ -25,7 +25,13 @@ config and the bot's config cannot disturb each other.
     src/rpc.js        the limiter, vendored. See below
     src/keccak.js     keccak256, for selectors, topics and the signature hash
     src/secp256k1.js  public key recovery, for the holder check
-    test/*.mjs        seven files, no network in any of them
+    src/watch.js      the watcher: the launch log's live tail, and the rules read against it
+    src/rules.js      what a holder asked to be told about, and whether a launch matches it
+    src/engine.js     site/launch.js, loaded and never copied. See below
+    src/engine-globals.js  the two vendored tables the engine needs, put where it looks for them
+    src/tally.js      counting launches the way the collector counts them
+    tools/verify-tail.mjs  rebuild the tail's block range with the collector and compare
+    test/*.mjs        twelve files, no network in any of them
 
 ## The limiter is vendored, not written
 
@@ -111,7 +117,7 @@ the route is `/api/*` and the root stays with the assets worker.
     3  the page connects an injected wallet and signs one sentence
     4  POST /api/hold { t, address, signature }; the worker recovers the address from the
        signature itself and refuses when it does not match the one sent
-    5  it reads balanceOf and compares with one million
+    5  it reads balanceOf and compares with five hundred thousand
     6  session:<telegram id> -> the address, for three days, and the bot answers in the chat
 
 The mark is spent when it is looked up, not when the check succeeds. A second post carrying
@@ -149,6 +155,142 @@ with the reason.** Both halves of that are the arrangement; neither is optional.
 that only ever shows buys is a choice about which facts reach the reader, and this project
 spends its whole front page arguing against making choices like that quietly.
 
+## The engine is loaded, not copied
+
+`site/launch.js` decides what counts as the same string: it folds a link, strips a dollar from a ticker,
+skeletons a name, and hashes what comes out. It is vendored from lintcha, its hash is in `VENDOR.md`, and it is
+what the page runs. The watcher counts with **that file**, imported by path, and there is no copy of any part of
+it anywhere under `bot/`.
+
+That is not tidiness. If the tail folded one link differently from the page, the site would print one answer
+and the bot would send another, and nothing would notice until it mattered.
+
+    the page          three script tags; the UMD's global branch; digest through crypto.subtle
+    the collector     createRequire in tools/launch-collect.mjs; the require branch; digest through node crypto
+    the index writer  the same, in tools/launch-index.mjs
+    the watcher       bot/src/engine.js; whichever branch the bundler picks; the same sha256 either way
+
+`site/launch.js` is a UMD factory, so which branch runs is the loader's decision. `bot/src/engine-globals.js`
+puts the two vendored tables on the global object before the engine is imported, so the global branch finds
+what it needs; on the require branch those two assignments are dead weight, which is the point — either way
+nothing is edited.
+
+**The one deploy-time consequence: this worker carries `nodejs_compat`.** On the require branch the vendored
+file calls `require("crypto")` and `Buffer.from`, so the bundle needs the node builtins to resolve. Nothing
+written in `bot/` imports a node builtin. If a wrangler version will not resolve the unprefixed name, the fix is
+an alias in `wrangler.toml`, written out in the comment there, and never an edit to the vendored file.
+
+`bot/test/engine_test.mjs` is the proof rather than this paragraph. It hashes `site/launch.js` and compares
+against the hash read out of `VENDOR.md`; it loads the file a second time the way the page does, from its own
+bytes with `self` handed in; and it puts a fixture set of launches through both and compares every normalized
+value, every hash, every table entry and `check()` itself.
+
+One thing the bundle carries twice, said out loud: `bot/src/keccak.js` and `tools/launch/keccak.mjs`. The
+watcher decodes `getTokenInfo()` with `tools/launch/abi.mjs`, imported rather than copied for the same reason
+the engine is, and that file imports the collector's keccak for one helper. `bot/test/keccak_test.mjs` compares
+the two implementations, so they cannot drift.
+
+## The watcher
+
+A second Durable Object, separate from the feed so that one failing does not stop the other.
+
+    alarm()   reads the pons factory's launch log from the last block it saw, reads what each new launch calls
+              itself, stores it as counted hashes, checks the rules, drops anything older than the depth
+    cron      once a minute, and only as a watchdog: it starts the object again after a stretch with no
+              endpoint, when there was no alarm left to fire
+
+    interval        WATCH_INTERVAL_MS, twelve seconds
+    depth           WATCH_DEPTH_DAYS, seven days. Older than that is inside the snapshot's window already
+    limiter         the vendored Gate, through bot/src/chain.js. There is one RPC client in this repository
+
+While the endpoint cannot be reached there is **no alarm at all**. Not a short one, not a retrying one: none.
+There is nothing readable, so there is nothing to schedule, and the cron is what tries again a minute later.
+
+A gap in the watcher's reading is counted and shown in `/rules`, to the people it costs. It is not announced in
+the room: the feed's gaps are announced there because a silent gap in a buy feed reads as an absence of buys,
+and this one costs the holders with rules and nobody else.
+
+## The tail, and why the snapshot is not replaced
+
+The index the page reads is a snapshot: collected up to a block, written to a file, hashed, and rebuilt by a
+command anyone can run. Two published things depend on that. The **Reproduce it** section prints the file's hash
+and the command; the `never` list says that if the site computes something the repository cannot, the repository
+is decoration. A live database whose range keeps moving cannot be rebuilt and compared, so replacing the
+snapshot with one would quietly break both.
+
+So the snapshot stays exactly as it is and gets a tail.
+
+    GET /api/tail
+      { engine, from_block, to_block, collected_at, depth_days, snapshot_to_block, gap_blocks,
+        launches_in_tail, entries, hash, tables, launches }
+
+`tables` is the index's own shape, per namespace, counted hashes. `launches` is one row per launch: a block, a
+date and its hashes, and nothing else — no address, no raw string, no handle. That is the rule
+`tools/launch-index.mjs` enforces on the file the page reads, and `bot/test/tail_test.mjs` checks the tail's
+whole answer with that file's own pattern.
+
+`from_block` is the first block the tail covers, not the block after the snapshot's last one. When those differ
+there is a hole, and `gap_blocks` says how wide it is instead of letting a reader assume the two ranges meet. A
+numbers file that cannot be read leaves both `snapshot_to_block` and `gap_blocks` null, never zero.
+
+Reproducing it is two commands, and neither edits anything:
+
+    node tools/launch-collect.mjs --from <from_block> --to <to_block> --out build/tail-range.json
+    node bot/tools/verify-tail.mjs --in build/tail-range.json
+
+The comparison is over the canonical text defined in `bot/src/tally.js` and used by both sides, so the tool does
+not get to decide what equal means.
+
+The page is not touched in this round. It still reads the static file; the tail is here because the rules read
+it. `connect-src 'self'` already covers this worker's own `/api/`, so the vendored `site/_headers` needs no
+edit.
+
+## Rules
+
+For holders, in a direct message, after `/verify`.
+
+    /rule string SOLANA   a launch whose ticker, name or one of its five links is that string
+    /rule dev 0x…         another launch from that deployer
+    /rule shared <count>  a ticker already carried by that many launches or more
+    /rules                your rules, and what the watcher has read
+    /unrule <number>      drop one, by the number /rules gives it
+
+Not one of them carries a judgment. Three are string equality and the fourth is a count with a threshold the
+person picked. There is no score, no probability, no ordering by anything but the order they were made in, and
+no colour that means good or bad.
+
+A string rule is stored as the hashes the engine gives its query, and a launch as the hashes the engine gave its
+fields, so a match is hash equality between two things the same engine produced — the same operation the page
+performs on a pasted launch. A `shared` rule's count comes from `check()`, the page's own entry point, run
+against the index published on the site.
+
+The published index has three answers about a value and a rule message gives three different sentences: it
+carries an entry and the count is quoted; it carries none, which under its own count floor means fewer than the
+floor rather than none; or it could not be read at all, which is a network fault and not a fact. A `shared` rule
+does not fire on a count it could not read.
+
+Rules live in the watcher's SQLite rather than in KV, because they are read against every new launch and that is
+work for the store next to the data. They belong to a telegram id and outlive the session that was needed to
+make one — but a rule only ever fires while that session is live, because a lapsed session is somebody who may
+no longer hold. `RULES_PER_HOLDER` is the limit.
+
+`/unrule` takes the number `/rules` gave, resolved inside the sender's own list, and the delete carries the owner
+in its where clause. Another person's rule is unreachable twice over.
+
+## What the page had to say before any of this
+
+`token.p1` promised, word for word, that holding `$LINTCHA` buys *no extra check, no earlier data and no private
+index*. The middle third of that stops being true the second the bot writes to a holder about a launch before
+the snapshot shows it. The line is replaced in the same round, in all three languages, and the replacement says
+out loud what holding does buy:
+
+> A holder can ask the bot to watch the log and write when a string they named appears; the check it runs is the
+> one on this page, and the index it reads is the one published here.
+
+`never` line two — *no private index and no paid tier that reads more than this page reads* — stays true, and
+the code is what keeps it true: a rule reads `launch-index.json`, the file the page reads, over the network,
+like anyone else.
+
 ## What the bot never does
 
 - It never messages anyone first.
@@ -168,13 +310,13 @@ that cannot be read the bot says it cannot instead of printing a number.
 
     npm test --prefix bot
 
-Seven files, no network in any of them. The site, the endpoint, Telegram, the store and the
-Durable Object's context are all objects in `test/fakes.mjs`.
+Twelve files, no network in any of them. The site, the endpoint, Telegram, the store and both
+Durable Objects' contexts are all objects in `test/fakes.mjs`.
 
     keccak_test    published digests, the selectors every wallet agrees on, and a comparison
                    against tools/launch/keccak.mjs so the two keccaks in this tree cannot drift
     verify_test    recovery from a signature, an altered sentence, another address, the one
-                   time mark, and the threshold at exactly a million and one unit below
+                   time mark, and the threshold at exactly five hundred thousand and one unit below
     router_test    every command answers, an unknown one is silent, and with three null on
                    the site nothing prints an address, a zero or a dash
     webhook_test   the wrong header is four hundred and one with an empty body
@@ -183,8 +325,23 @@ Durable Object's context are all objects in `test/fakes.mjs`.
     tape_test      no alarm while the address is null, a buy posted, a sell only counted
     texts_test     section eight word for word, the sells paragraph in /start, and the signed
                    sentence identical in bot/src/texts.js and site/hold/hold.js
+    engine_test    the round's main test: site/launch.js hashed against VENDOR.md's own row,
+                   loaded a second time the way the page loads it, and one fixture set through
+                   both engines compared value for value, hash for hash, entry for entry, and
+                   through check() itself
+    rules_test     a string rule fires on a match and is otherwise silent, a dev rule on that
+                   deployer and no other, a shared rule at the threshold and not one below,
+                   and one person's rule is not removable by another
+    watch_test     no alarm while there is no endpoint, a launch stored once, one that will
+                   not read neither written half nor stepped over, everything past the depth
+                   dropped, and a rule that fires for a live session and not for a lapsed one
+    tail_test      the answer carries no address and no raw string, by the index writer's own
+                   pattern; its hash is a function of its table and of nothing else; and the
+                   route caches, limits and answers four hundred and four beside itself
+    rules_router_test   the three commands end to end, from a message with no session to a
+                   stored rule and back
 
-The last one matters more than it looks. There is no build step under `site/`, so nothing
+The last one of the first seven matters more than it looks. There is no build step under `site/`, so nothing
 else keeps those two copies of the sentence together, and one different space would mean
 the worker recovers a stranger and refuses an honest holder.
 
@@ -194,5 +351,9 @@ the worker recovers a stranger and refuses an honest holder.
     site/hold/hold.js      its script, external because the vendored CSP carries one inline hash
 
 `tools/verify-vendor.mjs` walks `site/ src/ tests/ tools/` and reports any file there that
-is neither in the vendor table nor in the owned here list. These two are new, so it will
-name them until `VENDOR.md` gains two rows. `VENDOR.md` is not edited by this work.
+is neither in the vendor table nor in the owned here list. Both of these are in the owned
+here list, added by whoever owns `VENDOR.md` when round D1 landed.
+
+The watcher adds nothing to any of those four directories, which is why
+`bot/tools/verify-tail.mjs` lives under `bot/` rather than in `tools/` beside the collector
+it drives. `VENDOR.md` is not edited by this work either, and needs no row for it.

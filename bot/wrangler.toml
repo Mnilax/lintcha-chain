@@ -14,8 +14,23 @@ name = "lintcha-chain-api"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 
-# No nodejs_compat flag: nothing in src/ imports a node builtin. The limiter, the hash and the curve are all
-# written against the platform's own fetch, crypto.getRandomValues and BigInt.
+# The flag is here for exactly one reason, and it is worth writing down rather than leaving to be discovered.
+#
+# The watcher counts string matches with site/launch.js, the page's own engine, loaded and never copied. That
+# file is vendored and may not be edited, and it is a UMD factory: when a bundler gives it `module` and
+# `exports` it takes its own require branch, and that branch calls require("crypto") and Buffer.from. So the
+# bundle needs the node builtins to resolve, and this is the flag that resolves them. Nothing written in bot/
+# imports a node builtin: the limiter, the hash and the curve are still written against the platform's own
+# fetch, crypto.getRandomValues and BigInt.
+#
+# Both branches of that file hash a value to the same bytes — sha256 of the utf-8, cut to the same sixteen hex
+# characters by the same line — so which branch runs changes nothing about what the tail counts.
+#
+# If a wrangler version refuses to resolve the unprefixed name, the fix is an alias here and not an edit
+# there:
+#     [alias]
+#     crypto = "node:crypto"
+compatibility_flags = ["nodejs_compat"]
 
 # /api/* is intercepted before the assets worker; the root stays with the site, which is how the page and this
 # worker share one host. Confirmed by observation before the code was written.
@@ -33,10 +48,23 @@ id = "REPLACE_WITH_THE_LINTCHA_CHAIN_SESSIONS_NAMESPACE_ID"
 name = "TAPE"
 class_name = "Tape"
 
+# The watcher: the launch log's live tail, and the rules read against it. A separate object from the feed on
+# purpose — one alarm each, one failure each. The feed sleeping because the site carries no address must not
+# stop the tail, and the watcher standing still because the endpoint is unreachable must not stop the feed.
+[[durable_objects.bindings]]
+name = "WATCH"
+class_name = "Watch"
+
 # A new class has to be SQLite backed, and SQLite backed objects are on the free plan.
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Tape"]
+
+# The second object gets its own tag. v1 is already applied on the live worker, so the watcher arrives as a
+# new migration rather than as an edit to the one that ran.
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Watch"]
 
 # One minute is the shortest Cloudflare accepts, which is why this is only the watchdog: the feed itself runs
 # on the object's own alarm, at the interval below.
@@ -81,3 +109,34 @@ TOKEN_IS_FIRST = ""
 # The explorer, for the link on a buy line. Empty means the line carries no transaction link rather than a
 # broken one.
 TX_URL_PREFIX = ""
+
+# ---------------------------------------------------------------- the watcher
+# Its beat, and the same reasoning as the feed's: a cron cannot go under a minute, and a tail that lags a
+# minute is not a tail.
+WATCH_INTERVAL_MS = "12000"
+# how long a silence has to be before the cron counts a gap and starts a round itself
+WATCH_WATCHDOG_MS = "90000"
+# the most blocks one round will ask the log for
+WATCH_MAX_BLOCKS = "2000"
+# how far back the tail keeps launches. Anything older is inside the snapshot's window already, and keeping
+# two copies of the same launch would mean two answers to one question.
+WATCH_DEPTH_DAYS = "7"
+
+# The two published files the watcher reads. The index is the one the page reads, and that is the whole point:
+# a rule reads what the page reads, and no private index exists to read instead. The numbers file is read for
+# one figure, the snapshot's last block, so /api/tail can say where the snapshot ends and where the tail
+# begins instead of implying the two meet.
+LAUNCH_INDEX_URL = "https://chain.lintcha.com/launch-index.json"
+LAUNCH_NUMBERS_URL = "https://chain.lintcha.com/launch-numbers.json"
+# how long this isolate remembers them. The index is rebuilt weekly, so ten minutes is fresh by a wide margin.
+INDEX_TTL_MS = "600000"
+
+# How long the tail's answer is held and handed out unchanged, and what one isolate will serve per second.
+# The second number is a courtesy and not a guarantee: many isolates run, and a real global limit would need a
+# write per request.
+TAIL_CACHE_MS = "5000"
+TAIL_PER_SECOND = "4"
+
+# How many rules one holder may keep. A number, not a judgment: it exists because each rule is read against
+# every new launch.
+RULES_PER_HOLDER = "20"

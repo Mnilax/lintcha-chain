@@ -21,11 +21,11 @@ export const NONCE_TTL_SECONDS = 15 * 60;
 export const SESSION_TTL_SECONDS = 72 * 60 * 60;
 
 /**
- * The threshold, in whole tokens. Specification section four fixes it at one million and the /verify text says
- * "one million" out loud, so it is a constant here rather than a setting: a setting could drift away from the
+ * The threshold, in whole tokens. Specification section four fixes it at five hundred thousand and the /verify text says
+ * "five hundred thousand" out loud, so it is a constant here rather than a setting: a setting could drift away from the
  * sentence the reader was shown, and then the bot would be lying in a way nobody would notice.
  */
-export const THRESHOLD_WHOLE_TOKENS = 1000000n;
+export const THRESHOLD_WHOLE_TOKENS = 500000n;
 
 /** The threshold in the token's own base units. */
 export const thresholdUnits = decimals => THRESHOLD_WHOLE_TOKENS * 10n ** BigInt(decimals);

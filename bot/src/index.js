@@ -1,12 +1,18 @@
-// The worker. Two routes and a cron, and nothing else answers.
+// The worker. Three routes and a cron, and nothing else answers.
 //
 //   POST /api/telegram   the webhook. Every update must carry X-Telegram-Bot-Api-Secret-Token matching the
 //                        TELEGRAM_WEBHOOK_SECRET secret. A wrong or missing header gets four hundred and one
 //                        with no body: no hint about what was wrong, no echo of what was sent.
 //   POST /api/hold       the holder check, from the /hold page on the site. Same origin, which is why the
 //                        vendored connect-src 'self' needs no editing.
-//   scheduled            once a minute, the watchdog. It does not read the chain itself; it asks the feed
-//                        whether a round happened recently and wakes it when one did not.
+//   GET  /api/tail       the live tail of the launch log: counted hashes, its own block range and its own
+//                        hash. Public, cached for a few seconds, and rate limited per isolate. The page is
+//                        not changed in this round and still reads the static snapshot; the tail is here
+//                        because the rules read it, and because a range with a hash is a range a command can
+//                        rebuild and compare.
+//   scheduled            once a minute, the watchdog for both objects. It reads nothing itself: it asks the
+//                        feed whether a round happened recently, and it starts the watcher again after a
+//                        stretch with no endpoint, when there was no alarm left to fire.
 //
 // Anything else under this worker's routes gets four hundred and four. The site's own pages are not touched:
 // the route is /api/*, and the root stays with the assets worker.
@@ -20,8 +26,9 @@ import { checkHold } from "./verify.js";
 import { readToken } from "./chain.js";
 import * as T from "./texts.js";
 import { Tape } from "./tape.js";
+import { Watch } from "./watch.js";
 
-export { Tape };
+export { Tape, Watch };
 
 /** A comparison that does not return early on the first wrong byte. */
 export function sameSecret(a, b) {
@@ -51,6 +58,56 @@ function tapeDep(env) {
   return { stats: () => ask("stats"), top: () => ask("top") };
 }
 
+/** The one watcher, reached the same way. */
+function watchStub(env) {
+  if (!env.WATCH) return null;
+  return env.WATCH.get(env.WATCH.idFromName("watch"));
+}
+
+/**
+ * What the router is given for the three rule commands, or null when there is no binding — and then those
+ * commands say the watcher is not up rather than pretending to have stored something.
+ */
+function watchDep(env) {
+  const stub = watchStub(env);
+  if (!stub) return null;
+  const ask = async (what, extra) => {
+    try {
+      const r = await stub.fetch("https://watch/rules", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ what, ...extra })
+      });
+      return r.ok ? await r.json() : null;
+    } catch { return null; }
+  };
+  return {
+    list: owner => ask("list", { owner: String(owner) }),
+    add: (owner, kind, arg) => ask("add", { owner: String(owner), kind, arg }),
+    remove: (owner, number) => ask("remove", { owner: String(owner), number })
+  };
+}
+
+/**
+ * A courtesy limit on /api/tail: a few requests a second per isolate.
+ *
+ * Said plainly because it would be easy to read as more than it is: Cloudflare runs many isolates, so this
+ * bounds what one of them will do and not what the endpoint as a whole will do. What actually keeps the cost
+ * flat is the cache below it — the answer is built once per TAIL_CACHE_MS inside the object and handed out
+ * unchanged — and the object's own single threading. A real global limit needs state, and state for that would
+ * be a write per request, which is the thing being avoided.
+ */
+const tailBucket = { at: 0, taken: 0 };
+/** Only for tests: forget what this second has already served. */
+export function forgetTailBucket() { tailBucket.at = 0; tailBucket.taken = 0; }
+function tailAllowed(now, perSecond) {
+  const second = Math.floor(now / 1000);
+  if (tailBucket.at !== second) { tailBucket.at = second; tailBucket.taken = 0; }
+  if (tailBucket.taken >= perSecond) return false;
+  tailBucket.taken++;
+  return true;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -73,20 +130,49 @@ export default {
       return await hold(request, env, ctx);
     }
 
+    if (path === "/api/tail") {
+      if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405 });
+      const stub = watchStub(env);
+      if (!stub) return json({ ok: false, why: "no watcher" }, 503);
+      if (!tailAllowed(Date.now(), Math.max(1, Number(env.TAIL_PER_SECOND || 4)))) return new Response(null, { status: 429 });
+      try {
+        const r = await stub.fetch("https://watch/tail");
+        if (!r.ok) return json({ ok: false, why: "no tail" }, 503);
+        const body = await r.text();
+        const seconds = Math.max(1, Math.round(Number(env.TAIL_CACHE_MS || 5000) / 1000));
+        return new Response(body, {
+          headers: {
+            "content-type": "application/json",
+            // the same few seconds the object holds its answer for, so an edge cache and the object agree
+            "cache-control": "public, max-age=" + seconds,
+            "access-control-allow-origin": "*"
+          }
+        });
+      } catch {
+        return json({ ok: false, why: "no tail" }, 503);
+      }
+    }
+
     return new Response(null, { status: 404 });
   },
 
-  /** The cron. One minute is the shortest Cloudflare allows, which is why it is a watchdog and not the feed. */
+  /**
+   * The cron. One minute is the shortest Cloudflare allows, which is why it is a watchdog and not either loop.
+   *
+   * Both objects get the same question, and both answer it themselves. The feed's watchdog says a gap out loud
+   * in the room; the watcher's counts it and shows it in /rules, to the people it costs.
+   */
   async scheduled(event, env, ctx) {
-    const stub = tapeStub(env);
-    if (!stub) return;
-    ctx.waitUntil(stub.fetch("https://tape/watchdog").catch(() => {}));
+    const tape = tapeStub(env);
+    if (tape) ctx.waitUntil(tape.fetch("https://tape/watchdog").catch(() => {}));
+    const watch = watchStub(env);
+    if (watch) ctx.waitUntil(watch.fetch("https://watch/watchdog").catch(() => {}));
   }
 };
 
 async function handleAndSend(update, env) {
   try {
-    const actions = await handleUpdate(update, { env, kv: env.SESSIONS, tape: tapeDep(env) });
+    const actions = await handleUpdate(update, { env, kv: env.SESSIONS, tape: tapeDep(env), watch: watchDep(env) });
     await perform(env, actions);
   } catch {
     // a thrown handler must not turn into a retry storm; the update is dropped and the room is told nothing

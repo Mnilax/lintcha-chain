@@ -41,10 +41,10 @@ t.ok((await spendNonce(kv, "0123456789abcdef")) === null, "a mark that was never
 t.ok((await spendNonce(kv, "../nonce")) === null, "a mark of the wrong shape never reaches the store");
 
 // ---------------------------------------------------------------- the threshold
-t.ok(THRESHOLD_WHOLE_TOKENS === 1000000n, "the threshold is one million whole tokens");
-t.ok(thresholdUnits(18) === 1000000n * 10n ** 18n, "shifted by eighteen decimals");
-t.ok(thresholdUnits(6) === 1000000n * 10n ** 6n, "and by six");
-t.ok(thresholdUnits(0) === 1000000n, "and by none");
+t.ok(THRESHOLD_WHOLE_TOKENS === 500000n, "the threshold is five hundred thousand whole tokens");
+t.ok(thresholdUnits(18) === 500000n * 10n ** 18n, "shifted by eighteen decimals");
+t.ok(thresholdUnits(6) === 500000n * 10n ** 6n, "and by six");
+t.ok(thresholdUnits(0) === 500000n, "and by none");
 
 const token = { ok: true, address: TOKEN_ADDRESS, pons: null, uniswap: null };
 const DEC = 18n;
@@ -60,28 +60,28 @@ async function tryBalance(wholeTokens) {
   return { r, store };
 }
 
-let { r, store } = await tryBalance(1000000);
-t.ok(r.ok === true, "exactly one million passes");
+let { r, store } = await tryBalance(500000);
+t.ok(r.ok === true, "exactly five hundred thousand passes");
 t.ok((await getSession(store, 7)) === FIXTURE.address, "and the address is remembered");
 t.ok(store.ttlOf("session:7") === SESSION_TTL_SECONDS && SESSION_TTL_SECONDS === 259200, "for three days");
 
-({ r, store } = await tryBalance(999999));
-t.ok(r.ok === false && r.why === "below", "one short of a million is refused");
+({ r, store } = await tryBalance(499999));
+t.ok(r.ok === false && r.why === "below", "one short of five hundred thousand is refused");
 t.ok((await getSession(store, 7)) === null, "and nothing is remembered");
 
 ({ r } = await tryBalance(2500000));
-t.ok(r.ok === true, "more than a million passes");
+t.ok(r.ok === true, "more than five hundred thousand passes");
 
 // the balance one base unit short, which is the tightest case the threshold has
 setGate(fakeGate({
   ["eth_call:" + SEL.decimals]: wordHex(18),
-  ["eth_call:" + SEL.balanceOf]: wordHex(1000000n * 10n ** 18n - 1n)
+  ["eth_call:" + SEL.balanceOf]: wordHex(500000n * 10n ** 18n - 1n)
 }));
 forgetDecimals();
 let store2 = fakeKV();
 let m2 = await newNonce(store2, 7);
 r = await checkHold({}, store2, { t: m2, address: FIXTURE.address, signature: FIXTURE.signature }, token);
-t.ok(r.ok === false && r.why === "below", "one base unit short of a million is refused");
+t.ok(r.ok === false && r.why === "below", "one base unit short of five hundred thousand is refused");
 
 // ---------------------------------------------------------------- what must not get as far as the chain
 setGate(fakeGate({ ["eth_call:" + SEL.decimals]: wordHex(18), ["eth_call:" + SEL.balanceOf]: wordHex(0) }));

@@ -55,7 +55,7 @@ const GIVEN = {
     sentence. It is a signature, not a transaction: nothing moves, nothing
     is approved, no gas is spent. The page reads your balance itself.
 
-    Needed: one million $LINTCHA.
+    Needed: five hundred thousand $LINTCHA.
 
     Come back here when you have signed. I check every few seconds.`,
   sentence: `I am proving to the lintcha bot that this wallet is mine. This signature
@@ -120,7 +120,9 @@ t.ok(T.formatUnits(1234567n, 6) === "1.2345", "and the fraction is cut, not roun
 t.ok(T.shortAddress("0x9d8a62f656a8d1615c1294fd71e9cfb3e4855a4f") === "0x9d8a…5a4f", "an address is shortened at both ends");
 
 // ---------------------------------------------------------------- no secret, and no key, anywhere in the payload
-for (const rel of ["bot/src/index.js", "bot/src/telegram.js", "bot/src/verify.js", "bot/src/chain.js", "bot/src/texts.js", "bot/src/tape.js", "bot/src/router.js", "bot/wrangler.toml", "site/hold/hold.js", "site/hold/index.html"]) {
+for (const rel of ["bot/src/index.js", "bot/src/telegram.js", "bot/src/verify.js", "bot/src/chain.js", "bot/src/texts.js", "bot/src/tape.js", "bot/src/router.js", "bot/wrangler.toml", "site/hold/hold.js", "site/hold/index.html",
+  // round D2's files, put in the same loop rather than left outside it
+  "bot/src/watch.js", "bot/src/rules.js", "bot/src/tally.js", "bot/src/engine.js", "bot/src/engine-globals.js", "bot/tools/verify-tail.mjs"]) {
   const body = fs.readFileSync(path.join(repo, rel), "utf8");
   t.ok(!/\b\d{8,10}:[A-Za-z0-9_-]{30,}\b/.test(body), rel + " carries nothing shaped like a bot token");
   t.ok(!/0x[0-9a-fA-F]{64}\b/.test(body), rel + " carries nothing shaped like a private key");

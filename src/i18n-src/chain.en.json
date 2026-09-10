@@ -294,7 +294,7 @@
   "road.never.l8": "no licence change",
   "road.check.t": "how to check",
   "road.check.p": "Commits show what shipped and when. The hash of the shipped index is printed above the command that rebuilds it, so anyone can run the command and compare. The vendor table names every file copied from lintcha with its hash, and a test recomputes all of them on every push. If something here goes quiet for weeks, ask about it in public.",
-  "token.p1": "$LINTCHA is a token on this chain and nothing in the tool depends on it. The page reads strings whether you hold it or not, and holding it buys no extra check, no earlier data and no private index.",
+  "token.p1": "$LINTCHA is a token on this chain and nothing on this page depends on it. The page reads strings whether you hold it or not, and holding it buys no extra check and no private index. A holder can ask the bot to watch the log and write when a string they named appears; the check it runs is the one on this page, and the index it reads is the one published here.",
   "token.p2": "The two figures below are read from the chain when the block is switched on. A figure that cannot be read shows a dash.",
   "notfound.h1": "Nothing at this address",
   "notfound.p": "The page is one, at the root. The link below goes there."

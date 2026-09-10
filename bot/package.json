@@ -8,6 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node test/keccak_test.mjs && node test/verify_test.mjs && node test/router_test.mjs && node test/webhook_test.mjs && node test/chain_test.mjs && node test/tape_test.mjs && node test/texts_test.mjs"
+    "test": "node test/keccak_test.mjs && node test/verify_test.mjs && node test/router_test.mjs && node test/webhook_test.mjs && node test/chain_test.mjs && node test/tape_test.mjs && node test/texts_test.mjs && node test/engine_test.mjs && node test/rules_test.mjs && node test/watch_test.mjs && node test/tail_test.mjs && node test/rules_router_test.mjs",
+    "verify-tail": "node tools/verify-tail.mjs"
   }
 }
