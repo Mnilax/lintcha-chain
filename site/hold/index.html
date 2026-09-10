@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lintcha</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="/icon-32.png">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/chain.css">
+<!--
+  A static page, served by the same assets worker as the rest of the site. The route /api/* belongs to the
+  other worker and does not touch this file.
+
+  Two things about it are load bearing and neither is a preference:
+
+    The script is an external file. site/_headers is vendored from lintcha and carries
+    script-src 'self' with one inline hash. A second inline script would not match that hash, and a
+    blocked script fails silently: the page would look right and do nothing.
+
+    The POST goes to /api/hold on this same origin, which is why connect-src 'self' needs no editing.
+    Nothing here talks to a third party, loads a third party font or reports to anybody.
+
+  This page has no theme script, so it renders in the site's default dark palette rather than following a
+  choice made on another page. The toggle lives in the vendored template and is not copied here.
+-->
+<style>
+  /* style-src carries 'unsafe-inline', so the few rules this one page needs live here rather than in a new
+     stylesheet under site/. Nothing here is a colour of its own: every value is a token from chain.css. */
+  body[data-page="chain"] { display:block; }
+  .hold { max-width:640px; margin:0 auto; padding:56px 24px 72px; box-sizing:border-box; }
+  .hold h1 { font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; letter-spacing:0.02em; text-transform:uppercase; margin:0 0 8px; color:var(--ink); }
+  .hold-kicker { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); margin:0 0 28px; }
+  .hold p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:0 0 14px; }
+  .hold-sentence { font-family:'IBM Plex Mono',monospace; font-size:13px; line-height:1.7; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-left:2px solid var(--accent); border-radius:14px; padding:16px 18px; margin:22px 0; overflow-wrap:anywhere; }
+  .hold-row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:26px 0 0; }
+  .hold-btn { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; padding:13px 22px; border-radius:999px; border:1px solid var(--accent-line); background:transparent; color:var(--accent); cursor:pointer; }
+  .hold-btn:hover:enabled { border-color:var(--accent); }
+  .hold-btn:disabled { opacity:0.45; cursor:default; }
+  .hold-btn-go { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .hold-state { font-size:15px; line-height:1.6; color:var(--ink-2); margin:24px 0 0; min-height:1.6em; }
+  .hold-state[data-tone="bad"] { color:var(--ink); }
+  .hold-wallet { font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-3); }
+  .hold-never { margin:34px 0 0; padding:0; list-style:none; display:grid; gap:9px; }
+  .hold-never li { position:relative; padding-left:22px; font-size:14px; line-height:1.6; color:var(--ink-3); }
+  .hold-never li::before { content:""; position:absolute; left:0; top:0.62em; width:7px; height:1px; background:var(--accent); }
+  .hold-foot { margin:34px 0 0; font-size:14px; line-height:1.6; color:var(--ink-3); }
+</style>
+</head>
+<body data-page="chain" data-lang="en">
+<div class="hold">
+  <h1>Prove you hold $LINTCHA</h1>
+  <p class="hold-kicker">One signature · nothing moves</p>
+
+  <p>Connect the wallet that holds the tokens and sign the sentence below. It is a signature, not a
+  transaction: nothing moves, nothing is approved and no gas is spent. This page reads your balance from the
+  chain afterwards.</p>
+
+  <div class="hold-sentence" data-sentence></div>
+
+  <p>Needed: one million $LINTCHA. When it checks out, the bot answers in the chat you came from.</p>
+
+  <div class="hold-row">
+    <button type="button" class="hold-btn" data-connect>Connect wallet</button>
+    <button type="button" class="hold-btn hold-btn-go" data-sign disabled>Sign the sentence</button>
+    <span class="hold-wallet" data-wallet></span>
+  </div>
+
+  <p class="hold-state" data-state></p>
+
+  <ul class="hold-never">
+    <li>This page asks for a signature over that sentence and nothing else. It never asks for a key, a seed or
+    an approval to spend.</li>
+    <li>It holds no funds and cannot move any.</li>
+    <li>What is kept afterwards is one address for three days. Send /forget to the bot and it goes now.</li>
+    <li>No third party script, font, image or beacon is on this page.</li>
+  </ul>
+
+  <p class="hold-foot">The site: <a href="/">chain.lintcha.com</a> · The code, this page included:
+  <a href="https://github.com/Mnilax/lintcha-chain" rel="noopener">the repository</a></p>
+</div>
+<script src="/hold/hold.js"></script>
+</body>
+</html>

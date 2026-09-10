@@ -1,0 +1,13 @@
+{
+  "name": "lintcha-chain-api",
+  "private": true,
+  "type": "module",
+  "description": "The room's half of lintcha: reads the chain and answers, and does nothing else.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node test/keccak_test.mjs && node test/verify_test.mjs && node test/router_test.mjs && node test/webhook_test.mjs && node test/chain_test.mjs && node test/tape_test.mjs && node test/texts_test.mjs"
+  }
+}

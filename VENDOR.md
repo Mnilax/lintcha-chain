@@ -78,3 +78,5 @@ A path is added here in the same commit that creates the file.
 - `site/mark-acid.png`
 - `site/sitemap.xml`
 - `site/links.json`
+- `site/hold/index.html`
+- `site/hold/hold.js`

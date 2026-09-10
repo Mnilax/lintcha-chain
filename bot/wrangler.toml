@@ -1,0 +1,83 @@
+# The bot's own worker, with its own config, so nothing here can disturb the site's wrangler.toml at the root.
+# The site is served by that one; this one answers /api/* on the same host and nothing else.
+#
+# No secret appears in this file and none may be added to it. Two are needed and both are set with
+# `wrangler secret put`, which keeps them out of the dashboard's plain text variable list:
+#
+#     TELEGRAM_BOT_TOKEN        the bot's token
+#     TELEGRAM_WEBHOOK_SECRET   a long random string, sent back by Telegram in every update's header
+#
+# Everything under [vars] is a setting, not a secret: a reader of this repository learning any of these values
+# learns nothing they could not read off the chain or the site.
+
+name = "lintcha-chain-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# No nodejs_compat flag: nothing in src/ imports a node builtin. The limiter, the hash and the curve are all
+# written against the platform's own fetch, crypto.getRandomValues and BigInt.
+
+# /api/* is intercepted before the assets worker; the root stays with the site, which is how the page and this
+# worker share one host. Confirmed by observation before the code was written.
+[[routes]]
+pattern = "chain.lintcha.com/api/*"
+zone_name = "lintcha.com"
+
+# The mark and the session. Nothing else is ever written here, and both keys carry their own expiry.
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_WITH_THE_LINTCHA_CHAIN_SESSIONS_NAMESPACE_ID"
+
+# The feed. One instance, reached by a fixed name.
+[[durable_objects.bindings]]
+name = "TAPE"
+class_name = "Tape"
+
+# A new class has to be SQLite backed, and SQLite backed objects are on the free plan.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Tape"]
+
+# One minute is the shortest Cloudflare accepts, which is why this is only the watchdog: the feed itself runs
+# on the object's own alarm, at the interval below.
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+# where the room is. Empty until the room exists: with no chat id the feed records buys and posts nothing.
+ROOM_CHAT_ID = ""
+
+# the site is the one source of truth about the address, and this is the file it lives in
+TOKEN_JSON_URL = "https://chain.lintcha.com/token.json"
+HOLD_PAGE = "https://chain.lintcha.com/hold"
+
+# the public endpoint and the vendored limiter's three numbers, the same ones the collector runs with
+RPC_URL = "https://rpc.mainnet.chain.robinhood.com"
+RPC_IN_FLIGHT = "2"
+RPC_SPACING_MS = "600"
+RPC_LOGS_SPACING_MS = "1500"
+
+# the feed's beat. Twelve seconds is the start, and it is a setting because seven thousand two hundred
+# wake ups a day is about seven per cent of the free plan's daily writes and that ratio is worth tuning.
+FEED_INTERVAL_MS = "12000"
+# how long a silence has to be before the watchdog says so in the room
+FEED_WATCHDOG_MS = "90000"
+# the most blocks one round will ask for, so a long sleep cannot turn into one enormous eth_getLogs
+FEED_MAX_BLOCKS = "2000"
+
+# Where buys and sells happen. Empty on purpose: with no value the bot reads the curve out of the factory's own
+# record for the token, which is the venue a launch trades against first. After graduation the pool's address
+# cannot be derived from anything in this repository, so it goes here when it is known.
+FEED_VENUE = ""
+
+# The shape of that venue, for reading a price. The only shape implemented is "v3", meaning a pool that answers
+# slot0(). Empty means the bot has no way to read a price and says so in words instead of printing a number.
+# There is no price API here and there will not be one: /start promises everything the bot says is read from
+# the chain, and a figure from a third party would make that sentence false.
+VENUE_KIND = ""
+PAIR_DECIMALS = "18"
+TOKEN_IS_FIRST = ""
+
+# The explorer, for the link on a buy line. Empty means the line carries no transaction link rather than a
+# broken one.
+TX_URL_PREFIX = ""
