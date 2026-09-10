@@ -1,7 +1,7 @@
 {
   "app.name": "lintcha-chain",
   "site.wordmark": "lintcha",
-  "site.meta.title": "Launch identity, lintcha-chain",
+  "site.meta.title": "lintcha",
   "hero.l1": "A launch is a few strings.",
   "hero.l2": "Most of them have been used before.",
   "nav.label": "Sections",
@@ -10,6 +10,7 @@
   "nav.faq": "faq",
   "nav.github": "GitHub",
   "nav.x": "X",
+  "nav.telegram": "Telegram",
   "nav.reads": "reads",
   "nav.window": "window",
   "nav.verify": "verify",

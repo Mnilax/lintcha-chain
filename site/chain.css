@@ -269,6 +269,18 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .foot-licence { color:var(--ink-3); }
 .foot-p { font-size:14px; line-height:1.6; color:var(--ink-3); margin:0; max-width:720px; }
 
+/* ---------------------------------------------------------------- the launch band: full width under the footer, rendered
+   by the build only when site/token.json carries an address. The one place on the page where the acid does not follow the
+   theme: the brief fixes the ground at the dark palette's accent, so the ink and the button are fixed dark against it in
+   both themes rather than inverting with --accent. The button is the same handler as the contract row's (data-copy-address
+   in site/chain.js), styled dark here because an accent-on-accent outline would not be visible. */
+.band { position:relative; z-index:1; background:#d4fc50; }
+.band-in { max-width:1080px; margin:0 auto; padding:15px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; box-sizing:border-box; }
+.band-address { font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; letter-spacing:0.01em; color:#08090a; overflow-wrap:anywhere; min-width:0; }
+.band-copy { margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; padding:7px 13px; border-radius:999px; border:1px solid #08090a; background:transparent; color:#08090a; cursor:pointer; transition:background 200ms linear, color 200ms linear; }
+.band-copy:hover { background:#08090a; color:#d4fc50; }
+body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; outline-offset:2px; }
+
 /* ---------------------------------------------------------------- motion, and the switch that stops all of it */
 @keyframes lc-drift { 0%,100% { opacity:0.06; } 50% { opacity:0.34; } }
 @keyframes lc-caret { 0%,45% { opacity:1; } 55%,100% { opacity:0; } }
@@ -295,4 +307,6 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
   .hero { padding-top:48px; }
   .sec-tool .launch-row { flex-direction:column; }
   .sec-tool .launch-check { flex-basis:auto; }
+  .band-in { padding:13px 24px; gap:10px 12px; }
+  .band-address { font-size:12px; }
 }

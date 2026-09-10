@@ -1,7 +1,8 @@
 // lintcha-chain build. Node standard library only, no dependency. Reads the templates, substitutes every figure from
 // site/launch-numbers.json and site/launch-index.json, inlines the i18n island, writes the page into site/ (the served
 // directory). One page and a 404; English only is emitted while the i18n machinery stays whole.
-//   node tools/build.mjs [--origin https://your.host] [--token path/to/token.json] [--out dir] [--preview strings.json]
+//   node tools/build.mjs [--origin https://your.host] [--token path/to/token.json] [--links path/to/links.json]
+//                        [--out dir] [--preview strings.json]
 // What it does, in order:
 //   - merges src/i18n-src/{launch,chain}.<lang>.json into src/i18n/<lang>.json (tools/i18n-merge.mjs; a duplicate key aborts)
 //   - lifts the theme script and the <main> block out of the vendored src/templates/launch.html, untouched: the script
@@ -10,9 +11,9 @@
 //     block and placed as section five, where the approved design puts it; nothing in it is reworded
 //   - renders src/templates/shell.html around them: the sections in the owner's order and numbering (below), the
 //     sections whose prose is still with the owner removed whole (PENDING, below), {{t:key}} strings, data-i18n text
-//     and attributes filled at build time, data-i18n-vars figures, the nav, the header cluster, the token block in its
-//     three states (site/token.json), the charts and the ornament (tools/build-viz.mjs), the method tables from the
-//     engine (tools/build-method.mjs)
+//     and attributes filled at build time, data-i18n-vars figures, the nav, the header cluster and its outbound links
+//     (site/links.json), the token block in its three states and the launch band under the footer (site/token.json),
+//     the charts and the ornament (tools/build-viz.mjs), the method tables from the engine (tools/build-method.mjs)
 //   - refuses a digit in the text of a template or in an i18n string of this site (the gate, below)
 //   - writes site/index.html and site/404.html (the same shell around two approved strings, the wordmark and the nav
 //     pointing back at the page), and site/sitemap.xml with the one page under the site's origin
@@ -34,6 +35,7 @@ const SITE_FILE = JSON.parse(fs.readFileSync(path.join(SITE, "launch-site.json")
 const ORIGIN = (opt("origin", SITE_FILE.origin || "") || "").replace(/\/$/, "");
 const OUT = path.resolve(root, opt("out", SITE));                       // where index.html is written; the tree's site/ unless a test says otherwise
 const TOKEN_FILE = path.resolve(root, opt("token", path.join(SITE, "token.json")));   // the token block's one input; a test may point at a temporary file
+const LINKS_FILE = path.resolve(root, opt("links", path.join(SITE, "links.json")));   // the cluster's outbound links; same pattern, a test may point at a temporary file
 const REPO = "https://github.com/Mnilax/lintcha-chain";                 // GITHUB and Repository go to this repository (LINTCHA_CHAIN_05, section 2)
 const X_URL = "https://x.com/mnilax";                                   // the account lintcha's own footer links (vendored launch.html)
 const read = p => fs.readFileSync(p, "utf8");
@@ -121,18 +123,30 @@ const engine = loadEngine(SITE);
 // ---------------------------------------------------------------- the token block: three states from one file, nothing while address is null
 //   a. no address: the header cluster is GITHUB and X, no contract row, no token section, no empty slot
 //   b. address and a pons link: BUY $LINTCHA (the one filled button on the site) joins the cluster, the contract row
-//      sits under the status strip, section twelve carries the address, the pons button and the live tiles
+//      sits under the status strip, section fifteen carries the address, the pons button and the live tiles
 //   c. a uniswap link as well: the outline button arrives beside the pons one; each renders only when its link exists
 const token = JSON.parse(read(TOKEN_FILE));
+// the cluster's two accounts, from one file so a later move is one edit, like the origin: an empty value keeps the
+// address the vendored footer already links (X_URL), a filled one replaces it. A missing telegram is absent from the
+// tree, not a stub: there is no third item at all until the account exists.
+const links = JSON.parse(read(LINKS_FILE));
 const outbound = (href, key) => `<a class="out" href="${esc(href)}" rel="noopener" target="_blank"><span data-i18n="${key}"></span><span class="arrow" aria-hidden="true">↗</span></a>`;
 function cluster() {
-  const items = [outbound(REPO, "nav.github"), outbound(X_URL, "nav.x")];
+  const items = [outbound(REPO, "nav.github"), outbound(links.x || X_URL, "nav.x")];
+  if (links.telegram) items.push(outbound(links.telegram, "nav.telegram"));
   if (token.address && token.pons) items.push(`<a class="buy" href="${esc(token.pons)}" rel="noopener" target="_blank" data-i18n="token.buy"></a>`);
   return items.join("");
 }
 function contractRow() {
   if (!token.address) return "";
   return `<div class="contract"><div class="contract-in"><span class="contract-label" data-i18n="token.contract"></span><code class="contract-address" data-token-address>${escText(token.address)}</code><button type="button" class="btn-copy" data-copy-address data-i18n-attr="data-label-copied:token.copied"><span data-copy-label data-i18n="token.copy"></span></button></div></div>\n`;
+}
+// the launch band: the full-width acid strip under the footer, the address in dark mono on it and the copy button at
+// its end. The third place the address appears (the contract row, section fifteen, here) and the second copy button;
+// both buttons are the handler's own in site/chain.js, which reads the first [data-token-address] on the page.
+function launchBand() {
+  if (!token.address) return "";
+  return `<div class="band"><div class="band-in"><code class="band-address" data-token-address>${escText(token.address)}</code><button type="button" class="band-copy" data-copy-address data-i18n-attr="data-label-copied:token.copied"><span data-copy-label data-i18n="token.copy"></span></button></div></div>\n`;
 }
 function tokenSection(lang) {
   if (!token.address) return "";
@@ -215,7 +229,7 @@ function render(tplName, lang, extra) {
   const landed = k => !PENDING.includes(k);
   const tokens = Object.assign({
     lang, root: "/", url: abs("/"), og_image: abs("/og.png"), theme_script: themeScript, main, fixed, nav: nav(""), cluster: cluster(),
-    contract_row: contractRow(), token_section: tokenSection(lang), repo: REPO, anchor_method: "#s" + NUM.method,
+    contract_row: contractRow(), token_section: tokenSection(lang), launch_band: launchBand(), repo: REPO, anchor_method: "#s" + NUM.method,
     charts: landed("viz") ? charts(index, numbers, T, TO, lang) : "", ornament: landed("viz") ? ornament(T) : "",
     method_norm: landed("method") ? normalization(T, engine.L) : "", method_alias: landed("method") ? alias(T, engine.Links) : "",
     method_skeleton: landed("method") ? skeleton(T, engine.Skeleton) : "", method_index: landed("method") ? indexTable(T, numbers, engine.L, nf) : "",
@@ -236,4 +250,5 @@ for (const lang of EMIT) {
 if (ORIGIN) fs.writeFileSync(path.join(OUT, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${ORIGIN}/</loc></url>\n</urlset>\n`);
 const out = fs.readFileSync(path.join(OUT, "index.html"));
 const state = !token.address ? "a, off (address null)" : token.uniswap ? "c, pons and uniswap" : token.pons ? "b, pons only" : "address without a buy link";
-console.log(`built ${path.relative(root, path.join(OUT, "index.html"))}: ${out.length} bytes, ${EMIT.join(",")} emitted of ${Object.keys(i18n).join(",")}; origin ${ORIGIN || "(none, relative urls)"}; theme script hash present in _headers; token state ${state}; sections on the page ${ORDER.filter(k => !PENDING.includes(k)).map(k => NUM[k]).join(" ")}, pending ${PENDING.map(k => NUM[k] + " " + k).join(", ")}; window ${numbers.window.from_date} to ${numbers.window.to_date}, blocks ${numbers.window.from_block} to ${numbers.window.to_block}, ${numbers.launches_scanned} launches`);
+const clusterState = `${links.x ? "x from links.json" : "x default"}, ${links.telegram ? "telegram present" : "no telegram"}`;
+console.log(`built ${path.relative(root, path.join(OUT, "index.html"))}: ${out.length} bytes, ${EMIT.join(",")} emitted of ${Object.keys(i18n).join(",")}; origin ${ORIGIN || "(none, relative urls)"}; theme script hash present in _headers; token state ${state}; band ${token.address ? "on" : "off"}; cluster ${clusterState}; sections on the page ${ORDER.filter(k => !PENDING.includes(k)).map(k => NUM[k]).join(" ")}, pending ${PENDING.map(k => NUM[k] + " " + k).join(", ")}; window ${numbers.window.from_date} to ${numbers.window.to_date}, blocks ${numbers.window.from_block} to ${numbers.window.to_block}, ${numbers.launches_scanned} launches`);
