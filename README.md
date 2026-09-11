@@ -150,7 +150,7 @@ When a refresh lands a new index, the index badge is a line to edit here; nothin
 ## The refresh workflow
 
 `.github/workflows/launch-refresh.yml` is intentionally manual-only until a strict full refresh passes against the
-no-key public endpoint. Its unattended schedule stays removed. A new collection records one exact finalized block number/hash, and the collector and guard use only that
+configured endpoint. Its unattended schedule stays removed. A new collection records one exact finalized block number/hash, and the collector and guard use only that
 numeric state tag for identity reads. The legacy published numbers artifact has no such state and `npm run verify`
 therefore fails closed until a new guarded refresh replaces it; the verifier never invents a state for old bytes.
 When deliberately dispatched, the workflow collects the most recent full day, rebuilds the index, the numbers
@@ -174,9 +174,9 @@ The strict direct-call check re-reads the factory record at the launch block. Be
 guard proves that both the recorded identity state and the historical launch-window state are available. Set a
 credential-bearing archive endpoint in `LINTCHA_CHAIN_RPC_URL`; `--rpc` remains a deliberate override but is visible
 in the process argument list, and neither command prints its URL. An endpoint that cannot read either fixed state is a
-hard failure. That environment path is for a local operator run: the hosted workflow deliberately receives no RPC
-secret and can use only its checked-in public endpoint. Do not weaken the guard or host a key merely to turn that
-infrastructure gap into a green publication.
+hard failure. The hosted workflow passes the repository secret of that name only to its collector and guard steps.
+When the secret is absent, both commands retain their checked-in public fallback and the same strict fixed-state
+checks; an endpoint capability gap therefore remains a hard failure rather than becoming a green publication.
 
 ## The token
 
