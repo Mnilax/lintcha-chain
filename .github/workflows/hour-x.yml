@@ -1,0 +1,236 @@
+# hour-x: turn the dormant public token document into one chain-proved pons-only activation.
+# The operator supplies only the two public values. The RPC endpoint remains a repository secret, is required rather
+# than allowed to fall back, and exists in the environment of the activation step only. The job never prints either
+# public input: they belong in the reviewed diff, not in workflow logs, commit metadata or PR prose.
+name: hour-x
+
+on:
+  workflow_dispatch:
+    inputs:
+      contract_address:
+        description: Public token contract address
+        required: true
+        type: string
+      pons_url:
+        description: Public canonical Pons HTTPS URL containing that address
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: hour-x
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the dispatched revision without retaining credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Use the repository's pinned Node major
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24"
+
+      - name: Pin this run to the exact clean main revision
+        id: base
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "abort: Hour-X must be dispatched from main"
+            exit 1
+          fi
+          head_sha=$(git rev-parse HEAD)
+          if [ "${head_sha}" != "${GITHUB_SHA}" ]; then
+            echo "abort: checkout HEAD does not match the dispatched revision"
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [ "${head_sha}" != "$(git rev-parse origin/main)" ]; then
+            echo "abort: main moved before Hour-X began; dispatch again from the new main"
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
+            echo "abort: checkout is not clean before Hour-X"
+            exit 1
+          fi
+          echo "sha=${head_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify the vendored boundary before activation
+        run: node tools/verify-vendor.mjs
+
+      - name: Validate and mask the public inputs without printing them
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { tokenConfigOf } from "./lib/config-contract.mjs";
+
+          const fail = () => {
+            process.stderr.write("abort: Hour-X inputs do not match the public activation contract\n");
+            process.exit(1);
+          };
+          let event;
+          try { event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8")); }
+          catch { fail(); }
+          const address = event && event.inputs && event.inputs.contract_address;
+          const pons = event && event.inputs && event.inputs.pons_url;
+          const config = tokenConfigOf({ address, pons, uniswap: null });
+          if (!config || !config.address || !config.pons || config.uniswap !== null) fail();
+          const commandValue = value => value.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+          for (const value of new Set([address, config.address, pons, config.pons])) {
+            process.stdout.write(`::add-mask::${commandValue(value)}\n`);
+          }
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "hour-x-ca.txt"), config.address + "\n", { flag: "wx", mode: 0o600 });
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "hour-x-pons.txt"), config.pons + "\n", { flag: "wx", mode: 0o600 });
+          NODE
+
+      - name: Prove and prepare the pons-only activation without logging its inputs
+        env:
+          LINTCHA_CHAIN_RPC_URL: ${{ secrets.LINTCHA_CHAIN_RPC_URL }}
+        shell: bash
+        run: |
+          cleanup_inputs() {
+            rm -f -- "${RUNNER_TEMP}/hour-x-ca.txt" "${RUNNER_TEMP}/hour-x-pons.txt"
+          }
+          trap cleanup_inputs EXIT
+          if [ -z "${LINTCHA_CHAIN_RPC_URL:-}" ]; then
+            echo "abort: the LINTCHA_CHAIN_RPC_URL repository secret is not configured"
+            exit 1
+          fi
+          IFS= read -r HOUR_X_CA < "${RUNNER_TEMP}/hour-x-ca.txt"
+          IFS= read -r HOUR_X_PONS_URL < "${RUNNER_TEMP}/hour-x-pons.txt"
+          node tools/activate-token.mjs "${HOUR_X_CA}" "${HOUR_X_PONS_URL}" > /dev/null
+
+      - name: Recheck the product boundary after activation
+        run: |
+          node tests/chain_token_states.mjs
+          node tools/verify-vendor.mjs
+
+      - name: Commit only status-derived activation files and open the guarded review
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [ "$(git rev-parse HEAD)" != "${BASE_SHA}" ]; then
+            echo "abort: local HEAD moved during activation"
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [ "${BASE_SHA}" != "$(git rev-parse origin/main)" ]; then
+            echo "abort: main moved during activation; discard these generated bytes and dispatch again"
+            exit 1
+          fi
+
+          status_file="${RUNNER_TEMP}/hour-x-status.txt"
+          paths_file="${RUNNER_TEMP}/hour-x-paths.txt"
+          staged_file="${RUNNER_TEMP}/hour-x-staged.txt"
+          git status --porcelain=v1 --untracked-files=all > "${status_file}"
+          if [ ! -s "${status_file}" ]; then
+            echo "abort: activation produced no reviewable change"
+            exit 1
+          fi
+          while IFS= read -r status_line; do
+            case "${status_line}" in
+              " M README.md"|" M site/token.json"|" M site/index.html"|" M site/es/index.html"|" M site/pt/index.html"|" M site/404.html") ;;
+              *)
+                echo "abort: activation changed a path outside its exact authored and generated allowlist"
+                exit 1
+                ;;
+            esac
+          done < "${status_file}"
+          for required_path in README.md site/token.json site/index.html site/es/index.html site/pt/index.html site/404.html; do
+            if ! grep -Fqx " M ${required_path}" "${status_file}"; then
+              echo "abort: activation did not modify every required authored and rendered path"
+              exit 1
+            fi
+          done
+          git diff --check > /dev/null
+          sed 's/^ M //' "${status_file}" | sort > "${paths_file}"
+
+          gh auth setup-git --hostname github.com > /dev/null
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --pathspec-from-file="${paths_file}"
+          git diff --cached --name-only | sort > "${staged_file}"
+          if ! cmp -s "${paths_file}" "${staged_file}" || ! git diff --quiet; then
+            echo "abort: the staged paths do not exactly equal the status-derived allowlist"
+            exit 1
+          fi
+          git commit -m "token: guarded Hour-X activation" > /dev/null
+          generated_sha=$(git rev-parse HEAD)
+          if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
+            echo "abort: the generated activation commit did not leave a clean tree"
+            exit 1
+          fi
+
+          branch="automation/hour-x-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git push origin "HEAD:refs/heads/${branch}" > /dev/null
+          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "token: guarded Hour-X activation" --body "Manual Hour-X activation prepared by the repository guard. This draft contains only the public activation document, README line and deterministic localized build outputs. It becomes ready only after the explicitly dispatched test and vendor workflows pass for its unchanged head while main remains unchanged.")
+
+          gh workflow run test.yml --ref "${branch}" > /dev/null
+          gh workflow run vendor.yml --ref "${branch}" > /dev/null
+          test_run=""
+          vendor_run=""
+          for attempt in $(seq 1 30); do
+            if [ -z "${test_run}" ]; then
+              test_run=$(gh run list --workflow test.yml --branch "${branch}" --commit "${generated_sha}" --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            fi
+            if [ -z "${vendor_run}" ]; then
+              vendor_run=$(gh run list --workflow vendor.yml --branch "${branch}" --commit "${generated_sha}" --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            fi
+            if [ -n "${test_run}" ] && [ -n "${vendor_run}" ]; then break; fi
+            sleep 2
+          done
+          if [ -z "${test_run}" ] || [ -z "${vendor_run}" ]; then
+            echo "abort: both required workflow-dispatch runs were not observable for the generated head"
+            exit 1
+          fi
+          gh run watch "${test_run}" --exit-status > /dev/null
+          gh run watch "${vendor_run}" --exit-status > /dev/null
+          for run_id in "${test_run}" "${vendor_run}"; do
+            if [ "$(gh run view "${run_id}" --json headSha --jq '.headSha')" != "${generated_sha}" ] ||
+               [ "$(gh run view "${run_id}" --json event --jq '.event')" != "workflow_dispatch" ] ||
+               [ "$(gh run view "${run_id}" --json conclusion --jq '.conclusion')" != "success" ]; then
+              echo "abort: a required workflow did not pass for the exact generated head"
+              exit 1
+            fi
+          done
+
+          git fetch --no-tags origin main
+          remote_head=$(git ls-remote origin "refs/heads/${branch}" | awk 'NR == 1 { print $1 }')
+          pr_head=$(gh pr view "${pr_url}" --json headRefOid --jq '.headRefOid')
+          pr_branch=$(gh pr view "${pr_url}" --json headRefName --jq '.headRefName')
+          pr_base=$(gh pr view "${pr_url}" --json baseRefName --jq '.baseRefName')
+          pr_draft=$(gh pr view "${pr_url}" --json isDraft --jq '.isDraft')
+          if [ "${BASE_SHA}" != "$(git rev-parse origin/main)" ] ||
+             [ "${remote_head}" != "${generated_sha}" ] || [ "${pr_head}" != "${generated_sha}" ] ||
+             [ "${pr_branch}" != "${branch}" ] || [ "${pr_base}" != "main" ] || [ "${pr_draft}" != "true" ]; then
+            echo "abort: main, the automation branch or the draft PR moved while its exact head was tested"
+            exit 1
+          fi
+
+          gh pr ready "${pr_url}" > /dev/null
+          git fetch --no-tags origin main
+          final_remote_head=$(git ls-remote origin "refs/heads/${branch}" | awk 'NR == 1 { print $1 }')
+          final_pr_head=$(gh pr view "${pr_url}" --json headRefOid --jq '.headRefOid')
+          if [ "${BASE_SHA}" != "$(git rev-parse origin/main)" ] ||
+             [ "${final_remote_head}" != "${generated_sha}" ] || [ "${final_pr_head}" != "${generated_sha}" ]; then
+            gh pr ready --undo "${pr_url}" > /dev/null 2>&1 || true
+            echo "abort: main or the PR head moved while the PR was being marked ready"
+            exit 1
+          fi
+          if [ "$(gh pr view "${pr_url}" --json isDraft --jq '.isDraft')" != "false" ]; then
+            echo "abort: the guarded PR did not become ready"
+            exit 1
+          fi
+          echo "hour-x: guarded PR ready; both required workflows passed for its unchanged head and main remained unchanged"

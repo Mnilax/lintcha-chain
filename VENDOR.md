@@ -104,3 +104,4 @@ A path is added here in the same commit that creates the file.
 - `tests/collection_guard_test.mjs`
 - `tests/production_smoke_test.mjs`
 - `tests/activate_token_test.mjs`
+- `tests/hour_x_workflow_test.mjs`

@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/avatar.png" width="128" height="128" alt=""></p>
 <p align="center"><img src="assets/banner.png" alt="lintcha-chain" width="100%"></p>
 <p align="center">
-<img alt="tests" src="https://img.shields.io/badge/tests-2250_passing-d4fc50?labelColor=08090a&style=flat-square">
+<img alt="tests" src="https://img.shields.io/badge/tests-2292_passing-d4fc50?labelColor=08090a&style=flat-square">
 <img alt="node" src="https://img.shields.io/badge/node-%3E%3D24-5e5a53?labelColor=08090a&style=flat-square">
 <img alt="runtime deps" src="https://img.shields.io/badge/runtime_deps-0-5e5a53?labelColor=08090a&style=flat-square">
 <img alt="chain" src="https://img.shields.io/badge/chain-4663-5e5a53?labelColor=08090a&style=flat-square">
@@ -80,6 +80,7 @@ npm run i18n      merge the strings and run the vendored i18n check (three langu
 npm run verify    refuse the current legacy snapshot before network; for a state-pinned replacement, audit its exact state/window, rebuild, print both hashes
 node tests/published_contract_test.mjs     verify the manifest against the exact index and numbers bytes
 node tests/chain_browser.mjs site --pages "/,/es/,/pt/,/live/,/deployer/,/hold/,/hold/?t=0123456789abcdef0123456789abcdef"     all rendered-page and holder-flow contracts in a headless browser
+node tests/hour_x_workflow_test.mjs     check the manual activation workflow's inputs, secret boundary, exact files, race guards and PR review sequence
 npm run identity -- doctor     run the public conformance fixture
 node tools/collection-guard.mjs --in <report.json> --published site/launch-numbers.json --diagnose-semantic     reconstruct identities at the report's exact recorded state; this skips event-header batches and sampled transactions and is not publication proof
 npm run identity -- help       print the offline JSON CLI contract
@@ -138,7 +139,7 @@ The badges above are static images from shields.io, which GitHub renders; nothin
 Each figure is read from the tree, not typed from memory:
 
 ```
-tests           npm test; npm test --prefix bot              818 root checks + 1432 bot checks = 2250 checks
+tests           npm test; npm test --prefix bot              860 root checks + 1432 bot checks = 2292 checks
 node            package.json, engines.node                  >=24
 runtime deps    package.json                                no "dependencies" key
 chain           site/launch-numbers.json, chain_id          4663
@@ -192,6 +193,14 @@ At Hour X, run the guarded pons-only switch with the two public values:
 ```
 npm run activate-token -- <CA> <PONS_HTTPS_URL>
 ```
+
+For the hosted path, `.github/workflows/hour-x.yml` exposes those same two public values as a manual form. It requires
+`LINTCHA_CHAIN_RPC_URL` as a repository secret, masks the supplied values before handing them to the activation step,
+never prints the inputs or endpoint, and refuses a run outside the exact current `main`. It accepts exactly the activation document,
+README line, root comparison and 404, and the Spanish and Portuguese comparison pages as changes. Those paths are
+taken from `git status`, not a handwritten staging command. The workflow opens a draft PR, explicitly dispatches and
+waits for both required review workflows on the generated commit, rechecks `main`, the remote branch and the PR head,
+and only then marks the PR ready. It never merges or deploys.
 
 Before changing the tree it validates the shared config contract and URL/address binding, proves the configured
 endpoint's chain, reads one canonical finalized header, and uses that header's exact numeric block tag for token code,
