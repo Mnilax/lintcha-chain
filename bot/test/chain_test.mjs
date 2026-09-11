@@ -6,8 +6,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readToken, forgetToken, forgetDecimals, hasToken, setGate, rpcGate, balanceOf, decimalsOf, totalSupply, unitsNumber, launchRecord, venueOf, transfersAround, priceInPair, SEL, TOPIC_TRANSFER, CHAIN_ID, FACTORY, chainIsOurs, blockNumber, DEFAULT_RPC_IN_FLIGHT, DEFAULT_RPC_SPACING_MS, DEFAULT_RPC_LOGS_SPACING_MS, BOT_RPC_MAX_RETRIES, BOT_RPC_RESPONSE_BODY_LIMIT, MAX_RPC_SPACING_MS, DEFAULT_MAX_TRANSFER_LOGS, MAX_TRANSFER_HEADER_BLOCKS, TRANSFER_LOGS_OVERFLOW, TOKEN_JSON_BODY_LIMIT, TOKEN_JSON_TIMEOUT_MS } from "../src/chain.js";
-import { harness, fakeGate, fakeGateFn, fakeNetwork, wordHex, topicAddr, launchRecordHex, TOKEN_ADDRESS, VENUE_ADDRESS, WALLET_ADDRESS, FIXTURE } from "./fakes.mjs";
+import { readToken, forgetToken, forgetDecimals, hasToken, setGate, rpcGate, balanceOf, decimalsOf, symbolOf, totalSupply, unitsNumber, launchRecord, venueOf, transfersAround, priceInPair, SEL, TOPIC_TRANSFER, CHAIN_ID, FACTORY, chainIsOurs, blockNumber, DEFAULT_RPC_IN_FLIGHT, DEFAULT_RPC_SPACING_MS, DEFAULT_RPC_LOGS_SPACING_MS, BOT_RPC_MAX_RETRIES, BOT_RPC_RESPONSE_BODY_LIMIT, MAX_RPC_SPACING_MS, DEFAULT_MAX_TRANSFER_LOGS, MAX_TRANSFER_HEADER_BLOCKS, TRANSFER_LOGS_OVERFLOW, TOKEN_JSON_BODY_LIMIT, TOKEN_JSON_TIMEOUT_MS } from "../src/chain.js";
+import { harness, fakeGate, fakeGateFn, fakeNetwork, wordHex, stringReturn, topicAddr, launchRecordHex, TOKEN_ADDRESS, VENUE_ADDRESS, WALLET_ADDRESS, FIXTURE } from "./fakes.mjs";
 
 const t = harness("chain");
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -314,6 +314,38 @@ t.ok(await balanceOf({}, zeroAddress, FIXTURE.address) === null && await decimal
   "a zero token address is refused before any chain read");
 t.ok(await balanceOf({}, TOKEN_ADDRESS, zeroAddress) === null && invalidTargetGate.stats.calls === 0,
   "a zero holder is refused before any chain read");
+
+forgetDecimals();
+const defaultTags = [];
+setGate(fakeGateFn(async (method, params) => {
+  if (method === "eth_chainId") return OUR_CHAIN;
+  if (method !== "eth_call") return new Error("unexpected " + method);
+  defaultTags.push(params[1]);
+  const data = params[0].data.slice(0, 10);
+  if (data === SEL.decimals) return wordHex(18);
+  if (data === SEL.symbol) return stringReturn("LINTCHA");
+  if (data === SEL.totalSupply) return wordHex(1000000000n * 10n ** 18n);
+  if (data === SEL.launched) return launchRecordHex({ curve: VENUE_ADDRESS });
+  return new Error("unexpected eth_call");
+}));
+const defaultDecimals = await decimalsOf({}, TOKEN_ADDRESS);
+const defaultSymbol = await symbolOf({}, TOKEN_ADDRESS);
+const defaultSupply = await totalSupply({}, TOKEN_ADDRESS);
+const defaultRecord = await launchRecord({}, TOKEN_ADDRESS);
+t.ok(defaultDecimals === 18 && defaultSymbol === "LINTCHA" && defaultSupply === 1000000000n * 10n ** 18n && defaultRecord?.exists === true &&
+  defaultTags.length === 4 && defaultTags.every(tag => tag === "latest"),
+"the optional-state token and factory helpers retain latest as their exact default tag");
+
+const invalidStateGate = onOurs({});
+forgetDecimals();
+setGate(invalidStateGate);
+t.ok(await decimalsOf({}, TOKEN_ADDRESS, "finalized") === null && await symbolOf({}, TOKEN_ADDRESS, "finalized") === null &&
+  await totalSupply({}, TOKEN_ADDRESS, "finalized") === null && await launchRecord({}, TOKEN_ADDRESS, "finalized") === null && invalidStateGate.stats.calls === 0,
+  "the optional state accepts a canonical numeric tag or the existing latest default, never a moving alias");
+
+setGate(onOurs({ ["eth_call:" + SEL.symbol]: stringReturn("LINTCHA") + "00".repeat(32) }));
+t.ok(await symbolOf({}, TOKEN_ADDRESS) === null, "symbol refuses a decodable string with non-canonical trailing return words");
+
 forgetDecimals();
 setGate(onOurs({
   ["eth_call:" + SEL.balanceOf]: wordHex(7n * 10n ** 18n),

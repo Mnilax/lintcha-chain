@@ -72,6 +72,7 @@ A path is added here in the same commit that creates the file.
 - `tools/verify-index.mjs`
 - `tools/collection-guard.mjs`
 - `tools/production-smoke.mjs`
+- `tools/activate-token.mjs`
 - `tests/chain_token_states.mjs`
 - `tests/live_wall_test.mjs`
 - `site/icon-32.png`
@@ -100,3 +101,4 @@ A path is added here in the same commit that creates the file.
 - `tests/published_contract_test.mjs`
 - `tests/collection_guard_test.mjs`
 - `tests/production_smoke_test.mjs`
+- `tests/activate_token_test.mjs`

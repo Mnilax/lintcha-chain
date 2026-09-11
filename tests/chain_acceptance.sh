@@ -75,12 +75,18 @@ show(\"reproduce block (section 08)\", /id=\"s08\"[\\s\\S]*?data-i18n=\"reproduc
 show(\"independence line (footer)\", /data-i18n=\"footer.independence\"[^>]*>([^<]+)</);
 process.exit(bad ? 1 : 0);'"
 
-run 12 "no project-token activation, rendered token block or buy link in any served HTML: token.json is all null, and every forty-hex address in the tracked or unignored candidate tree has a source-scoped allowance" \
-  "node -e '
-const fs = require(\"fs\"), path = require(\"path\"), { execFileSync } = require(\"child_process\"); let bad = 0;
-const t = JSON.parse(fs.readFileSync(\"site/token.json\", \"utf8\")); console.log(\"site/token.json: \" + JSON.stringify(t)); if (t.address !== null || t.pons !== null || t.uniswap !== null) bad++;
+run 12 "the dormant or active token document agrees exactly with every served page, and every forty-hex address has a source-scoped allowance" \
+  "node --input-type=module -e '
+import fs from \"node:fs\"; import path from \"node:path\"; import { execFileSync } from \"node:child_process\"; import { tokenConfigOf } from \"./lib/config-contract.mjs\"; let bad = 0;
+const rawToken = JSON.parse(fs.readFileSync(\"site/token.json\", \"utf8\")); const t = tokenConfigOf(rawToken); console.log(\"site/token.json: \" + JSON.stringify(rawToken)); if (!t) bad++;
+const active = !!(t && t.address); const exactHits = (text, value) => value ? text.split(value).length - 1 : 0; const htmlUrl = value => String(value).replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\").replace(/\"/g, \"&quot;\");
 const htmlFiles = []; (function walk(dir) { for (const entry of fs.readdirSync(dir, { withFileTypes: true })) { const file = path.join(dir, entry.name); if (entry.isDirectory()) walk(file); else if (/\\.html$/i.test(entry.name)) htmlFiles.push(file); } })(\"$DIR\");
-for (const file of htmlFiles.sort()) { const page = fs.readFileSync(file, \"utf8\"); const blocks = (page.match(/class\\s*=\\s*(?:\"[^\"]*\\b(?:contract|buy|token-sec|token-btn)\\b[^\"]*\"|\\x27[^\\x27]*\\b(?:contract|buy|token-sec|token-btn)\\b[^\\x27]*\\x27)/gi) || []).length; const buyLinks = (page.match(/\\bhref\\s*=\\s*(?:\"[^\"]*(?:pons|uniswap)[^\"]*\"|\\x27[^\\x27]*(?:pons|uniswap)[^\\x27]*\\x27|[^\\s>]*(?:pons|uniswap)[^\\s>]*)/gi) || []).length; console.log(path.relative(\"$DIR\", file).replace(/\\\\/g, \"/\") + \": token block markup \" + (blocks ? blocks + \" hit(s)\" : \"none\") + \", buy links \" + (buyLinks || \"none\")); if (blocks || buyLinks) bad++; }
+for (const file of htmlFiles.sort()) { const rel = path.relative(\"$DIR\", file).replace(/\\\\/g, \"/\"), page = fs.readFileSync(file, \"utf8\"); const blocks = (page.match(/class\\s*=\\s*(?:\"[^\"]*\\b(?:contract|buy|token-sec|token-btn)\\b[^\"]*\"|\\x27[^\\x27]*\\b(?:contract|buy|token-sec|token-btn)\\b[^\\x27]*\\x27)/gi) || []).length; const addressHits = active ? exactHits(page, \"data-token-address>\" + t.address + \"<\") : 0, ponsHits = active ? exactHits(page, htmlUrl(t.pons)) : 0, uniswapHits = active && t.uniswap ? exactHits(page, htmlUrl(t.uniswap)) : 0; let agrees;
+  if (!active) agrees = blocks === 0;
+  else if (rel === \"index.html\") agrees = addressHits === 3 && ponsHits === 2 && uniswapHits === (t.uniswap ? 1 : 0) && blocks >= 4;
+  else if (rel === \"404.html\") agrees = addressHits === 1 && ponsHits === 1 && uniswapHits === 0 && blocks >= 2;
+  else agrees = addressHits === 0 && ponsHits === 0 && uniswapHits === 0 && blocks === 0;
+  console.log(rel + \": token state \" + (active ? \"active\" : \"dormant\") + \", address slots \" + addressHits + \", primary link \" + ponsHits + \", markup \" + blocks + (agrees ? \"\" : \" <- MISMATCH\")); if (!agrees) bad++; }
 const files = execFileSync(\"git\", [\"ls-files\", \"--cached\", \"--others\", \"--exclude-standard\", \"-z\"], { encoding: \"utf8\" }).split(\"\\0\").filter(Boolean);
 const syntheticAddress = /^(?:0x([0-9a-f])\\1{39}|0x1[0]{38}[1-4]|0x(?:(?:10){20}|(?:20){20})|0x0{39}1)$/i;
 const ALLOW = [
@@ -96,7 +102,8 @@ const ALLOW = [
   [/^tests[\\/\\\\](?:chain_acceptance\\.sh|launch_abi_test\\.mjs|launch_extraction\\.mjs)$/, /0xca11bde05977b3631167028862be2a173976ca11/i, \"the Multicall3 constant under test\"],
   [/^tests[\\/\\\\]chain_acceptance\\.sh$/, /0xe33e9e479df8802cb0866d5d05258bec4cf62948/i, \"the wrapped native constant in the guard allowance\"]
 ];
-let hits = 0; for (const f of files) { if (/\\.(png|woff2|jpg|log)$/i.test(f)) continue;   /* *.log is gitignored: a run record, not the tree */ const s = fs.readFileSync(f, \"utf8\"); for (const m of s.matchAll(/(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/gi)) { hits++; const rel = f.replace(/^\\.[\\/\\\\]/, \"\"); const a = ALLOW.find(([fr, ar]) => fr.test(rel) && ar.test(m[0])); console.log(\"  \" + rel + \": \" + m[0].slice(0, 10) + \"… \" + (a ? \"allowed, \" + a[2] : \"NOT ALLOWED\")); if (!a) bad++; } }
+const activeAddressFiles = new Set([\"site/token.json\", \"site/index.html\", \"site/404.html\", \"README.md\"]);
+let hits = 0; for (const f of files) { if (/\\.(png|woff2|jpg|log)$/i.test(f)) continue;   /* *.log is gitignored: a run record, not the tree */ const s = fs.readFileSync(f, \"utf8\"); for (const m of s.matchAll(/(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/gi)) { hits++; const rel = f.replace(/^\\.[\\/\\\\]/, \"\"); const projectToken = active && activeAddressFiles.has(rel) && m[0].toLowerCase() === t.address; const a = projectToken ? [null, null, \"the exact active address from site/token.json\"] : ALLOW.find(([fr, ar]) => fr.test(rel) && ar.test(m[0])); console.log(\"  \" + rel + \": \" + m[0].slice(0, 10) + \"… \" + (a ? \"allowed, \" + a[2] : \"NOT ALLOWED\")); if (!a) bad++; } }
 console.log(\"forty-hex strings in the tree: \" + hits + \", not allowed: \" + bad); process.exit(bad ? 1 : 0);'"
 
 run 13 "i18n_check passes on all three languages (after the merge), only en is emitted" \

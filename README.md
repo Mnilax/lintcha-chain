@@ -118,9 +118,10 @@ social card and the sitemap, is the `origin` key of `site/launch-site.json`.
 - Round F is retained deployer history: the owned `/deployer/` page and `GET/HEAD /api/deployer`. It states the exact
   retained watcher range and exposes bounded launch declarations without token addresses or transactions.
 - Round G is the holder-alert and bot code under `bot/`. It is locally tested. A null token address keeps the feed
-  dormant and does not by itself block deployment; production remains blocked until the room configuration is filled
-  and KV, secrets, routes and cron are confirmed against the live account. Webhook activation additionally waits for
-  the verified non-null token address promised by the public page.
+  dormant and does not by itself block deployment. Room configuration, bindings, secrets, routes, cron and deployment
+  are operational facts outside this tree and are checked with the bot's production checklist. The webhook remains
+  deliberately disconnected while the shared token document carries a null address; it is connected only after the
+  exact non-null token has passed the Hour-X activation and the public deployment has been reproduced.
 - Round H is the public normalization integration kit: `lib/identity.mjs`, the `lintcha-chain` JSON CLI and the
   conformance fixture. Its `read` command refuses a custom index without a matching manifest.
 
@@ -180,9 +181,23 @@ checks; an endpoint capability gap therefore remains a hard failure rather than 
 
 ## The token
 
-`site/token.json` ships with every value null and the page carries no token block, no address and no buy link. When an
-address and a pons link exist, the block renders from that one file; a uniswap link adds its own button. The three
-states are checked by `tests/chain_token_states.mjs` against temporary files, never the tree.
+`site/token.json` is the one activation document for the static page and Worker. Its dormant state has three null
+values and renders no token block, address or buy link; its active state requires one canonical nonzero address and a
+canonical pons HTTPS URL containing that exact address as a separate hex sequence. The optional uniswap field remains
+null unless it is separately configured. Both dormant and active states are checked by `tests/chain_token_states.mjs`.
+
+At Hour X, run the guarded pons-only switch with the two public values:
+
+```
+npm run activate-token -- <CA> <PONS_HTTPS_URL>
+```
+
+Before changing the tree it validates the shared config contract and URL/address binding, proves the configured
+endpoint's chain, reads one canonical finalized header, and uses that header's exact numeric block tag for token code,
+the factory record, `symbol()`, decimals and total supply. The symbol must canonically decode to exactly `LINTCHA`.
+It then reproduces the build and all eight never-line digests in a temporary copy. Only after every proof passes does
+it replace `site/token.json` and the README token line and run the real build. It neither reads the token name nor
+accepts or writes a uniswap URL, secret, Worker setting or git state.
 
 ## Licence
 
