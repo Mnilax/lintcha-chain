@@ -1,10 +1,12 @@
 # verify-vendor on every push and pull request: lintcha is the source of the launch engine and this repository only
 # receives copies, so the table in VENDOR.md must match the tree byte for byte (spec section 3). Two actions, both
-# pinned by commit SHA, read-only permissions, no secret, no token.
+# pinned by commit SHA, read-only permissions, no repository secret or personal token; checkout uses the read-only
+# GITHUB_TOKEN supplied by Actions.
 name: vendor
 on:
   push:
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

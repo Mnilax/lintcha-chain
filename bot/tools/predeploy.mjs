@@ -7,7 +7,18 @@ import { fileURLToPath } from "node:url";
 import { botUsernameOf } from "../src/config.js";
 
 const bot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const configPath = process.argv[2] ? path.resolve(process.cwd(), process.argv[2]) : path.join(bot, "wrangler.toml");
+const argv = process.argv.slice(2);
+let production = false, configArgument = null;
+for (const argument of argv) {
+  if (argument === "--production") {
+    if (production) { console.error("predeploy: duplicate --production argument"); process.exit(1); }
+    production = true;
+  } else if (argument.startsWith("--") || configArgument) {
+    console.error("predeploy: usage: node tools/predeploy.mjs [--production] [wrangler.toml]");
+    process.exit(1);
+  } else configArgument = argument;
+}
+const configPath = configArgument ? path.resolve(process.cwd(), configArgument) : path.join(bot, "wrangler.toml");
 const config = fs.readFileSync(configPath, "utf8");
 const placeholder = "REPLACE_WITH_THE_LINTCHA_CHAIN_SESSIONS_NAMESPACE_ID";
 
@@ -42,4 +53,12 @@ if (!username || !botUsernameOf(username[1])) {
   process.exit(1);
 }
 
-console.log("predeploy: local resource bindings are filled; secrets, migrations and dashboard-level route admission still require live checks");
+if (production) {
+  const room = /^\s*ROOM_CHAT_ID\s*=\s*"([^"]*)"\s*(?:#.*)?$/m.exec(config);
+  if (!room || !/^-?[1-9][0-9]*$/.test(room[1])) {
+    console.error("predeploy: production ROOM_CHAT_ID must be a nonzero decimal chat id discovered from Telegram");
+    process.exit(1);
+  }
+}
+
+console.log("predeploy: local resource bindings" + (production ? " and production room id are" : " are") + " filled; secrets, migrations and dashboard-level route admission still require live checks");

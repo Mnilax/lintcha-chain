@@ -52,7 +52,7 @@ export const DEFAULT_DEPTH_DAYS = 7;
 export const DEFAULT_TAIL_CACHE_MS = 5000;
 /** Manifest/index/numbers fetches share the same bounded five-second I/O window. */
 export const PUBLISHED_RESPONSE_TIMEOUT_MS = DEFAULT_TAIL_CACHE_MS;
-/** the published index changes weekly, so a ten minute memory of it is fresh by a wide margin */
+/** The index changes only as an atomic published bundle; this short cache cannot outlive a deliberate refresh. */
 export const DEFAULT_INDEX_TTL_MS = 600000;
 /** Owned response ceiling, kept well above the checked-in corpus while avoiding contract-level 64 MiB bodies. */
 export const MAX_PUBLISHED_FILE_BYTES = 4 * 1024 * 1024;
@@ -131,7 +131,7 @@ const SCHEMA = [
 
 // The three published files are one versioned bundle. The manifest's exact-byte digest is the generation;
 // index and numbers entries are reusable only while they name that same generation. Keeping one record here
-// matters during a weekly upload: independently fresh caches could otherwise pair an old index with a new
+// matters during a bundle replacement: independently fresh caches could otherwise pair an old index with a new
 // snapshot boundary (or the reverse).
 const emptyPublishedCache = () => ({
   manifest: { at: 0, value: null, generation: null, url: null },

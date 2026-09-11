@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { AGGREGATE3_RESULT, T, TOKEN_INFO, TOKEN_PARAMS, calldata, encode } from "../tools/launch/abi.mjs";
 import { hex } from "../tools/launch/keccak.mjs";
 import { Gate } from "../tools/launch/rpc.mjs";
-import { auditEventBlockHeaders, auditLogLayouts, auditTransactions, buildSemanticAudit, collectorContract, decodeAuditBatch, decodeSampleTransaction, rpcOverrideAllowed, validateAuditContext, validateCollection, validateLaunchLogs, validateMovingIdentityHeads, validatePartitionPage, validateSemanticAudit, validateTransactionAudit } from "../tools/collection-guard.mjs";
+import { RPC_ENV, auditEventBlockHeaders, auditLogLayouts, auditTransactions, buildSemanticAudit, collectorContract, decodeAuditBatch, decodeSampleTransaction, exactIdentityState, redactRpcEndpoint, resolveRpcEndpoint, rpcOverrideAllowed, validateAuditContext, validateCollection, validateIdentityStateHeader, validateLaunchLogs, validatePartitionPage, validateSemanticAudit, validateTransactionAudit } from "../tools/collection-guard.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url)), root = path.resolve(here, "..");
 const require = createRequire(import.meta.url), L = require(path.join(root, "site", "launch.js"));
@@ -30,14 +30,26 @@ ok(contract && /^0x[0-9a-f]{64}$/.test(contract.eventTopic), "derives the event 
 ok(contract && new URL(contract.rpc).protocol === "https:", "reads the public RPC from the pinned collector source");
 ok(contract && contract.batch > 0 && contract.chunk > 0 && contract.sample.regular > 0 && contract.limiter.spacingMs > 0, "reads batch, chunk, sample and limiter bounds from the pinned collector source");
 ok(collectorContract(source.replace("const CHAIN_ID", "const WRONG_CHAIN_ID")) === null, "refuses collector source whose contract cannot be extracted exactly");
+const sourceWithEnvironmentRpc = source.replace(/const RPC = opt\("rpc", "https:\/\/[^"\s]+"\);/, `const DEFAULT_RPC = "${contract.rpc}";`);
+ok(sourceWithEnvironmentRpc.includes("const DEFAULT_RPC") && collectorContract(sourceWithEnvironmentRpc)?.rpc === contract.rpc, "reads the default endpoint from the source-first environment-RPC collector shape");
 ok(rpcOverrideAllowed("https://rpc.example.invalid") && rpcOverrideAllowed("http://127.0.0.1:8545"), "accepts HTTPS RPC and exact loopback HTTP for the local harness");
 ok(!rpcOverrideAllowed("http://rpc.example.invalid") && !rpcOverrideAllowed("https://user:secret@rpc.example.invalid"), "refuses plaintext remote RPC and credential-bearing URLs");
 ok(!rpcOverrideAllowed("https://rpc.example.invalid/?api_key=secret") && !rpcOverrideAllowed("https://rpc.example.invalid/#secret"), "refuses RPC overrides whose query or fragment could expose a secret in process output");
+const environmentSecret = "environment-secret-sentinel";
+const selectedEnvironment = resolveRpcEndpoint([], contract.rpc, { [RPC_ENV]: "https://rpc.example.invalid/" + environmentSecret });
+ok(selectedEnvironment.source === "environment" && selectedEnvironment.url.endsWith(environmentSecret), "selects a credential-bearing endpoint from the dedicated environment variable");
+let conflictingRpc = false;
+try { resolveRpcEndpoint(["--rpc", contract.rpc], contract.rpc, { [RPC_ENV]: "https://rpc.example.invalid/" + environmentSecret }); } catch (error) { conflictingRpc = error.message.includes("either"); }
+ok(conflictingRpc, "refuses ambiguous simultaneous CLI and environment endpoints");
+ok(!redactRpcEndpoint("transport exposed https://rpc.example.invalid/" + environmentSecret, selectedEnvironment.url).includes(environmentSecret), "redacts the endpoint and its path credential from diagnostics");
+ok(!redactRpcEndpoint("provider reflected /ab/cd", "https://rpc.example.invalid/ab/cd").includes("/ab/cd"), "redacts a complete credential path even when each segment is short");
+ok(!redactRpcEndpoint("provider reflected endpoint-secret-sentinel.example.invalid", "https://endpoint-secret-sentinel.example.invalid/").includes("endpoint-secret-sentinel"), "redacts a credential-bearing endpoint hostname from diagnostics");
 
 const tables = Object.fromEntries(L.NAMESPACES.map(namespace => [namespace, {}]));
 tables.ticker["a".repeat(16)] = { n: 2, d: 2, first: "2026-09-10" };
 tables.ticker_skeleton["b".repeat(16)] = { n: 2, d: 2, first: "2026-09-10", v: 2 };
 const report = {
+  identity_state: { number: 12, hash: "0x" + "7".repeat(64) },
   window: { kind: "day", from: 10, to: 12, blocks: 3, from_time: "2026-09-10T00:00:01.000Z", to_time: "2026-09-10T00:00:03.000Z", finalized: 12, chain_id: contract.chainId },
   six: {
     launches_scanned: 2,
@@ -83,6 +95,7 @@ const report = {
 };
 const published = { chain_id: contract.chainId, launches_scanned: 2 };
 ok(validateCollection(report, published, contract).length === 0, "accepts one internally complete collection fixture");
+ok(exactIdentityState(report, "fixture").number === report.window.finalized, "reads the report's exact finalized identity state");
 
 const collectionCase = (what, change, phrase) => {
   const value = clone(report), baseline = clone(published);
@@ -92,6 +105,9 @@ const collectionCase = (what, change, phrase) => {
 collectionCase("refuses an empty range", value => { value.window.to = value.window.from; value.window.blocks = 1; }, "range");
 collectionCase("refuses a chain mismatch", value => { value.window.chain_id++; }, "chain id");
 collectionCase("refuses a claimed unfinalized range", value => { value.window.finalized = value.window.to - 1; }, "finalized");
+collectionCase("refuses a legacy report without an identity state", value => { delete value.identity_state; }, "new guarded refresh");
+collectionCase("refuses a zero identity-state hash", value => { value.identity_state.hash = "0x" + "0".repeat(64); }, "malformed exact finalized");
+collectionCase("refuses an identity state that differs from the stated finalized head", value => { value.identity_state.number++; }, "exactly bind");
 collectionCase("refuses a partial token read", value => { value.verified.tokens_readable--; }, "exactly once");
 collectionCase("refuses a record that was not proved for every launch", value => { value.verified.factory_record_exists--; }, "factory_record_exists");
 const partialCounters = clone(report);
@@ -172,13 +188,16 @@ const retopicedPartition = clone(partitionBaseline); retopicedPartition[1].topic
 has(validatePartitionPage(retopicedPartition, partitionBaseline, contract, 10, 10), "projection", "detects topic drift even when position and token identities still match");
 const reindexedPartition = clone(partitionBaseline); reindexedPartition[1].transactionIndex = quantity(2);
 has(validatePartitionPage(reindexedPartition, partitionBaseline, contract, 10, 10), "projection", "detects transaction-position drift even when the token and log index still match");
+let headerRedirectPolicy = null;
 const headerResponse = hash => async (_url, options) => ({ status: 200, text: async () => {
+  headerRedirectPolicy = options.redirect;
   const requests = JSON.parse(options.body);
   return JSON.stringify(requests.map(request => ({ jsonrpc: "2.0", id: request.id, result: { number: request.params[0], hash } })));
 } });
 const headerRetryPolicy = new Gate({ url: "http://127.0.0.1:1" });
 const headerAudit = await auditEventBlockHeaders([log], contract, "http://127.0.0.1:1", report.limiter.spacing_ms, headerResponse(log.blockHash), headerRetryPolicy);
 ok(headerAudit.blocks === 1 && headerAudit.batches === 1 && headerAudit.retries === 0, "binds every unique event block to an exact header batch reply");
+ok(headerRedirectPolicy === "error", "event header batches refuse redirects for an endpoint that may carry a path credential");
 let headerAttempts = 0, cancelledHeaderBodies = 0;
 const retryingHeaderResponse = async (url, options) => ++headerAttempts === 1 ? { status: 429, body: { cancel: () => { cancelledHeaderBodies++; return new Promise(() => {}); } } } : headerResponse(log.blockHash)(url, options);
 const retryAudit = await auditEventBlockHeaders([log], contract, "http://127.0.0.1:1", report.limiter.spacing_ms, retryingHeaderResponse, {
@@ -209,6 +228,14 @@ await (async () => {
   const oversized = async () => ({ status: 200, headers: { get: () => String(Number.MAX_SAFE_INTEGER) }, text: async () => "[]" });
   try { await auditEventBlockHeaders([log], contract, "http://127.0.0.1:1", report.limiter.spacing_ms, oversized, headerRetryPolicy); ok(false, "refuses an oversized declared header response before parsing it"); }
   catch (error) { ok(error.message.includes("content-length"), "refuses an oversized declared header response before parsing it"); }
+})();
+await (async () => {
+  const hangingFetch = async () => new Promise(() => {});
+  const shortPolicy = { cooldownMs: 1, maxCooldownMs: 1, maxRetries: 1 };
+  const keepAlive = setTimeout(() => {}, 100);
+  try { await auditEventBlockHeaders([log], contract, "http://127.0.0.1:1", report.limiter.firstAt, hangingFetch, shortPolicy); ok(false, "times out a header fetch that ignores its abort signal"); }
+  catch (error) { ok(error.message.includes("gave up"), "a request deadline releases the audit even when fetch ignores its abort signal"); }
+  finally { clearTimeout(keepAlive); }
 })();
 await (async () => {
   let cancelled = 0;
@@ -333,8 +360,10 @@ const context = {
   chainId: quantity(contract.chainId),
   fromBlock: { number: quantity(report.window.from), timestamp: quantity(timestamp(report.window.from_time)) },
   toBlock: { number: quantity(report.window.to), timestamp: quantity(timestamp(report.window.to_time)) },
-  finalizedBlock: { number: quantity(report.window.finalized), timestamp: quantity(timestamp(report.window.to_time)), hash: "0x" + "7".repeat(64) },
+  finalizedBlock: { number: quantity(report.window.finalized + 1), timestamp: quantity(timestamp(report.window.to_time) + 1), hash: "0x" + "8".repeat(64) },
+  identityStateBlock: { number: quantity(report.identity_state.number), timestamp: quantity(timestamp(report.window.to_time)), hash: report.identity_state.hash },
   multicallCode: "0x01",
+  identityFactoryCode: "0x01",
   historicalFactoryCode: "0x01",
   boundaries: []
 };
@@ -345,20 +374,20 @@ const wrongFirst = clone(context); wrongFirst.fromBlock.number = quantity(report
 has(validateAuditContext(wrongFirst, report, contract), "first block", "refuses a substituted first block");
 const wrongTime = clone(context); wrongTime.toBlock.timestamp = quantity(timestamp(report.window.to_time) + 1);
 has(validateAuditContext(wrongTime, report, contract), "timestamp", "refuses a substituted block timestamp");
-const staleFinality = clone(context); staleFinality.finalizedBlock.number = quantity(report.window.to - 1);
+const staleFinality = clone(context); staleFinality.finalizedBlock.number = quantity(report.identity_state.number - 1);
 has(validateAuditContext(staleFinality, report, contract), "finalized", "refuses a finalized head behind the collected range");
+const contradictorySameHeightFinality = clone(context); contradictorySameHeightFinality.finalizedBlock.number = quantity(report.identity_state.number);
+has(validateAuditContext(contradictorySameHeightFinality, report, contract), "contradicts", "refuses a different finalized hash at the recorded identity-state height");
 const invalidFinalizedHash = clone(context); invalidFinalizedHash.finalizedBlock.hash = "0x01";
 has(validateAuditContext(invalidFinalizedHash, report, contract), "block hash", "refuses a finalized head without a canonical hash");
+const wrongIdentityHash = clone(context); wrongIdentityHash.identityStateBlock.hash = "0x" + "9".repeat(64);
+has(validateAuditContext(wrongIdentityHash, report, contract), "differs", "refuses a canonical header hash that differs from the recorded identity state");
+has(validateIdentityStateHeader(wrongIdentityHash.identityStateBlock, report, "recheck"), "differs", "the standalone post-read validator refuses identity-state hash drift");
+const noIdentityFactoryState = clone(context); noIdentityFactoryState.identityFactoryCode = null;
+has(validateAuditContext(noIdentityFactoryState, report, contract), "recorded identity state", "refuses an endpoint without factory code at the recorded identity state");
 const noHistoricalState = clone(context); noHistoricalState.historicalFactoryCode = null;
 has(validateAuditContext(noHistoricalState, report, contract), "historical factory state", "refuses an audit endpoint without the archive state required by strict transaction checks");
 ok(validateAuditContext(noHistoricalState, report, contract, { requireHistorical: false }).length === 0, "allows an explicitly diagnostic context without historical state");
-const movingStart = { number: quantity(report.window.finalized), hash: "0x" + "8".repeat(64) };
-const movingEnd = { number: quantity(report.window.finalized + 1), hash: "0x" + "9".repeat(64) };
-ok(validateMovingIdentityHeads(movingStart, movingEnd, report.window.finalized).length === 0, "accepts canonical before/after headers around explicitly unbound latest reads");
-has(validateMovingIdentityHeads(movingStart, { ...movingEnd, hash: "0x" + "0".repeat(64) }, report.window.finalized), "malformed", "refuses an observed zero latest-head hash");
-has(validateMovingIdentityHeads(movingEnd, movingStart, report.window.finalized), "regressed", "refuses an observed latest-head regression");
-has(validateMovingIdentityHeads(movingStart, { ...movingStart, hash: movingEnd.hash }, report.window.finalized), "two hashes", "refuses two observed hashes at one latest height");
-has(validateMovingIdentityHeads({ ...movingStart, number: quantity(report.window.finalized - 1) }, movingEnd, report.window.finalized), "behind", "refuses an observed latest head below validated finality");
 const boundaryReport = clone(report);
 boundaryReport.window.from_time = "2026-09-09T23:59:59.000Z";
 boundaryReport.verified.day_boundaries = [11];
@@ -404,8 +433,12 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lintcha-collection-guard-test
 const reportPath = path.join(tmp, "report.json"), publishedPath = path.join(tmp, "published.json");
 fs.writeFileSync(reportPath, JSON.stringify(integrationReport));
 fs.writeFileSync(publishedPath, JSON.stringify({ chain_id: contract.chainId, launches_scanned: 1 }));
-const block = (number, time) => ({ number: quantity(number), timestamp: quantity(timestamp(time)), hash: log.blockHash });
-const rpcCalls = { strict: [], diagnostic: [], mismatch: [], fallback: [] }, rpcBatchBodies = { strict: [], diagnostic: [], mismatch: [], fallback: [] };
+const currentFinalizedNumber = integrationReport.identity_state.number + 1;
+const currentFinalizedTime = new Date(Date.parse(integrationReport.window.to_time) + 1000).toISOString();
+const currentFinalizedHash = "0x" + "8".repeat(64), changedIdentityHash = "0x" + "9".repeat(64);
+const block = (number, time, hash) => ({ number: quantity(number), timestamp: quantity(timestamp(time)), hash });
+const rpcCalls = { strict: [], diagnostic: [], mismatch: [], reorg: [], badanchor: [], badcode: [] }, rpcBatchBodies = { strict: [], diagnostic: [], mismatch: [], reorg: [], badanchor: [], badcode: [] };
+const identityReadSeen = { strict: false, diagnostic: false, mismatch: false, reorg: false, badanchor: false, badcode: false };
 let rpcMode = "strict";
 const rpc = http.createServer((request, response) => {
   let body = "";
@@ -420,13 +453,16 @@ const rpc = http.createServer((request, response) => {
         rpcCalls[rpcMode].push({ method: item.method, params: item.params });
         let result;
         if (item.method === "eth_chainId") result = quantity(contract.chainId);
-        else if (item.method === "eth_getBlockByNumber" && item.params[0] === quantity(integrationReport.window.from)) result = block(integrationReport.window.from, integrationReport.window.from_time);
-        else if (item.method === "eth_getBlockByNumber" && (item.params[0] === quantity(integrationReport.window.to) || item.params[0] === "finalized" || item.params[0] === "latest")) result = block(integrationReport.window.to, integrationReport.window.to_time);
-        else if (item.method === "eth_getCode" && item.params[0] === contract.factory && item.params[1] === quantity(integrationReport.window.to) && rpcMode === "fallback") throw new Error("fixed state unavailable");
-        else if (item.method === "eth_getCode" && (item.params[1] === "latest" || (item.params[0] === contract.factory && item.params[1] === quantity(integrationReport.window.to)))) result = "0x01";
+        else if (item.method === "eth_getBlockByNumber" && item.params[0] === "finalized") result = block(currentFinalizedNumber, currentFinalizedTime, currentFinalizedHash);
+        else if (item.method === "eth_getBlockByNumber" && item.params[0] === quantity(integrationReport.window.from)) result = block(integrationReport.window.from, integrationReport.window.from_time, log.blockHash);
+        else if (item.method === "eth_getBlockByNumber" && item.params[0] === quantity(integrationReport.identity_state.number)) result = block(integrationReport.identity_state.number, integrationReport.window.to_time, rpcMode === "badanchor" || (rpcMode === "reorg" && identityReadSeen.reorg) ? changedIdentityHash : integrationReport.identity_state.hash);
+        else if (item.method === "eth_getCode" && [contract.factory, contract.multicall].includes(item.params[0]) && item.params[1] === quantity(integrationReport.identity_state.number)) result = rpcMode === "badcode" ? "0x" : "0x01";
         else if (item.method === "eth_getLogs") result = [log];
         else if (item.method === "eth_call" && item.params[0].to === contract.factory && item.params[0].data.startsWith(contract.selectors.launched) && item.params[1] === quantity(integrationReport.window.from)) result = recordReturn;
-        else if (item.method === "eth_call" && item.params[0].to === contract.multicall && (item.params[1] === "latest" || item.params[1] === quantity(integrationReport.window.to))) result = rpcMode === "mismatch" ? changedNameAggregate : aggregate;
+        else if (item.method === "eth_call" && item.params[0].to === contract.multicall && item.params[1] === quantity(integrationReport.identity_state.number)) {
+          identityReadSeen[rpcMode] = true;
+          result = rpcMode === "mismatch" ? changedNameAggregate : aggregate;
+        }
         else if (item.method === "eth_getTransactionByHash" && item.params[0] === log.transactionHash) result = transaction;
         else throw new Error("unexpected method " + item.method + " " + JSON.stringify(item.params));
         return { jsonrpc: "2.0", id: item.id, result };
@@ -454,22 +490,88 @@ rpcMode = "diagnostic";
 const diagnosticCli = await runGuard(["--diagnose-semantic"]);
 rpcMode = "mismatch";
 const mismatchCli = await runGuard(["--diagnose-semantic"]);
-rpcMode = "fallback";
-const fallbackCli = await runGuard(["--diagnose-semantic", "--allow-unpinned-latest"]);
+rpcMode = "reorg";
+const reorgCli = await runGuard(["--diagnose-semantic"]);
+rpcMode = "badanchor";
+const badAnchorCli = await runGuard(["--diagnose-semantic"]);
+rpcMode = "badcode";
+const badCodeCli = await runGuard(["--diagnose-semantic"]);
+const callsBeforeMissingMode = Object.values(rpcCalls).flat().length;
+const missingModeCli = await runGuard([]);
+const callsAfterMissingMode = Object.values(rpcCalls).flat().length;
+const legacyFlagCli = await runGuard(["--diagnose-semantic", "--allow-unpinned-latest"]);
 await new Promise(resolve => rpc.close(resolve));
 fs.rmSync(tmp, { recursive: true, force: true });
 ok(cliCode === 0, "the CLI's real second-read path accepts the strict matching RPC fixture: " + cliOutput.trim());
 ok(cliOutput.includes("identity audit:"), "the CLI reached semantic reconstruction rather than stopping after report counters");
 ok(cliOutput.includes("transaction audit:"), "the CLI reached strict sampled-transaction reconstruction");
-ok(diagnosticCli.code === 0 && diagnosticCli.output.includes("diagnostic identity read: fixed finalized block"), "the diagnostic CLI binds a matching identity read to one fixed finalized block: " + diagnosticCli.output.trim());
-ok(diagnosticCli.output.includes("does not prove the collector's unrecorded `latest` state"), "the fixed diagnostic success retains its non-proof disclaimer");
+ok(diagnosticCli.code === 0 && diagnosticCli.output.includes("diagnostic identity read: exact recorded finalized state"), "the diagnostic CLI binds a matching identity read to the report's exact state: " + diagnosticCli.output.trim());
+ok(diagnosticCli.output.includes("not publication proof") && diagnosticCli.output.includes("event-header batches and sampled transactions were skipped"), "the fixed diagnostic success states exactly which publication proofs it skips");
 const diagnosticIdentityCalls = rpcCalls.diagnostic.filter(item => item.method === "eth_call" && item.params[0].to === contract.multicall);
-ok(diagnosticIdentityCalls.length === 1 && diagnosticIdentityCalls.every(item => item.params[1] === quantity(integrationReport.window.to)), "the fixed diagnostic never substitutes latest for its identity state tag");
+ok(diagnosticIdentityCalls.length === 1 && diagnosticIdentityCalls.every(item => item.params[1] === quantity(integrationReport.identity_state.number)), "the fixed diagnostic never substitutes latest for its identity state tag");
 ok(!rpcBatchBodies.diagnostic.some(Boolean) && !rpcCalls.diagnostic.some(item => item.method === "eth_getTransactionByHash"), "the diagnostic skips header batches and transaction proof instead of resembling the publication gate");
+ok(missingModeCli.code !== 0 && missingModeCli.output.includes("exactly one") && callsAfterMissingMode === callsBeforeMissingMode, "the CLI cannot succeed as a guard without explicitly selecting strict proof or diagnostic reconstruction");
 ok(mismatchCli.code !== 0 && mismatchCli.output.includes("name, name_skeleton"), "the diagnostic exits nonzero and names the differing identity namespaces: " + mismatchCli.output.trim());
-ok(fallbackCli.code === 0 && fallbackCli.output.includes("individual identity calls are not block-bound and need not form one snapshot"), "the explicit moving-latest fallback states that its observed headers do not bind individual calls: " + fallbackCli.output.trim());
-const fallbackIdentityCalls = rpcCalls.fallback.filter(item => item.method === "eth_call" && item.params[0].to === contract.multicall);
-ok(fallbackIdentityCalls.length === 1 && fallbackIdentityCalls[0].params[1] === "latest", "only the explicit fallback uses the collector's unpinned latest identity tag");
+ok(reorgCli.code !== 0 && reorgCli.output.includes("post-read identity-state") && reorgCli.output.includes("differs"), "the diagnostic fails when the numeric state's canonical hash changes after identity reads: " + reorgCli.output.trim());
+ok(badAnchorCli.code !== 0 && badAnchorCli.output.includes("before any identity read") && !rpcCalls.badanchor.some(item => item.method === "eth_getCode" || item.method === "eth_call" || item.method === "eth_getLogs"), "the guard rejects the initial state hash before any code, identity or log read: " + badAnchorCli.output.trim());
+ok(badCodeCli.code !== 0 && badCodeCli.output.includes("before the factory log scan") && !rpcCalls.badcode.some(item => item.method === "eth_call" || item.method === "eth_getLogs"), "the guard rejects missing fixed-state bytecode before the expensive factory log scan: " + badCodeCli.output.trim());
+ok(legacyFlagCli.code !== 0 && legacyFlagCli.output.includes("unknown argument --allow-unpinned-latest"), "the removed moving-latest escape hatch cannot be requested");
+for (const mode of ["strict", "diagnostic", "mismatch", "reorg"]) {
+  const identityCalls = rpcCalls[mode].filter(item => (item.method === "eth_call" && item.params[0].to === contract.multicall) || item.method === "eth_getCode");
+  ok(identityCalls.length > 0 && identityCalls.every(item => item.params[1] === quantity(integrationReport.identity_state.number)), mode + " keeps every identity/code read on the recorded numeric block tag");
+  ok(!rpcCalls[mode].some(item => item.params.includes("latest")), mode + " never issues an unpinned latest read");
+}
+const strictIdentityAt = rpcCalls.strict.findIndex(item => item.method === "eth_call" && item.params[0].to === contract.multicall);
+ok(rpcCalls.strict.slice(strictIdentityAt + 1).some(item => item.method === "eth_getBlockByNumber" && item.params[0] === quantity(integrationReport.identity_state.number)), "strict publication rechecks the exact state header after the identity batches");
+
+// Drive verify-index in a disposable fake tree. Its child collector/guard/writer are tiny local fixtures: this checks
+// orchestration and fail-closed state/window binding without touching the shipped artifacts or any network.
+const verifyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lintcha-verify-index-test-"));
+const verifyTools = path.join(verifyRoot, "tools"), verifySite = path.join(verifyRoot, "site"), verifyScratch = path.join(verifyRoot, "scratch");
+fs.mkdirSync(verifyTools, { recursive: true }); fs.mkdirSync(verifySite); fs.mkdirSync(verifyScratch);
+fs.copyFileSync(path.join(root, "tools", "verify-index.mjs"), path.join(verifyTools, "verify-index.mjs"));
+fs.writeFileSync(path.join(verifyTools, "collection-guard.mjs"), [
+  'export const RPC_ENV = "LINTCHA_CHAIN_RPC_URL";',
+  'export const rpcOverrideAllowed = value => { try { const u = new URL(value); return !u.username && !u.password && !u.search && !u.hash && (u.protocol === "https:" || (u.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname))); } catch { return false; } };',
+  'export function exactIdentityState(value, label) { const s = value && value.identity_state; if (!s || !Number.isSafeInteger(s.number) || !/^0x[0-9a-f]{64}$/.test(s.hash) || /^0x0{64}$/.test(s.hash)) throw new Error(label + " has no exact finalized identity_state; run a new guarded refresh"); return { number: s.number, hash: s.hash }; }'
+].join("\n"));
+fs.writeFileSync(path.join(verifyTools, "launch-collect.mjs"), [
+  'import fs from "node:fs";',
+  'const a = process.argv.slice(2), opt = name => { const i = a.indexOf("--" + name); return a[i + 1]; };',
+  'const state = { number: Number(opt("identity-state-number")), hash: opt("identity-state-hash") };',
+  'const window = { from: Number(opt("from")), to: Number(opt("to")) };',
+  'if (process.env.FAKE_COLLECTOR_WINDOW_DRIFT) window.from++;',
+  'fs.writeFileSync(opt("out"), JSON.stringify({ identity_state: state, window }));'
+].join("\n"));
+fs.writeFileSync(path.join(verifyTools, "launch-index.mjs"), [
+  'import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";',
+  'const a = process.argv.slice(2), opt = name => { const i = a.indexOf("--" + name); return a[i + 1]; };',
+  'const collected = JSON.parse(fs.readFileSync(opt("in"), "utf8")), site = opt("site"), root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");',
+  'const state = { ...collected.identity_state }, window = { from_block: collected.window.from, to_block: collected.window.to };',
+  'if (process.env.FAKE_WRITER_STATE_DRIFT) state.hash = "0x" + "9".repeat(64);',
+  'if (process.env.FAKE_WRITER_WINDOW_DRIFT) window.from_block++;',
+  'fs.mkdirSync(site, { recursive: true }); fs.copyFileSync(path.join(root, "site", "launch-index.json"), path.join(site, "launch-index.json"));',
+  'fs.writeFileSync(path.join(site, "launch-numbers.json"), JSON.stringify({ chain_id: 1, identity_state: state, window, launches_scanned: 1, index: { entries_total: 0 } }));'
+].join("\n"));
+const verifyNumbers = { chain_id: 1, identity_state: clone(report.identity_state), window: { from_block: 10, to_block: 11, blocks: 2, from_time: report.window.from_time, to_time: report.window.to_time }, launches_scanned: 1, index: { entries_total: 0 } };
+fs.writeFileSync(path.join(verifySite, "launch-index.json"), "{}\n"); fs.writeFileSync(path.join(verifySite, "launch-numbers.json"), JSON.stringify(verifyNumbers));
+const runVerify = extraEnv => new Promise(resolve => {
+  const env = { ...process.env, TEMP: verifyScratch, TMP: verifyScratch, TMPDIR: verifyScratch, ...extraEnv };
+  delete env.FAKE_COLLECTOR_WINDOW_DRIFT; delete env.FAKE_WRITER_STATE_DRIFT; delete env.FAKE_WRITER_WINDOW_DRIFT;
+  Object.assign(env, extraEnv); if (!Object.prototype.hasOwnProperty.call(extraEnv, RPC_ENV)) delete env[RPC_ENV];
+  const child = spawn(process.execPath, [path.join(verifyTools, "verify-index.mjs")], { cwd: verifyRoot, env, stdio: ["ignore", "pipe", "pipe"] });
+  let output = ""; child.stdout.on("data", chunk => { output += chunk; }); child.stderr.on("data", chunk => { output += chunk; });
+  child.on("close", code => resolve({ code, output }));
+});
+const verifySuccess = await runVerify({ [RPC_ENV]: "http://127.0.0.1:1/ab/cd" });
+ok(verifySuccess.code === 0 && verifySuccess.output.includes("match: yes") && !verifySuccess.output.includes("/ab/cd"), "verify-index passes the exact published state/window to its children without printing the environment endpoint: " + verifySuccess.output.trim());
+const verifyCollectorDrift = await runVerify({ FAKE_COLLECTOR_WINDOW_DRIFT: "1" });
+ok(verifyCollectorDrift.code === 2 && verifyCollectorDrift.output.includes("did not preserve the published block window"), "verify-index fails before the guard when the re-collected window drifts");
+const verifyWriterStateDrift = await runVerify({ FAKE_WRITER_STATE_DRIFT: "1" });
+ok(verifyWriterStateDrift.code === 2 && verifyWriterStateDrift.output.includes("writer did not preserve the published identity_state"), "verify-index refuses a writer that drops or changes the published state even when the index hash matches");
+const verifyWriterWindowDrift = await runVerify({ FAKE_WRITER_WINDOW_DRIFT: "1" });
+ok(verifyWriterWindowDrift.code === 2 && verifyWriterWindowDrift.output.includes("writer did not preserve the published block window"), "verify-index refuses a writer that changes the published window even when the index hash matches");
+fs.rmSync(verifyRoot, { recursive: true, force: true });
 
 console.log(`collection guard test: ${checks} checks, ${failures} failure(s)`);
 process.exit(failures ? 1 : 0);

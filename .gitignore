@@ -4,6 +4,7 @@ node_modules/
 *.log
 *.jsonl
 build/
+.wrangler/
 bot/.wrangler/
 src/i18n/en.json
 src/i18n/es.json

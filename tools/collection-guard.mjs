@@ -2,8 +2,8 @@
 // Owned publication guard around the vendored launch collector.
 //
 // The collector deliberately remains byte-for-byte pinned by VENDOR.md. This guard checks the facts it wrote
-// before the index writer may consume them, then re-reads the factory log and every identity return over that exact
-// finalized range. The log read uses two derived layouts whose page boundaries differ from the collector and from
+// before the index writer may consume them, then re-reads the factory log and every identity return at the exact
+// finalized identity-state number/hash recorded by the collector. The log read uses two derived layouts whose page boundaries differ from the collector and from
 // each other. This catches deterministic per-query truncation and boundary omissions, but is deliberately not called
 // an independent-provider proof: all layouts use the configured endpoint unless an operator supplies another source.
 // The second read catches duplicate/malformed rows and rebuilds the exact tables and summaries
@@ -17,14 +17,11 @@
 //
 //   node tools/collection-guard.mjs --in FILE --published site/launch-numbers.json --audit-logs
 //   node tools/collection-guard.mjs --in FILE --published site/launch-numbers.json --diagnose-semantic
-//   node tools/collection-guard.mjs --in FILE --published site/launch-numbers.json --diagnose-semantic --allow-unpinned-latest
 //
 // The diagnostic command is deliberately not a publication gate. It skips historical transaction proof and block-
-// header replay, prefers to bind every identity call to one separately sampled finalized block, and reports which
-// counted namespaces differ from the collector's unpinned `latest` reads. An endpoint that cannot serve that fixed
-// state is refused unless the operator explicitly allows moving `latest` reads with headers observed immediately
-// before and after. Individual `latest` calls remain unbound to either header. A clean diagnostic in either mode
-// cannot prove the collector's old state.
+// header replay, but it still binds every identity call to the collector's recorded numeric state and checks that
+// block's canonical hash before and after the read. A clean diagnostic proves only that semantic reconstruction;
+// publication still requires the strict event-header and sampled-transaction checks.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -41,6 +38,7 @@ const require = createRequire(import.meta.url);
 const L = require(path.join(root, "site", "launch.js"));
 
 const TOKEN_PARAMS_SIGNATURE = "(string,string,string,string,(string,string,string,string,string),address,uint16,bool,bytes32,bytes32)";
+export const RPC_ENV = "LINTCHA_CHAIN_RPC_URL";
 // Exact-match source and ABI are pinned to this address. If the factory owner rotates launchForwarder, the new
 // implementation must be verified and reviewed before this guard will accept its outer calldata.
 const VERIFIED_FORWARDER = "0xe33e9e479df8802cb0866d5d05258bec4cf62948";
@@ -81,13 +79,23 @@ const quantityNumber = value => {
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
 };
 
+export function exactIdentityState(document, label = "artifact") {
+  const state = object(document) ? document.identity_state : null;
+  const refresh = label + " has no exact finalized identity_state; run a new guarded refresh";
+  if (!object(state)) throw new Error(refresh);
+  if (Object.keys(state).sort().join(",") !== "hash,number" || !safe(state.number) || !hexBytes(state.hash, 32) || /^0x0{64}$/.test(state.hash)) {
+    throw new Error(label + " has a malformed exact finalized identity_state; run a new guarded refresh");
+  }
+  return { number: state.number, hash: state.hash };
+}
+
 export function collectorContract(source) {
   if (typeof source !== "string") return null;
   const chain = /const CHAIN_ID = ([1-9][0-9]*)n;/.exec(source);
   const factory = /const FACTORY = "(0x[0-9a-f]{40})";/.exec(source);
   const multicall = /const MULTICALL3 = "(0x[0-9a-f]{40})";/.exec(source);
   const event = /const TOKEN_LAUNCHED = topic\("([^"]+)"\);/.exec(source);
-  const rpc = /const RPC = opt\("rpc", "(https:\/\/[^"\s]+)"\);/.exec(source);
+  const rpc = /const DEFAULT_RPC = "(https:\/\/[^"\s]+)";/.exec(source) || /const RPC = opt\("rpc", "(https:\/\/[^"\s]+)"\);/.exec(source);
   const signatures = {};
   for (const name of ["name", "symbol", "info", "launched", "aggregate3"]) {
     const found = new RegExp("\\b" + name + ": selector\\(\\\"([^\\\"]+)\\\"\\)").exec(source);
@@ -127,12 +135,16 @@ export function validateCollection(report, published, contract) {
     return ["collector source contract is unreadable"];
   }
   const w = report.window, v = report.verified, six = report.six, also = report.also, limiter = report.limiter, tables = report.tables;
+  let identityState = null;
+  try { identityState = exactIdentityState(report, "collection"); }
+  catch (error) { fail(error.message); }
   if (!object(w)) fail("window is unreadable");
   else {
     if (!["day", "explicit", "smoke"].includes(w.kind)) fail("window kind is unknown");
     if (!safe(w.from) || !safe(w.to) || w.to <= w.from) fail("window block range is empty or invalid");
     if (!positive(w.blocks) || w.blocks !== w.to - w.from + 1) fail("window block count does not match its range");
     if (!safe(w.finalized) || w.finalized < w.to) fail("window is not bounded by its stated finalized head");
+    if (identityState && (w.finalized !== identityState.number || identityState.number < w.to)) fail("collection identity_state does not exactly bind its finalized window");
     if (w.chain_id !== contract.chainId) fail("collection chain id does not match the pinned collector source");
     for (const key of ["from_time", "to_time"]) {
       const value = w[key];
@@ -590,11 +602,39 @@ export function validateSemanticAudit(audit, report) {
   return problems;
 }
 
-export function validateAuditContext(context, report, contract, { requireHistorical = true } = {}) {
+export function validateIdentityAuditAnchor(context, report, contract) {
   const problems = [], fail = text => problems.push(text);
-  if (!object(context)) return ["audited chain context is unreadable"];
+  if (!object(context)) return ["audited identity-state anchor is unreadable"];
+  let identityState = null;
+  try { identityState = exactIdentityState(report, "collection"); }
+  catch (error) { fail(error.message); }
   const chainId = quantityNumber(context.chainId);
   if (chainId !== contract.chainId) fail("audited RPC chain id does not match the pinned collector source");
+  const finalized = object(context.finalizedBlock) ? quantityNumber(context.finalizedBlock.number) : null;
+  if (finalized === null || !identityState || finalized < identityState.number || finalized < report.window.to) fail("audited current finalized head is behind the recorded identity state or collected range");
+  const finalizedHash = object(context.finalizedBlock) ? context.finalizedBlock.hash : null;
+  if (!hexBytes(finalizedHash, 32) || /^0x0{64}$/.test(finalizedHash)) fail("audited current finalized head has no canonical block hash");
+  else if (identityState && finalized === identityState.number && finalizedHash !== identityState.hash) fail("audited current finalized head contradicts the recorded identity_state hash at the same height");
+  problems.push(...validateIdentityStateHeader(context.identityStateBlock, report, "audited identity-state"));
+  return problems;
+}
+
+export function validateIdentityStateAvailability(context, { requireHistorical = true } = {}) {
+  const problems = [];
+  const multicallCode = object(context) ? byteString(context.multicallCode) : null;
+  if (!multicallCode || multicallCode.length === 0) problems.push("audited Multicall3 has no canonical bytecode at the recorded identity state");
+  const identityFactoryCode = object(context) ? byteString(context.identityFactoryCode) : null;
+  if (!identityFactoryCode || identityFactoryCode.length === 0) problems.push("audited factory has no canonical bytecode at the recorded identity state");
+  if (requireHistorical) {
+    const historicalFactoryCode = object(context) ? byteString(context.historicalFactoryCode) : null;
+    if (!historicalFactoryCode || historicalFactoryCode.length === 0) problems.push("audited RPC has no canonical historical factory state at the collected window head");
+  }
+  return problems;
+}
+
+export function validateAuditContext(context, report, contract, { requireHistorical = true } = {}) {
+  const problems = [...validateIdentityAuditAnchor(context, report, contract), ...validateIdentityStateAvailability(context, { requireHistorical })], fail = text => problems.push(text);
+  if (!object(context)) return problems;
   const checkBlock = (block, expectedNumber, expectedTime, label) => {
     if (!object(block) || quantityNumber(block.number) !== expectedNumber || quantityNumber(block.timestamp) === null) {
       fail("audited " + label + " block is malformed or has the wrong number");
@@ -609,16 +649,6 @@ export function validateAuditContext(context, report, contract, { requireHistori
   checkBlock(context.toBlock, report.window.to, report.window.to_time, "last");
   const fromTimestamp = object(context.fromBlock) ? quantityNumber(context.fromBlock.timestamp) : null;
   const toTimestamp = object(context.toBlock) ? quantityNumber(context.toBlock.timestamp) : null;
-  const finalized = object(context.finalizedBlock) ? quantityNumber(context.finalizedBlock.number) : null;
-  if (finalized === null || finalized < report.window.finalized || finalized < report.window.to) fail("audited finalized head is behind the collected range");
-  const finalizedHash = object(context.finalizedBlock) ? context.finalizedBlock.hash : null;
-  if (!hexBytes(finalizedHash, 32) || /^0x0{64}$/.test(finalizedHash)) fail("audited finalized head has no canonical block hash");
-  const code = byteString(context.multicallCode);
-  if (!code || code.length === 0) fail("audited Multicall3 has no canonical bytecode at the collected head");
-  if (requireHistorical) {
-    const historicalFactoryCode = byteString(context.historicalFactoryCode);
-    if (!historicalFactoryCode || historicalFactoryCode.length === 0) fail("audited RPC has no canonical historical factory state at the collected window head");
-  }
   const firstDay = fromTimestamp === null ? null : Math.ceil(fromTimestamp / 86400);
   const lastDay = toTimestamp === null ? null : Math.floor(toTimestamp / 86400);
   const expectedCount = firstDay === null || lastDay === null || lastDay < firstDay ? 0 : lastDay - firstDay + 1;
@@ -640,23 +670,15 @@ export function validateAuditContext(context, report, contract, { requireHistori
   return problems;
 }
 
-export function validateMovingIdentityHeads(start, end, finalizedFloor) {
+export function validateIdentityStateHeader(block, report, label = "identity-state") {
   const problems = [];
-  const read = (block, label) => {
-    const number = object(block) ? quantityNumber(block.number) : null;
-    const hash = object(block) ? block.hash : null;
-    if (number === null || !hexBytes(hash, 32) || /^0x0{64}$/.test(hash)) {
-      problems.push("diagnostic " + label + " observed head is malformed");
-      return null;
-    }
-    if (!safe(finalizedFloor) || number < finalizedFloor) problems.push("diagnostic " + label + " observed head is behind the validated finalized head");
-    return { number, hash };
-  };
-  const before = read(start, "before"), after = read(end, "after");
-  if (before && after) {
-    if (after.number < before.number) problems.push("diagnostic observed latest head regressed during identity reads");
-    if (after.number === before.number && after.hash !== before.hash) problems.push("diagnostic observed two hashes at one latest height");
-  }
+  let state;
+  try { state = exactIdentityState(report, "collection"); }
+  catch (error) { return [error.message]; }
+  const number = object(block) ? quantityNumber(block.number) : null;
+  const hash = object(block) ? block.hash : null;
+  if (number !== state.number || !hexBytes(hash, 32) || /^0x0{64}$/.test(hash)) problems.push(label + " block is malformed or has the wrong number/hash shape");
+  else if (hash !== state.hash) problems.push(label + " block hash differs from the collector's recorded identity_state");
   return problems;
 }
 
@@ -665,6 +687,33 @@ const argValue = (argv, name) => {
   return at >= 0 && argv[at + 1] && !argv[at + 1].startsWith("--") ? argv[at + 1] : null;
 };
 const flag = (argv, name) => argv.includes("--" + name);
+
+export function resolveRpcEndpoint(argv, fallback, env = process.env) {
+  const cli = argValue(argv, "rpc"), fromEnv = env && typeof env[RPC_ENV] === "string" && env[RPC_ENV] ? env[RPC_ENV] : null;
+  if (cli && fromEnv) throw new Error("choose either --rpc or " + RPC_ENV + ", not both");
+  const url = cli || fromEnv || fallback;
+  if (!rpcOverrideAllowed(url)) throw new Error("RPC endpoint must be HTTPS with no userinfo, query or fragment (plain HTTP is accepted only on loopback)");
+  return { url, source: cli ? "cli" : fromEnv ? "environment" : "default" };
+}
+
+export function redactRpcEndpoint(text, url) {
+  let output = String(text);
+  const secrets = [String(url)];
+  try {
+    const parsed = new URL(url);
+    secrets.push(parsed.origin, parsed.host, parsed.hostname);
+    if (parsed.pathname && parsed.pathname !== "/") {
+      secrets.push(parsed.pathname);
+      try { secrets.push(decodeURIComponent(parsed.pathname)); } catch {}
+    }
+    for (const segment of parsed.pathname.split("/")) if (segment) {
+      secrets.push(segment);
+      try { secrets.push(decodeURIComponent(segment)); } catch {}
+    }
+  } catch {}
+  for (const secret of [...new Set(secrets)].filter(Boolean).sort((a, b) => b.length - a.length)) output = output.split(secret).join("<redacted-rpc>");
+  return output;
+}
 
 /**
  * Bind every event row—not only the transaction sample—to the finalized endpoint's block header. A JSON-RPC
@@ -760,14 +809,15 @@ export async function auditEventBlockHeaders(logs, contract, url, spacingMs, fet
       let response = null, retryWhy = null;
       const signal = AbortSignal.timeout(retryPolicy.maxCooldownMs);
       try {
-        response = await fetchImpl(url, {
+        response = await withAbort(fetchImpl(url, {
           method: "POST",
+          redirect: "error",
           headers: { "content-type": "application/json", "user-agent": "lintcha-chain-collection-guard/0.1 (+https://lintcha.com)" },
           body: JSON.stringify(requests),
           signal
-        });
-      } catch (error) {
-        retryWhy = "network or timeout: " + error.message;
+        }), signal);
+      } catch {
+        retryWhy = "network or response timeout";
       }
       batches++;
       if (response && (response.status === 429 || response.status >= 500)) {
@@ -818,22 +868,28 @@ export async function auditEventBlockHeaders(logs, contract, url, spacingMs, fet
   return { blocks: blocks.length, batches, retries };
 }
 
-async function auditLogs(report, contract, rpcOverride, { requireHistorical = true, auditHeaders = true } = {}) {
+async function auditLogs(report, contract, rpcUrl, { requireHistorical = true, auditHeaders = true } = {}) {
+  const endpoint = rpcUrl || contract.rpc, identityState = exactIdentityState(report, "collection");
+  const stateTag = "0x" + identityState.number.toString(16);
   const gate = new Gate({
-    url: rpcOverride || contract.rpc,
+    url: endpoint,
     inFlight: report.limiter.in_flight,
     spacingMs: report.limiter.spacing_ms,
     logsSpacingMs: report.limiter.logs_spacing_ms,
-    log: text => console.error("  collection guard: " + text)
+    log: text => console.error("  collection guard: " + redactRpcEndpoint(text, endpoint))
   });
-  const context = {
-    chainId: await gate.call("eth_chainId", []),
-    fromBlock: await gate.call("eth_getBlockByNumber", ["0x" + report.window.from.toString(16), false]),
-    toBlock: await gate.call("eth_getBlockByNumber", ["0x" + report.window.to.toString(16), false]),
-    finalizedBlock: await gate.call("eth_getBlockByNumber", ["finalized", false]),
-    multicallCode: await gate.call("eth_getCode", [contract.multicall, "latest"]),
-    boundaries: []
-  };
+  const gateCall = gate.call.bind(gate);
+  gate.call = (method, params) => gateCall(method, params).catch(error => { throw new Error(redactRpcEndpoint(error && error.message ? error.message : "RPC request failed", endpoint)); });
+  const context = { boundaries: [] };
+  context.chainId = await gate.call("eth_chainId", []);
+  context.finalizedBlock = await gate.call("eth_getBlockByNumber", ["finalized", false]);
+  context.identityStateBlock = await gate.call("eth_getBlockByNumber", [stateTag, false]);
+  const anchorProblems = validateIdentityAuditAnchor(context, report, contract);
+  if (anchorProblems.length) throw new Error("identity-state anchor refused before any identity read:\n  " + anchorProblems.join("\n  "));
+  context.fromBlock = await gate.call("eth_getBlockByNumber", ["0x" + report.window.from.toString(16), false]);
+  context.toBlock = await gate.call("eth_getBlockByNumber", ["0x" + report.window.to.toString(16), false]);
+  context.multicallCode = await gate.call("eth_getCode", [contract.multicall, stateTag]);
+  context.identityFactoryCode = await gate.call("eth_getCode", [contract.factory, stateTag]);
   if (requireHistorical) {
     try {
       context.historicalFactoryCode = await gate.call("eth_getCode", [contract.factory, "0x" + report.window.to.toString(16)]);
@@ -841,6 +897,8 @@ async function auditLogs(report, contract, rpcOverride, { requireHistorical = tr
       throw new Error("audited RPC cannot read historical factory state at block " + report.window.to + ": " + error.message);
     }
   }
+  const availabilityProblems = validateIdentityStateAvailability(context, { requireHistorical });
+  if (availabilityProblems.length) throw new Error("fixed-state availability refused before the factory log scan:\n  " + availabilityProblems.join("\n  "));
   const blockCache = new Map([[report.window.from, context.fromBlock], [report.window.to, context.toBlock]]);
   const blockAt = async number => {
     if (!blockCache.has(number)) blockCache.set(number, await gate.call("eth_getBlockByNumber", ["0x" + number.toString(16), false]));
@@ -883,10 +941,11 @@ async function auditLogs(report, contract, rpcOverride, { requireHistorical = tr
     if (pageProblems.length) throw new Error("factory log shifted page refused: " + pageProblems.join("; "));
   }
   const headers = auditHeaders ? await auditEventBlockHeaders(all, contract, gate.url, report.limiter.spacing_ms, fetch, gate) : null;
-  return { logs: all, context, gate, headers, layouts, stats: gate.stats };
+  return { logs: all, context, gate, headers, layouts, stateTag, stats: gate.stats };
 }
 
-async function auditIdentities(logs, contract, gate, stateTag = "latest") {
+async function auditIdentities(logs, contract, gate, stateTag) {
+  if (!canonicalQuantity(stateTag) || quantityNumber(stateTag) === null) throw new Error("identity audit requires one canonical numeric block tag");
   const rows = [];
   for (let i = 0; i < logs.length; i += contract.batch) {
     const batch = logs.slice(i, i + contract.batch), calls = [];
@@ -900,9 +959,8 @@ async function auditIdentities(logs, contract, gate, stateTag = "latest") {
       );
     }
     const data = calldata(contract.selectors.aggregate3, [T.array(AGGREGATE3_CALL)], [calls]);
-    // Strict publication matches the pinned collector's `latest` tag exactly. Diagnostic mode passes one explicit
-    // separately sampled finalized block instead, so its own long read cannot drift between batches; that snapshot remains
-    // evidence about a mismatch, never proof of the collector's earlier unrecorded state.
+    // Both strict publication and diagnostic reconstruction use the collector's recorded numeric state. Neither
+    // path is allowed to substitute `latest`, so every batch belongs to the same canonical snapshot.
     const result = await gate.call("eth_call", [{ to: contract.multicall, data }, stateTag]);
     const decoded = decodeAuditBatch(result, batch, contract);
     if (decoded.problems.length) throw new Error("identity batch at log " + i + " refused: " + decoded.problems.join("; "));
@@ -957,8 +1015,9 @@ export async function auditTransactions(rows, contract, gate, kind) {
       if (params.name !== row.name || params.symbol !== row.symbol) throw new Error("sampled direct transaction name or symbol differs from the strict token return");
       if (params.logo !== row.logo || params.description !== row.description) throw new Error("sampled direct transaction logo or description differs from the strict token return");
       if (JSON.stringify(params.socials) !== JSON.stringify(row.socials)) throw new Error("sampled direct transaction socials differ from the strict token return");
-      // creatorFeeRecipient is mutable after launch, so the latest record used by the collector cannot prove what
-      // TokenParams established. Re-read the record at the canonical event block for exact direct calls.
+      // creatorFeeRecipient is mutable after launch, so even the exact finalized snapshot used by the collector may
+      // be later than the event and cannot prove what TokenParams established. Re-read the record at the canonical
+      // event block for exact direct calls.
       const historicalCall = contract.selectors.launched + row.token.slice(2).padStart(64, "0");
       const historicalBytes = byteString(await gate.call("eth_call", [{ to: contract.factory, data: historicalCall }, "0x" + row.block.toString(16)]));
       const historicalRecord = launchRecord(historicalBytes, row, "historical factory record for " + row.transactionHash);
@@ -991,7 +1050,7 @@ export function validateTransactionAudit(audit, report) {
 }
 
 async function main(argv) {
-  const allowed = new Set(["--in", "--published", "--audit-logs", "--diagnose-semantic", "--allow-unpinned-latest", "--rpc"]);
+  const allowed = new Set(["--in", "--published", "--audit-logs", "--diagnose-semantic", "--rpc"]);
   const seen = new Set();
   for (let i = 0; i < argv.length; i++) {
     if (!allowed.has(argv[i])) throw new Error("unknown argument " + argv[i]);
@@ -1003,67 +1062,48 @@ async function main(argv) {
     }
   }
   const input = argValue(argv, "in"), publishedPath = argValue(argv, "published");
-  if (!input || !publishedPath) throw new Error("usage: --in FILE --published FILE [--audit-logs | --diagnose-semantic [--allow-unpinned-latest]] [--rpc URL]");
-  if (flag(argv, "audit-logs") && flag(argv, "diagnose-semantic")) throw new Error("--audit-logs and --diagnose-semantic are mutually exclusive");
-  if (flag(argv, "allow-unpinned-latest") && !flag(argv, "diagnose-semantic")) throw new Error("--allow-unpinned-latest is valid only with --diagnose-semantic");
-  const rpcOverride = argValue(argv, "rpc");
-  if (rpcOverride && !rpcOverrideAllowed(rpcOverride)) throw new Error("--rpc must be HTTPS with no credentials, query or fragment (plain HTTP is accepted only on loopback for the local harness)");
+  if (!input || !publishedPath) throw new Error("usage: --in FILE --published FILE (--audit-logs | --diagnose-semantic) [--rpc URL]; credential-bearing endpoints belong in " + RPC_ENV);
+  const strictMode = flag(argv, "audit-logs"), diagnosticMode = flag(argv, "diagnose-semantic");
+  if (strictMode === diagnosticMode) throw new Error("exactly one of --audit-logs or --diagnose-semantic is required");
   const source = fs.readFileSync(COLLECTOR, "utf8"), contract = collectorContract(source);
   const report = JSON.parse(fs.readFileSync(path.resolve(input), "utf8"));
   const published = JSON.parse(fs.readFileSync(path.resolve(publishedPath), "utf8"));
   const problems = validateCollection(report, published, contract);
   if (problems.length) throw new Error("collection facts refused:\n  " + problems.join("\n  "));
+  const rpc = resolveRpcEndpoint(argv, contract.rpc);
+  if (rpc.source === "cli") console.error("  collection guard: warning: --rpc is visible in the process argument list; use " + RPC_ENV + " for a credential-bearing endpoint");
   console.log("collection facts: the collector reports a complete log and matching record/transaction checks");
-  if (flag(argv, "diagnose-semantic")) {
-    const audited = await auditLogs(report, contract, rpcOverride, { requireHistorical: false, auditHeaders: false });
+  if (diagnosticMode) {
+    const audited = await auditLogs(report, contract, rpc.url, { requireHistorical: false, auditHeaders: false });
     const contextProblems = validateAuditContext(audited.context, report, contract, { requireHistorical: false });
     if (contextProblems.length) throw new Error("diagnostic chain context refused:\n  " + contextProblems.join("\n  "));
     const logProblems = validateLaunchLogs(audited.logs, contract, report.window.from, report.window.to, report.verified.launches_in_log);
     if (logProblems.length) throw new Error("diagnostic factory log read refused:\n  " + logProblems.join("\n  "));
-    const stateNumber = quantityNumber(audited.context.finalizedBlock && audited.context.finalizedBlock.number);
-    const stateHash = audited.context.finalizedBlock && audited.context.finalizedBlock.hash;
-    if (stateNumber === null || !hexBytes(stateHash, 32) || /^0x0{64}$/.test(stateHash)) throw new Error("diagnostic finalized identity-state block is malformed");
-    let stateTag = "0x" + stateNumber.toString(16), stateDescription = "fixed finalized block " + stateNumber + " / " + stateHash;
-    let movingStart = null, movingEnd = null;
-    try {
-      const stateCode = byteString(await audited.gate.call("eth_getCode", [contract.factory, stateTag]));
-      if (!stateCode || stateCode.length === 0) throw new Error("factory has no canonical bytecode at the diagnostic finalized block");
-    } catch (error) {
-      if (!flag(argv, "allow-unpinned-latest")) throw new Error("diagnostic endpoint cannot serve the fixed finalized identity snapshot: " + error.message + "; --allow-unpinned-latest is diagnostic-only and may be used to record headers around moving current reads");
-      movingStart = await audited.gate.call("eth_getBlockByNumber", ["latest", false]);
-      const startProblems = validateMovingIdentityHeads(movingStart, movingStart, stateNumber);
-      if (startProblems.length) throw new Error("diagnostic moving identity-state start refused:\n  " + startProblems.join("\n  "));
-      stateTag = "latest";
-      console.error("  collection guard: diagnostic warning: endpoint cannot serve fixed finalized state; explicitly allowed unbound moving `latest` reads");
-    }
-    const rows = await auditIdentities(audited.logs, contract, audited.gate, stateTag);
-    if (stateTag === "latest") {
-      movingEnd = await audited.gate.call("eth_getBlockByNumber", ["latest", false]);
-      const startNumber = quantityNumber(movingStart && movingStart.number), endNumber = quantityNumber(movingEnd && movingEnd.number);
-      const movingProblems = validateMovingIdentityHeads(movingStart, movingEnd, stateNumber);
-      if (movingProblems.length) throw new Error("diagnostic moving identity-state observations refused:\n  " + movingProblems.join("\n  "));
-      stateDescription = "explicitly unpinned moving `latest` reads; headers observed immediately before and after were " + startNumber + " / " + movingStart.hash + " and " + endNumber + " / " + movingEnd.hash + "; individual identity calls are not block-bound and need not form one snapshot";
-    } else {
-      const stateAfter = await audited.gate.call("eth_getBlockByNumber", [stateTag, false]);
-      if (!object(stateAfter) || quantityNumber(stateAfter.number) !== stateNumber || stateAfter.hash !== stateHash) throw new Error("diagnostic finalized block hash changed while its numeric state tag was being read");
-    }
+    const rows = await auditIdentities(audited.logs, contract, audited.gate, audited.stateTag);
+    const stateAfter = await audited.gate.call("eth_getBlockByNumber", [audited.stateTag, false]);
+    const stateProblems = validateIdentityStateHeader(stateAfter, report, "diagnostic post-read identity-state");
+    if (stateProblems.length) throw new Error("diagnostic identity-state recheck refused:\n  " + stateProblems.join("\n  "));
     const boundaryDates = {
       first: report.window.from_time.slice(0, 10),
       boundaries: audited.context.boundaries.map(item => ({ block: item.number, date: new Date(quantityNumber(item.block.timestamp) * 1000).toISOString().slice(0, 10) }))
     };
     const semantic = await buildSemanticAudit(rows, boundaryDates);
     const semanticProblems = validateSemanticAudit(semantic, report);
-    console.log("diagnostic identity read: " + stateDescription + "; " + audited.logs.length + " canonical launch rows; calls " + audited.stats.calls);
-    if (semanticProblems.length) throw new Error("diagnostic-only separately sampled identity read differs from the collector (this does not identify the collector's unrecorded state):\n  " + semanticProblems.join("\n  "));
-    console.log("diagnostic-only separately sampled identity read matches the report; this does not prove the collector's unrecorded `latest` state");
+    const state = exactIdentityState(report, "collection");
+    console.log("diagnostic identity read: exact recorded finalized state " + state.number + " / " + state.hash + "; " + audited.logs.length + " canonical launch rows; calls " + audited.stats.calls);
+    if (semanticProblems.length) throw new Error("diagnostic-only exact recorded identity read differs from the collector:\n  " + semanticProblems.join("\n  "));
+    console.log("diagnostic-only identity reconstruction matches the report; this is not publication proof because event-header batches and sampled transactions were skipped");
   }
-  if (flag(argv, "audit-logs")) {
-    const audited = await auditLogs(report, contract, rpcOverride);
+  if (strictMode) {
+    const audited = await auditLogs(report, contract, rpc.url);
     const contextProblems = validateAuditContext(audited.context, report, contract);
     if (contextProblems.length) throw new Error("chain context audit refused:\n  " + contextProblems.join("\n  "));
     const logProblems = validateLaunchLogs(audited.logs, contract, report.window.from, report.window.to, report.verified.launches_in_log);
     if (logProblems.length) throw new Error("factory log audit refused:\n  " + logProblems.join("\n  "));
-    const rows = await auditIdentities(audited.logs, contract, audited.gate);
+    const rows = await auditIdentities(audited.logs, contract, audited.gate, audited.stateTag);
+    const stateAfter = await audited.gate.call("eth_getBlockByNumber", [audited.stateTag, false]);
+    const stateProblems = validateIdentityStateHeader(stateAfter, report, "strict post-read identity-state");
+    if (stateProblems.length) throw new Error("strict identity-state recheck refused:\n  " + stateProblems.join("\n  "));
     const boundaryDates = {
       first: report.window.from_time.slice(0, 10),
       boundaries: audited.context.boundaries.map(item => ({ block: item.number, date: new Date(quantityNumber(item.block.timestamp) * 1000).toISOString().slice(0, 10) }))
@@ -1082,7 +1122,7 @@ async function main(argv) {
       ...transactionProblems.map(problem => "transaction: " + problem)
     ];
     if (strictProblems.length) throw new Error("strict chain audit refused:\n  " + strictProblems.join("\n  "));
-    console.log("chain context audit: chain, endpoint block timestamps and finalized head agree");
+    console.log("chain context audit: chain, endpoint block timestamps, current finalized floor and recorded identity-state number/hash agree");
     console.log("factory log audit: " + audited.logs.length + " unique, canonical rows over the collected range; same endpoint with " + audited.layouts.aligned.length + " aligned and " + audited.layouts.shifted.length + " shifted alternate-partition pages (not an independent provider); calls " + audited.stats.calls + "; headers " + audited.headers.blocks + " in " + audited.headers.batches + " batches, retries " + audited.headers.retries);
     console.log("identity audit: every strict token return and factory record rebuilds the collected tables and summary");
     console.log("transaction audit: " + transactions.sampled_transactions + " sampled transaction identities reproduce the collector counters; " + transactions.strict_supported_outer_calls + " exact verified outer calls strictly match the event, token return and launch-block factory record; " + transactions.classified_unsupported_outer_calls + " other outer calls are classified, not interpreted");

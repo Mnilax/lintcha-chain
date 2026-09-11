@@ -47,7 +47,7 @@ zone_name = "lintcha.com"
 # table. No signature, failed-holder address, purchase history or IP is written to this namespace.
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_THE_LINTCHA_CHAIN_SESSIONS_NAMESPACE_ID"
+id = "7a16953ba8bc4fbabf9089255e381308"
 
 # The feed. One instance, reached by a fixed name. Its idempotent SQLite schema also owns the durable
 # pending/sent buy-delivery ledger and queued gap notice; this is an existing class and adds no migration tag.
@@ -86,7 +86,7 @@ crons = ["* * * * *"]
 ROOM_CHAT_ID = ""
 # the exact BotFather username without @. Unsuffixed commands still work; a command suffixed for another bot
 # is ignored. Fill this before deployment so Telegram's group form /command@username can be attributed safely.
-BOT_USERNAME = ""
+BOT_USERNAME = "lintchabot"
 
 # The site is the one source of truth about the address, and this is the file it lives in. Authored code applies
 # a five-second abort and one-kilobyte streamed response ceiling before parsing this small three-field document.
@@ -159,7 +159,8 @@ WATCH_DEPTH_DAYS = "7"
 LAUNCH_INDEX_URL = "https://chain.lintcha.com/launch-index.json"
 LAUNCH_NUMBERS_URL = "https://chain.lintcha.com/launch-numbers.json"
 LAUNCH_MANIFEST_URL = "https://chain.lintcha.com/launch-manifest.json"
-# how long this isolate remembers them. The index is rebuilt weekly, so ten minutes is fresh by a wide margin.
+# how long this isolate remembers them. The index changes only in a deliberate atomic publication, so this cache
+# stays short enough to pick up a replacement promptly.
 INDEX_TTL_MS = "600000"
 
 # How long tail and wall answers are held, and what one isolate will serve per second. Tail responses are
