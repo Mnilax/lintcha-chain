@@ -49,6 +49,7 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 /* ---------------------------------------------------------------- the header: sticky bar, then the status strip */
 .topbar { position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--line); }
 .bar-in { max-width:1080px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.topbar[data-topbar] .bar-in { max-width:1240px; gap:16px; }
 .brand { display:flex; align-items:center; gap:10px; border:0 !important; color:var(--ink) !important; }
 /* the mark: the delivered mark-acid.png (acid on a transparent ground) used as a mask, so the shape is the file's and the
    colour is the theme's accent: the file's own acid on dark, the darker acid of the light palette on light */
@@ -62,7 +63,11 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .cluster .out { color:var(--ink-2); border:0; }
 .cluster .out:hover { color:var(--accent); }
 .cluster .arrow { font-weight:400; margin-left:0.35em; }
+.header-tools { margin-left:auto; display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+.header-tools [data-lang-host] { display:flex; }
 .theme { font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; padding:8px 13px; border-radius:999px; border:1px solid var(--line); cursor:pointer; background:transparent; color:var(--ink-2); }
+.header-tools .theme { min-height:34px; padding:7px 11px; display:inline-flex; align-items:center; gap:7px; }
+.header-tools .theme .sprite-s { width:14px; height:14px; }
 .strip { border-bottom:1px solid var(--line); background:var(--bg); position:relative; z-index:1; }
 .strip-in { max-width:1080px; margin:0 auto; padding:9px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3); }
 .strip-dot { color:var(--line); }
@@ -431,6 +436,10 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
 
 /* the roadmap line stands on its end below the width where eight stops stop fitting: the same ticks in the same
    order, read top to bottom instead of left to right, and the sprite still where shipped ends */
+@media (max-width:1180px) {
+  .topbar[data-topbar] .nav { order:3; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; margin:0; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .topbar[data-topbar] .nav::-webkit-scrollbar { display:none; }
+}
 @media (max-width:980px) {
   .topbar .nav { order:3; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; margin:0; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }
   .topbar .nav::-webkit-scrollbar { display:none; }
@@ -451,6 +460,8 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
 /* ---------------------------------------------------------------- narrow */
 @media (max-width:640px) {
   .bar-in { gap:12px 16px; }
+  .topbar[data-topbar] .cluster { order:2; flex:1 1 100%; justify-content:flex-end; }
+  .topbar[data-topbar] .header-tools { order:1; }
   .nav { margin:0; order:3; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; gap:9px; font-size:10px; letter-spacing:0.06em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* ten items since chain and run joined the bar; the narrowest rows scroll, and overflow-x is that guard */
   .nav::-webkit-scrollbar { display:none; }
   .nav-bar { bottom:0; }
