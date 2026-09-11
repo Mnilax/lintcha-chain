@@ -57,6 +57,7 @@ export const TRANSFER_LOGS_OVERFLOW = Object.freeze({ overflow: true });
 export const SEL = {
   balanceOf: selector("balanceOf(address)"),
   decimals: selector("decimals()"),
+  symbol: selector("symbol()"),
   totalSupply: selector("totalSupply()"),
   launched: selector("getLaunchedToken(address)"),
   token0: selector("token0()"),
@@ -99,6 +100,8 @@ const rpcQuantityNumber = value => {
     return Number.isSafeInteger(number) && number >= 0 ? number : null;
   } catch { return null; }
 };
+const rpcStateTag = value => value === "latest" ||
+  (typeof value === "string" && /^0x(?:0|[1-9a-f][0-9a-f]*)$/.test(value)) ? value : null;
 const topicAddress = value => {
   if (typeof value !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(value)) return null;
   const body = value.slice(2).toLowerCase();
@@ -319,12 +322,13 @@ export async function blockNumber(env) {
   } catch { return null; }
 }
 
-async function ethCall(env, to, data) {
+async function ethCall(env, to, data, stateTag = "latest") {
   const address = normal(to);
-  if (!address) return null;
+  const tag = rpcStateTag(stateTag);
+  if (!address || !tag) return null;
   if (!await chainIsOurs(env)) return null;
   try {
-    const r = await call(env, "eth_call", [{ to: address, data }, "latest"]);
+    const r = await call(env, "eth_call", [{ to: address, data }, tag]);
     return typeof r === "string" && r.length > 2 ? r : null;
   } catch { return null; }
 }
@@ -338,27 +342,48 @@ export async function balanceOf(env, token, holder) {
 }
 
 const decimalsCache = new Map();   // a token's decimals never change, so this one may outlive the minute
-export async function decimalsOf(env, token) {
+export async function decimalsOf(env, token, stateTag = "latest") {
   const tokenAddress = normal(token);
-  if (!tokenAddress) return null;
-  if (decimalsCache.has(tokenAddress)) return decimalsCache.get(tokenAddress);
-  const r = await ethCall(env, tokenAddress, SEL.decimals);
+  const tag = rpcStateTag(stateTag);
+  if (!tokenAddress || !tag) return null;
+  const cacheKey = tokenAddress + ":" + tag;
+  if (decimalsCache.has(cacheKey)) return decimalsCache.get(cacheKey);
+  const r = await ethCall(env, tokenAddress, SEL.decimals, tag);
   if (r === null || wordCount(r) !== 1) return null;
   const value = word(r, 0);
   if (value === null) return null;
   const d = Number(value);
   if (!Number.isInteger(d) || d < 0 || d > MAX_TOKEN_DECIMALS) return null;
-  decimalsCache.set(tokenAddress, d);
+  decimalsCache.set(cacheKey, d);
   return d;
 }
 /** Only for tests. */
 export function forgetDecimals() { decimalsCache.clear(); }
 
-export async function totalSupply(env, token) {
+export async function totalSupply(env, token, stateTag = "latest") {
   const tokenAddress = normal(token);
   if (!tokenAddress) return null;
-  const r = await ethCall(env, tokenAddress, SEL.totalSupply);
+  const r = await ethCall(env, tokenAddress, SEL.totalSupply, stateTag);
   return r === null || wordCount(r) !== 1 ? null : word(r, 0);
+}
+
+const canonicalTextReturn = data => {
+  const value = wordBytes(data);
+  if (!value || value.length < 64 || word(data, 0) !== 32n) return null;
+  const length = word(data, 1);
+  if (length === null || length > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  const size = Number(length), padded = Math.ceil(size / 32) * 32;
+  if (value.length !== 64 + padded || value.slice(64 + size).some(byte => byte !== 0)) return null;
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(value.slice(64, 64 + size)); }
+  catch { return null; }
+};
+
+/** Canonical ABI string returned by symbol(), or null. */
+export async function symbolOf(env, token, stateTag = "latest") {
+  const tokenAddress = normal(token);
+  if (!tokenAddress) return null;
+  const r = await ethCall(env, tokenAddress, SEL.symbol, stateTag);
+  return r === null ? null : canonicalTextReturn(r);
 }
 
 /** A base-unit chain value as whole units for six-significant-figure derived display, or null. */
@@ -374,10 +399,10 @@ export function unitsNumber(value, decimals) {
  * The factory's own record for a token. Fifteen static words, the layout written out in tools/launch/abi.mjs
  * as LAUNCHED_TOKEN. Only the four fields the bot uses are named here.
  */
-export async function launchRecord(env, token) {
+export async function launchRecord(env, token, stateTag = "latest") {
   const requested = normal(token);
   if (!requested) return null;
-  const r = await ethCall(env, FACTORY, SEL.launched + pad(requested));
+  const r = await ethCall(env, FACTORY, SEL.launched + pad(requested), stateTag);
   if (r === null || wordCount(r) !== 15) return null;
   const recordToken = addressWord(r, 0);
   const curve = addressWord(r, 1);

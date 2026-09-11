@@ -1,6 +1,6 @@
 // lintcha-chain, the token block's three states and the header cluster's links, built and checked without touching the
-// tree. site/token.json ships with every value null and stays that way until the token is really deployed; site/links.json
-// names only accounts that really exist (no placeholder, no zeroes, no buy link, no empty slot in the tree); this test
+// tree. site/token.json may carry either the explicit all-null dormant state or one exact active state; site/links.json
+// names only accounts that really exist (no placeholder, no zeroes, no empty slot in the tree); this test
 // writes a temporary token.json with an address made up at run time, builds into a temporary directory with --token and
 // --out, and checks what each state renders:
 //   a. all null           no contract row, no buy button, no token section, no launch band, the cluster is GITHUB, X
@@ -24,8 +24,8 @@
 // section as three cards and one wide, the sprite in its three places, and the roadmap line against the three
 // phase lists it was folded out of.
 //
-// Then it checks the tree's own site/token.json is all null, site/links.json carries only the confirmed Telegram
-// account, and the tree's site/index.html carries exactly that account and no token state.
+// Then it checks that the tree's own site/token.json and rendered page agree exactly in either dormant or active state,
+// and that site/links.json carries only the confirmed Telegram account alongside the default X account.
 //   node tests/chain_token_states.mjs
 import fs from "node:fs";
 import os from "node:os";
@@ -33,11 +33,14 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { tokenConfigOf } from "../lib/config-contract.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 let checks = 0, failures = 0;
 const ok = (cond, what) => { checks++; if (!cond) { failures++; console.log("  FAIL " + what); } };
 const count = (html, re) => (html.match(re) || []).length;
+const re = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const attr = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // the hrefs of the cluster's outbound items, in the order the build renders them
 const outHrefs = html => (html.match(/class="out" href="[^"]*"/g) || []).map(m => m.slice('class="out" href="'.length, -1));
 // the cluster's own markup: outbound anchors only, no nested div, so the first closing tag ends it
@@ -177,11 +180,27 @@ ok(!l.includes(X_DEFAULT), "the default X account is not on the page once links.
 
 console.log("the tree");
 const treeToken = JSON.parse(fs.readFileSync(path.join(root, "site", "token.json"), "utf8"));
-ok(treeToken.address === null && treeToken.pons === null && treeToken.uniswap === null, "site/token.json is all null");
+const treeState = tokenConfigOf(treeToken);
+ok(!!treeState, "site/token.json matches the shared dormant-or-active contract");
 const treeLinks = JSON.parse(fs.readFileSync(path.join(root, "site", "links.json"), "utf8"));
 ok(treeLinks.x === null && treeLinks.telegram === TELEGRAM_DEFAULT, "site/links.json leaves X on its default and names the confirmed Telegram room");
 const tree = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");
-ok(count(tree, /class="contract"|class="buy"|token-sec|class="band"/g) === 0, "site/index.html carries no token block and no band");
+if (treeState && treeState.address === null) {
+  ok(treeState.pons === null && treeState.uniswap === null, "the dormant tree has no detached buy destination");
+  ok(count(tree, /class="contract"|class="buy"|token-sec|class="band"/g) === 0, "the dormant page carries no token block and no band");
+  ok(count(tree, /data-token-address|data-copy-address/g) === 0, "the dormant page carries no address or copy slot");
+} else if (treeState) {
+  const a = re(treeState.address), p = re(attr(treeState.pons));
+  ok(count(tree, /class="contract"/g) === 1 && count(tree, /class="buy"/g) === 1 && count(tree, /class="sec token-sec"/g) === 1 && count(tree, /class="band"/g) === 1,
+    "the active page carries one contract row, primary buy, token section and band");
+  ok(count(tree, new RegExp(`data-token-address>${a}<`, "g")) === 3 && count(tree, /data-copy-address/g) === 2,
+    "the active page carries only its exact configured address in all three slots and two copy buttons");
+  ok(count(tree, new RegExp(`class="buy" href="${p}"`, "g")) === 1 && count(tree, new RegExp(`class="token-btn token-btn-pons" href="${p}"`, "g")) === 1,
+    "the active page carries the exact configured pons URL in both primary destinations");
+  if (treeState.uniswap === null) ok(count(tree, /token-btn-uni/g) === 0, "a null uniswap destination renders no secondary button");
+  else ok(count(tree, new RegExp(`class="token-btn token-btn-uni" href="${re(attr(treeState.uniswap))}"`, "g")) === 1,
+    "a configured uniswap destination renders exactly once");
+}
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
 ok(count(tree, /class="out"/g) === 3 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === TELEGRAM_DEFAULT && count(tree, /data-i18n="nav\.telegram"/g) === 1, "the tree's page links the default X account and the confirmed Telegram room");
