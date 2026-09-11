@@ -540,6 +540,7 @@ fs.writeFileSync(path.join(verifyTools, "launch-collect.mjs"), [
   'const a = process.argv.slice(2), opt = name => { const i = a.indexOf("--" + name); return a[i + 1]; };',
   'const state = { number: Number(opt("identity-state-number")), hash: opt("identity-state-hash") };',
   'const window = { from: Number(opt("from")), to: Number(opt("to")) };',
+  'if (process.env.FAKE_COLLECTOR_CRASH) throw new Error("fixture collector crash");',
   'if (process.env.FAKE_COLLECTOR_WINDOW_DRIFT) window.from++;',
   'fs.writeFileSync(opt("out"), JSON.stringify({ identity_state: state, window }));'
 ].join("\n"));
@@ -557,7 +558,7 @@ const verifyNumbers = { chain_id: 1, identity_state: clone(report.identity_state
 fs.writeFileSync(path.join(verifySite, "launch-index.json"), "{}\n"); fs.writeFileSync(path.join(verifySite, "launch-numbers.json"), JSON.stringify(verifyNumbers));
 const runVerify = extraEnv => new Promise(resolve => {
   const env = { ...process.env, TEMP: verifyScratch, TMP: verifyScratch, TMPDIR: verifyScratch, ...extraEnv };
-  delete env.FAKE_COLLECTOR_WINDOW_DRIFT; delete env.FAKE_WRITER_STATE_DRIFT; delete env.FAKE_WRITER_WINDOW_DRIFT;
+  delete env.FAKE_COLLECTOR_CRASH; delete env.FAKE_COLLECTOR_WINDOW_DRIFT; delete env.FAKE_WRITER_STATE_DRIFT; delete env.FAKE_WRITER_WINDOW_DRIFT;
   Object.assign(env, extraEnv); if (!Object.prototype.hasOwnProperty.call(extraEnv, RPC_ENV)) delete env[RPC_ENV];
   const child = spawn(process.execPath, [path.join(verifyTools, "verify-index.mjs")], { cwd: verifyRoot, env, stdio: ["ignore", "pipe", "pipe"] });
   let output = ""; child.stdout.on("data", chunk => { output += chunk; }); child.stderr.on("data", chunk => { output += chunk; });
@@ -571,6 +572,13 @@ const verifyWriterStateDrift = await runVerify({ FAKE_WRITER_STATE_DRIFT: "1" })
 ok(verifyWriterStateDrift.code === 2 && verifyWriterStateDrift.output.includes("writer did not preserve the published identity_state"), "verify-index refuses a writer that drops or changes the published state even when the index hash matches");
 const verifyWriterWindowDrift = await runVerify({ FAKE_WRITER_WINDOW_DRIFT: "1" });
 ok(verifyWriterWindowDrift.code === 2 && verifyWriterWindowDrift.output.includes("writer did not preserve the published block window"), "verify-index refuses a writer that changes the published window even when the index hash matches");
+const verifyChildCrash = await runVerify({ FAKE_COLLECTOR_CRASH: "1" });
+ok(verifyChildCrash.code === 2 && verifyChildCrash.output.includes("re-running the collector") && fs.readdirSync(verifyScratch).length === 0, "verify-index maps a child failure to operational exit 2 and removes every temporary collection without --keep");
+const validVerifyNumbers = fs.readFileSync(path.join(verifySite, "launch-numbers.json"), "utf8");
+fs.writeFileSync(path.join(verifySite, "launch-numbers.json"), "{");
+const verifyMalformedJson = await runVerify({});
+fs.writeFileSync(path.join(verifySite, "launch-numbers.json"), validVerifyNumbers);
+ok(verifyMalformedJson.code === 2 && verifyMalformedJson.output.includes("unexpected SyntaxError") && !verifyMalformedJson.output.includes("at "), "verify-index reserves exit 1 for a proved hash mismatch and reports an unexpected parse failure without a stack trace");
 fs.rmSync(verifyRoot, { recursive: true, force: true });
 
 console.log(`collection guard test: ${checks} checks, ${failures} failure(s)`);

@@ -91,32 +91,35 @@ when what actually happened was a network fault.
    removed at the [Telegram Bot API](https://core.telegram.org/bots/api#getting-updates)'s documented
    twenty-four-hour webhook retention boundary.
 
-2. **Two secrets**, with `wrangler secret put`, never as variables: a variable is readable
-   in the dashboard in plain text.
-
-        TELEGRAM_BOT_TOKEN        the bot's token
-        TELEGRAM_WEBHOOK_SECRET   a long random string
-
-3. **The room's chat id** in `ROOM_CHAT_ID`. Until it is set the feed still records buys
+2. **The room's chat id** in `ROOM_CHAT_ID`. Until it is set the feed still records buys
    and posts nothing, which is the right way round: no chat id must never mean no records.
 
    Add `@lintchabot` to the public [lintcha room](https://t.me/lintcha) as an ordinary member,
-   then discover its numeric id without putting the bot token in argv, an environment variable,
-   a file or shell history:
+   and confirm in Telegram itself that the target is a group or supergroup (not a channel) and
+   that ordinary members, including the bot, may post. The webhook intentionally subscribes only
+   to `message` and `edited_message`; a channel is not a supported room.
 
+   Read the existing webhook before making any change, then discover the numeric room id without
+   putting the bot token in argv, an environment variable, a file or shell history:
+
+        npm run telegram:webhook-info
         npm run telegram:discover
 
-   The helper accepts credentials only from a masked interactive terminal, first verifies
-   `lintchabot` with `getMe`, then resolves the fixed public username `@lintcha` with `getChat`.
-   Copy only the returned numeric `chat.id` into `ROOM_CHAT_ID`. It refuses redirected bot or
-   room identities and never prints a token or a remote Telegram error body.
+   If the first command reports `configured: true`, stop and review its safe status before changing
+   or deleting anything. The discovery helper accepts credentials only from a masked interactive
+   terminal, first verifies `lintchabot` with `getMe`, then resolves the fixed public username
+   `@lintcha` with `getChat`. It proves those identities and that Telegram describes the target as a
+   group or supergroup; it cannot prove membership or permission to send. Copy only the returned
+   numeric `chat.id` into `ROOM_CHAT_ID`. It refuses redirected identities and never prints a token
+   or a remote Telegram error body.
 
    Put the exact BotFather username in `BOT_USERNAME`, without `@`. Telegram usernames are
    case-insensitive, contain only Latin letters, digits and underscores, are five to thirty-two
    characters long, and a bot username ends in `bot`. The worker accepts `/command@username`
    only when that suffix matches this setting; a command addressed to another bot is silence.
 
-4. **Install and deploy** from this folder. `package.json` pins Wrangler `4.131.0` as the sole
+3. **Install and pass the local production gate** from this folder. `package.json` pins Wrangler
+   `4.131.0` as the sole
    dev dependency (and `package-lock.json` pins its resolved tree); the Worker has no runtime npm
    dependency. The migrations create the SQLite-backed `Tape` and `Watch` classes. Their delivery,
    nonce and webhook-dedupe tables are created idempotently by those already-existing class schemas,
@@ -124,19 +127,66 @@ when what actually happened was a network fault.
    tags it has not already recorded.
 
         npm ci
-        npm run deploy
+        npm run check-config:production
+
+4. **Close public aliases, then stage both secrets without sending traffic to them.** Never store either
+   secret as a plain variable. Before the first secret write, open this Worker's **Settings > Domains &
+   Routes** in Cloudflare, disable both [`workers.dev`](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/)
+   and [Preview URLs](https://developers.cloudflare.com/workers/versions-and-deployments/preview-urls/), then read the
+   same controls back as disabled. The checked-in false settings keep them disabled on the later deploy; closing a
+   pre-existing alias first also prevents transient exposure while Wrangler reconciles the new deployment.
+
+   Immediately before the first secret write, inspect both remote lists and continue only if the latest Worker
+   version is still exactly the version receiving all production traffic. If the Worker does not exist, or an
+   undeployed latest version already exists, stop and review it.
+
+        npm exec -- wrangler versions list
+        npm exec -- wrangler deployments list
+        npm exec -- wrangler versions secret put TELEGRAM_BOT_TOKEN
+        npm exec -- wrangler versions secret put TELEGRAM_WEBHOOK_SECRET
+        npm exec -- wrangler versions view VERSION_ID_PRINTED_BY_SECOND_SECRET_COMMAND
+
+   Each secret command reads its value through Wrangler's masked interactive prompt and creates a
+   new **undeployed** version; it does not change production traffic. The second version inherits
+   the first secret. Its `versions view` output must name both `TELEGRAM_BOT_TOKEN` and
+   `TELEGRAM_WEBHOOK_SECRET` before deployment. It does not reveal their values. Do not pipe a value,
+   put it in a file or environment variable, or deploy the intermediate secret version. The webhook
+   secret must use only `A-Z`, `a-z`, `0-9`, `_` and `-`, with at least one and at most 256 characters,
+   as required by Telegram's `secret_token` contract.
+
+5. **Deploy the audited source and its migrations** from the repository root:
+
+        npm run deploy --prefix bot
 
    `npm run deploy` is the only supported production entrypoint: npm runs `predeploy` first, which
-   refuses an empty or malformed `ROOM_CHAT_ID`, checks the local binding, runs every suite and
-   builds the pinned strict bundle. `npm run check-config` remains the non-production source-tree
-   check, so tests and dry runs can stay green before Telegram discovery. Do not bypass the
-   production gate with a direct `wrangler deploy`; Wrangler's own dry run accepts incomplete local
-   configuration.
+   refuses an empty or malformed `ROOM_CHAT_ID`, checks the local binding and both required secret
+   names, runs every suite and builds the pinned strict bundle. On the real upload Wrangler then
+   inherits the staged secret bindings and refuses either missing one. The local gate and a dry run
+   cannot prove that the remote values exist.
 
-5. **Set the webhook** to `https://chain.lintcha.com/api/telegram`, with the same secret in
-   `secret_token`. The owned helper fixes that URL, requests only `message` and `edited_message`,
-   and explicitly keeps pending updates. It accepts both credentials only through masked TTY
-   prompts; do not put either one in argv, environment variables or files.
+   Do not bypass this entrypoint with direct `wrangler deploy`, `wrangler versions upload` or
+   `wrangler versions deploy`. The version-only commands cannot apply the pending Durable Object
+   lifecycle migrations. A normal Wrangler deploy switches the Worker version before reconciling
+   its route and cron triggers, so success is provisional until the live read-back below. If trigger
+   reconciliation fails, do not set the webhook; review the live state and repeat the supported
+   deploy after correcting the cause.
+
+6. **Read back the deployed state, then set the webhook.** Confirm the deployed version, both secret
+   names, the `SESSIONS`, `TAPE` and `WATCH` bindings, both applied migration tags, the exact API
+   route, the cron trigger, and that the API Worker's `workers.dev` endpoint and preview URLs are
+   disabled. From the repository root, exercise `npm run smoke:production` before connecting Telegram.
+
+   If `site/token.json` still has a null address, stop here and leave the Worker deployed but its Telegram webhook
+   disconnected. The public page promises that the bot stays off until a verified token address exists. Activate it
+   only after that non-null address has been independently verified, published, and reproduced by the production
+   smoke.
+
+   Only then set the webhook to `https://chain.lintcha.com/api/telegram`, with the same secret in
+   `secret_token`. Before contacting Telegram, the owned helper independently reads the fixed production
+   `https://chain.lintcha.com/token.json` with a hard deadline, byte ceiling, no redirects and no cache;
+   a null, malformed or unavailable activation document is a hard stop. The helper fixes the webhook URL,
+   requests only `message` and `edited_message`, and explicitly keeps pending updates. It accepts both
+   credentials only through masked TTY prompts; do not put either one in argv, environment variables or files.
 
         npm run telegram:set-webhook
         npm run telegram:webhook-info
@@ -157,8 +207,8 @@ when what actually happened was a network fault.
 
    BotFather checklist before that manual step:
 
-   - keep adding the bot to groups enabled; `@lintchabot` must be a member of `@lintcha` before
-     `telegram:discover` can resolve the room;
+   - keep adding the bot to groups enabled; confirm in Telegram that `@lintchabot` is actually a
+     member of `@lintcha` and may send there, because `telegram:discover` cannot prove either fact;
    - leave [privacy mode](https://core.telegram.org/bots/features#privacy-mode) enabled. The current
      room path needs addressed commands and the bot's own join service message, both delivered in
      privacy mode; it neither needs every human message nor administrator status;
@@ -168,7 +218,7 @@ when what actually happened was a network fault.
    - after setting the webhook, test one unsuffixed direct command, this bot's suffixed command
      in the room, and a command suffixed for another bot (which must receive no reply).
 
-6. **Verify live Cloudflare controls by hand.** The `HOLD_PER_SECOND` bucket is restart-local and
+7. **Verify live Cloudflare controls by hand.** The `HOLD_PER_SECOND` bucket is restart-local and
    per isolate; it is a courtesy work bound, not security admission control. Put a dashboard-level
    rate/admission rule in front of the production holder route, choosing and checking its exact
    threshold against the live account rather than copying an unverified number from this repository.
@@ -176,8 +226,10 @@ when what actually happened was a network fault.
    bindings, the KV id, secrets, routes and applied migrations. The local predeploy check cannot see
    any of those live facts.
 
-Nothing here needs the token to exist. Deploy it against a `token.json` of three nulls and
-every command answers correctly; the feed sleeps.
+The on-chain project token address may remain null while the Worker is prepared and deployed. The handlers remain
+covered against a `token.json` of three nulls and the feed sleeps, but the Telegram webhook stays disconnected to keep
+the public launch promise. That dormant state is distinct from the two Telegram credentials, which are required before
+the Worker deployment.
 
 ## The five routes
 
@@ -559,8 +611,9 @@ Telegram, KV and both Durable Object contexts are local fakes from `test/fakes.m
                    leases, response-store recovery, idempotent rule and nonce effects, room greeting,
                    method refusals, and /api/hold failures through the same atomic nonce path
     telegram_bootstrap_test   offline getMe/getChat identity binding, masked and bounded TTY input,
-                   redirect refusal, strict bounded Bot API responses, exact webhook payloads,
-                   guarded deletion, safe output and checked-in BOT_USERNAME agreement
+                   fail-closed fixed-production token activation, redirect refusal, strict bounded
+                   HTTP responses, exact webhook payloads, guarded deletion, safe output and
+                   checked-in BOT_USERNAME agreement
     chain_test     the site's file, the minute long cache, zero within-call RPC retries, exact
                    scalar/record/log reads, token-bound factory records, header-bound transfers,
                    chain-proved pool sides and decimals, and failures that are null rather than invented
@@ -570,8 +623,9 @@ Telegram, KV and both Durable Object contexts are local fakes from `test/fakes.m
                    origin, mark and sentence identical in bot/src/texts.js and site/hold/hold.js,
                    and no retry button after a one-time mark was spent
     predeploy_test the local deployment gate refuses the placeholder, missing or empty SESSIONS id,
-                   and invalid BotFather username; production mode also refuses an empty or malformed
-                   Telegram room id without claiming to verify live resources
+                   missing required secret names, public Worker aliases and an invalid BotFather username;
+                   production mode also refuses an empty or malformed Telegram room id without claiming
+                   to verify live resources
     engine_test    the round's main test: site/launch.js hashed against VENDOR.md's own row,
                    loaded a second time the way the page loads it, and one fixture set through
                    both engines compared value for value, hash for hash, entry for entry, and

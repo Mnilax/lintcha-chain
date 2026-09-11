@@ -22,8 +22,12 @@ const argv = process.argv.slice(2);
 const opt = (name, dflt) => { const i = argv.indexOf("--" + name); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") ? argv[i + 1] : dflt; };
 const flag = name => argv.includes("--" + name);
 const sha = f => crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex");
-const fail = (m, code) => { console.error("verify: " + m); process.exit(code === undefined ? 2 : code); };
+class VerifyFailure extends Error {}
+const fail = m => { throw new VerifyFailure(m); };
+let tmp = null;
+let exitCode = 2;
 
+try {
 const allowed = new Set(["--rpc", "--keep"]), seen = new Set();
 for (let i = 0; i < argv.length; i++) {
   if (!allowed.has(argv[i])) fail("unknown argument " + argv[i]);
@@ -53,12 +57,13 @@ const shippedHash = sha(shippedIndex);
 console.log(`window recorded in the numbers file: blocks ${w.from_block} to ${w.to_block} (${w.blocks} blocks), ${w.from_time} to ${w.to_time}`);
 console.log(`shipped index: ${shippedIndex.replace(root + path.sep, "")}, ${fs.statSync(shippedIndex).size} bytes, sha256 ${shippedHash}`);
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lintcha-verify-"));
+tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lintcha-verify-"));
 const collected = path.join(tmp, "launch-window.json");
 const run = (label, args) => {
   const shown = args.map((value, index) => index > 0 && args[index - 1] === "--rpc" ? "<redacted-rpc>" : value);
   console.log(`\n${label}:\n  node ${shown.join(" ")}`);
   const r = spawnSync(process.execPath, args, { cwd: root, stdio: "inherit" });
+  if (r.error) fail(`${label} could not start; nothing compared`);
   if (r.status !== 0) fail(`${label} exited ${r.status}; nothing compared`);
 };
 const collectArgs = [path.join("tools", "launch-collect.mjs"), "--from", String(w.from_block), "--to", String(w.to_block), "--identity-state-number", String(identityState.number), "--identity-state-hash", identityState.hash, "--out", collected];
@@ -92,5 +97,17 @@ console.log(`rebuilt index hash  ${rebuiltHash}`);
 console.log(`match: ${match ? "yes" : "no"}  (launches scanned: shipped ${numbers.launches_scanned}, rebuilt ${rebuilt.launches_scanned}; entries: shipped ${numbers.index.entries_total}, rebuilt ${rebuilt.index.entries_total})`);
 console.log("launch-numbers.json is not compared: it records the run itself (the collection date, the calls, the seconds), so it differs by design");
 if (!match) console.log("a rerun can differ if the endpoint returns differently under load; the shipped index is the one whose hash is printed on the page");
-if (flag("keep")) console.log(`kept: ${tmp}`); else fs.rmSync(tmp, { recursive: true, force: true });
-process.exit(match ? 0 : 1);
+exitCode = match ? 0 : 1;
+} catch (error) {
+  if (error instanceof VerifyFailure) console.error("verify: " + error.message);
+  else console.error(`verify: unexpected ${error && typeof error.name === "string" ? error.name : "error"}; nothing compared`);
+  exitCode = 2;
+} finally {
+  if (tmp && flag("keep")) {
+    console.log(`kept: ${tmp}`);
+  } else if (tmp) {
+    try { fs.rmSync(tmp, { recursive: true, force: true }); }
+    catch { console.error("verify: could not remove temporary data"); exitCode = 2; }
+  }
+}
+process.exitCode = exitCode;

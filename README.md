@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/avatar.png" width="128" height="128" alt=""></p>
 <p align="center"><img src="assets/banner.png" alt="lintcha-chain" width="100%"></p>
 <p align="center">
-<img alt="tests" src="https://img.shields.io/badge/tests-2163_passing-d4fc50?labelColor=08090a&style=flat-square">
+<img alt="tests" src="https://img.shields.io/badge/tests-2233_passing-d4fc50?labelColor=08090a&style=flat-square">
 <img alt="node" src="https://img.shields.io/badge/node-%3E%3D24-5e5a53?labelColor=08090a&style=flat-square">
 <img alt="runtime deps" src="https://img.shields.io/badge/runtime_deps-0-5e5a53?labelColor=08090a&style=flat-square">
 <img alt="chain" src="https://img.shields.io/badge/chain-4663-5e5a53?labelColor=08090a&style=flat-square">
@@ -74,6 +74,7 @@ Node 24, no dependency.
 npm run build     merge the strings; build the comparison, 404, sitemap and published manifest from the current index and numbers
 npm test          verify-vendor plus the config, manifest, token, wall, history, engine, index and identity contracts
 npm test --prefix bot     the Telegram, holder, feed, watcher, rules and all five API-route contracts
+npm run smoke:production  compare every public static byte, security/MIME header, HTTPS redirect and fail-closed API contract with this tree
 npm run i18n      merge the strings and run the vendored i18n check (three languages, en emitted)
 npm run verify    refuse the current legacy snapshot before network; for a state-pinned replacement, audit its exact state/window, rebuild, print both hashes
 node tests/published_contract_test.mjs     verify the manifest against the exact index and numbers bytes
@@ -89,11 +90,15 @@ bash tests/chain_acceptance.sh     the fourteen criteria, each with the command 
 ## Production checklist
 
 A green local tree is not deployment proof. Before calling a release live, publish both `site/` and the Worker, then
-compare the public files and routes with the built artifacts. In Cloudflare, turn on
+run `npm run smoke:production`; it is credentialless, read-only and exits nonzero on drift in that fixed public
+contract. A conforming deployment of both Wrangler configs disables the account `workers.dev` endpoint and per-version
+preview URLs, leaving the configured custom origin as the only public copy. In Cloudflare, turn on
 [Always Use HTTPS](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/)
 and verify the redirect before enabling HSTS. Disable
 [Network Error Logging](https://developers.cloudflare.com/network-error-logging/get-started/) and verify that neither `Nel` nor
-`Report-To` sends a browser report to a third party: that would contradict the page's no-third-party-beacon promise.
+`Report-To` or `Reporting-Endpoints` sends a browser report to a third party: that would contradict the page's
+no-third-party-beacon promise. The smoke also requires every published static response to reproduce the five owned
+security headers in `site/_headers`, retain its expected MIME type, and emit no `Set-Cookie`.
 Apply a dashboard-level admission/rate rule to `/api/hold`; the Worker bucket is deliberately only a per-isolate work
 bound. The Worker-side KV, secrets, routes, Durable Object migrations and the live plan's request budget are separate
 manual facts covered by `bot/README.md`; `npm run deploy --prefix bot` must remain blocked until its predeploy check
@@ -112,9 +117,10 @@ social card and the sitemap, is the `origin` key of `site/launch-site.json`.
   snapshot comparison pinned to its recorded window and accepts only a complete, hash-verified post-snapshot suffix.
 - Round F is retained deployer history: the owned `/deployer/` page and `GET/HEAD /api/deployer`. It states the exact
   retained watcher range and exposes bounded launch declarations without token addresses or transactions.
-- Round G is the holder-alert and bot code under `bot/`. It is locally tested, but activation and deployment remain
-  blocked until the real token/live configuration is present and KV, secrets, routes, cron and webhook are confirmed
-  manually.
+- Round G is the holder-alert and bot code under `bot/`. It is locally tested. A null token address keeps the feed
+  dormant and does not by itself block deployment; production remains blocked until the room configuration is filled
+  and KV, secrets, routes and cron are confirmed against the live account. Webhook activation additionally waits for
+  the verified non-null token address promised by the public page.
 - Round H is the public normalization integration kit: `lib/identity.mjs`, the `lintcha-chain` JSON CLI and the
   conformance fixture. Its `read` command refuses a custom index without a matching manifest.
 
@@ -130,7 +136,7 @@ The badges above are static images from shields.io, which GitHub renders; nothin
 Each figure is read from the tree, not typed from memory:
 
 ```
-tests           npm test; npm test --prefix bot              745 root checks + 1418 bot checks = 2163 checks
+tests           npm test; npm test --prefix bot              801 root checks + 1432 bot checks = 2233 checks
 node            package.json, engines.node                  >=24
 runtime deps    package.json                                no "dependencies" key
 chain           site/launch-numbers.json, chain_id          4663
