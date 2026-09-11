@@ -1,5 +1,9 @@
 name = "lintcha-chain"
 compatibility_date = "2026-09-01"
+# The public site has one canonical origin. Its dashboard-managed custom domain remains the only public target;
+# neither the account subdomain nor per-version preview aliases should expose a second copy.
+workers_dev = false
+preview_urls = false
 
 [assets]
 directory = "./site"

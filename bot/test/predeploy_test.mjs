@@ -12,6 +12,8 @@ const t = harness("predeploy");
 const bot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const gate = path.join(bot, "tools", "predeploy.mjs");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lintcha-predeploy-"));
+const requiredSecrets = '[secrets]\nrequired = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"]\n';
+const privateAliases = 'workers_dev = false\npreview_urls = false\n';
 
 const run = (body, options = []) => {
   const file = path.join(tmp, "wrangler.toml");
@@ -30,12 +32,20 @@ t.ok(r.status === 1 && /no non-empty SESSIONS/.test(r.stderr), "a missing SESSIO
 r = run('[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n[vars]\nBOT_USERNAME = "wrong"\n');
 t.ok(r.status === 1 && /BOT_USERNAME/.test(r.stderr), "an invalid configured bot username is refused before deployment");
 r = run('[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n[vars]\nBOT_USERNAME = "lintcha_chain_bot"\n');
-t.ok(r.status === 0 && /local resource bindings are filled/.test(r.stdout), "a filled binding passes without guessing its provider-specific shape");
-r = run('[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n[vars]\nBOT_USERNAME = "lintcha_chain_bot"\nROOM_CHAT_ID = ""\n', ["--production"]);
+t.ok(r.status === 1 && /\[secrets\]\.required/.test(r.stderr), "a config without required secret names is refused before deployment");
+r = run('[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n[secrets]\nrequired = ["TELEGRAM_BOT_TOKEN"]\n[vars]\nBOT_USERNAME = "lintcha_chain_bot"\n');
+t.ok(r.status === 1 && /TELEGRAM_WEBHOOK_SECRET/.test(r.stderr), "requiring only one of the two secret bindings is refused");
+r = run(privateAliases + '[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n' + requiredSecrets + '[vars]\nBOT_USERNAME = "lintcha_chain_bot"\n');
+t.ok(r.status === 0 && /required secret names are filled/.test(r.stdout), "a filled binding and both required secret names pass without guessing their values");
+r = run('workers_dev = true\npreview_urls = false\n[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n' + requiredSecrets + '[vars]\nBOT_USERNAME = "lintcha_chain_bot"\n');
+t.ok(r.status === 1 && /workers_dev and preview_urls/.test(r.stderr), "an account-subdomain API deployment is refused");
+r = run('workers_dev = false\npreview_urls = true\n[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n' + requiredSecrets + '[vars]\nBOT_USERNAME = "lintcha_chain_bot"\n');
+t.ok(r.status === 1 && /workers_dev and preview_urls/.test(r.stderr), "a per-version public preview alias is refused");
+r = run(privateAliases + '[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n' + requiredSecrets + '[vars]\nBOT_USERNAME = "lintcha_chain_bot"\nROOM_CHAT_ID = ""\n', ["--production"]);
 t.ok(r.status === 1 && /ROOM_CHAT_ID/.test(r.stderr), "production refuses an empty room id before deployment");
-r = run('[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n[vars]\nBOT_USERNAME = "lintcha_chain_bot"\nROOM_CHAT_ID = "not-a-chat"\n', ["--production"]);
+r = run(privateAliases + '[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n' + requiredSecrets + '[vars]\nBOT_USERNAME = "lintcha_chain_bot"\nROOM_CHAT_ID = "not-a-chat"\n', ["--production"]);
 t.ok(r.status === 1 && /ROOM_CHAT_ID/.test(r.stderr), "production refuses a non-decimal room id before deployment");
-r = run('[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n[vars]\nBOT_USERNAME = "lintcha_chain_bot"\nROOM_CHAT_ID = "-1001234567890"\n', ["--production"]);
+r = run(privateAliases + '[[kv_namespaces]]\nbinding = "SESSIONS"\nid = "verified-in-the-deployment-session"\n' + requiredSecrets + '[vars]\nBOT_USERNAME = "lintcha_chain_bot"\nROOM_CHAT_ID = "-1001234567890"\n', ["--production"]);
 t.ok(r.status === 0 && /production room id are filled/.test(r.stdout), "production accepts a discovered nonzero decimal room id");
 fs.rmSync(tmp, { recursive: true, force: true });
 t.done();

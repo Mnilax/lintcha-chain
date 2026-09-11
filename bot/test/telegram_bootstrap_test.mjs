@@ -5,12 +5,14 @@
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import { harness } from "./fakes.mjs";
+import { TOKEN_CONFIG_BODY_LIMIT } from "../../lib/config-contract.mjs";
 import { TELEGRAM_RESPONSE_LIMIT, TELEGRAM_TIMEOUT_MS } from "../src/telegram.js";
 import {
   BOT_TOKEN_INPUT_LIMIT,
   DISCOVERY_CHAT,
   EXPECTED_BOT_USERNAME,
   PRODUCTION_ALLOWED_UPDATES,
+  PRODUCTION_TOKEN_JSON_URL,
   PRODUCTION_WEBHOOK_URL,
   WEBHOOK_SECRET_INPUT_LIMIT,
   botApiRequest,
@@ -18,6 +20,7 @@ import {
   discoverProductionChat,
   productionWebhookInfo,
   readMasked,
+  requireProductionToken,
   runCli,
   setProductionWebhook,
   validBotToken,
@@ -27,6 +30,8 @@ import {
 const t = harness("telegram_bootstrap");
 const TOKEN = "123456:OFFLINE_FAKE_TOKEN";
 const SECRET = "OFFLINE_TEST_WEBHOOK_SECRET";
+const ACTIVE_ADDRESS = "0x" + "1".repeat(40);
+const ACTIVE_TOKEN = { address: ACTIVE_ADDRESS, pons: "https://example.invalid/pons", uniswap: null };
 const ME = {
   id: 1,
   is_bot: true,
@@ -39,6 +44,11 @@ const response = (result, init = {}) => new Response(JSON.stringify({ ok: true, 
   status: init.status || 200,
   headers: { "content-type": "application/json", ...(init.headers || {}) }
 });
+const tokenResponse = (value, init = {}) => new Response(
+  typeof value === "string" ? value : JSON.stringify(value),
+  { status: init.status || 200, headers: { "content-type": "application/json", ...(init.headers || {}) } }
+);
+const activeTokenFetch = async () => tokenResponse(ACTIVE_TOKEN);
 const webhook = url => ({ url, has_custom_certificate: false, pending_update_count: 0 });
 const rejected = promise => promise.then(() => null, error => error);
 const generic = error => error && error.message === "telegram bootstrap failed" &&
@@ -46,6 +56,7 @@ const generic = error => error && error.message === "telegram bootstrap failed" 
 
 t.ok(EXPECTED_BOT_USERNAME === "lintchabot" && DISCOVERY_CHAT === "@lintcha", "production identity constants are exact");
 t.ok(PRODUCTION_WEBHOOK_URL === "https://chain.lintcha.com/api/telegram", "the production webhook target is exact HTTPS");
+t.ok(PRODUCTION_TOKEN_JSON_URL === "https://chain.lintcha.com/token.json", "webhook activation reads only the fixed public token document");
 t.ok(JSON.stringify(PRODUCTION_ALLOWED_UPDATES) === JSON.stringify(["message", "edited_message"]), "only handled update kinds are requested");
 t.ok(validBotToken(TOKEN) && !validBotToken("") && !validBotToken("no-colon") && !validBotToken("0:suffix") &&
   !validBotToken("01:suffix") && !validBotToken("1:") && !validBotToken("1:two:colons") &&
@@ -91,13 +102,65 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
 }
 
 {
+  let telegramCalls = 0;
+  for (const [label, tokenFetchImpl] of [
+    ["null activation", async () => tokenResponse({ address: null, pons: null, uniswap: null })],
+    ["malformed activation", async () => tokenResponse("{")],
+    ["network failure", async () => { throw new Error("offline fixture failure"); }],
+    ["redirect", async (_url, init) => {
+      t.ok(init.redirect === "error", "the activation read asks fetch to reject redirects");
+      return new Response(null, { status: 302, headers: { location: "https://foreign.invalid/token.json" } });
+    }]
+  ]) {
+    const error = await rejected(setProductionWebhook({
+      token: TOKEN,
+      secret: SECRET,
+      tokenFetchImpl,
+      fetchImpl: async () => { telegramCalls++; return response(true); }
+    }));
+    t.ok(generic(error), label + " blocks webhook activation with a redacted failure");
+  }
+  t.ok(telegramCalls === 0, "a refused activation document prevents every Bot API request");
+}
+
+{
+  let deadline;
+  let signal;
+  const pending = requireProductionToken({
+    tokenFetchImpl: async (_url, init) => { signal = init.signal; return await new Promise(() => {}); },
+    setTimer(fn, ms) { deadline = { fn, ms }; return 1; },
+    clearTimer() {}
+  });
+  await Promise.resolve();
+  deadline.fn();
+  const error = await rejected(pending);
+  t.ok(deadline.ms === TELEGRAM_TIMEOUT_MS && signal.aborted === true && generic(error), "a hanging activation read stops at the authored deadline and aborts fetch");
+}
+
+{
+  let cancelCalls = 0;
+  const body = new ReadableStream({ cancel() { cancelCalls++; } });
+  const error = await rejected(requireProductionToken({
+    tokenFetchImpl: async () => new Response(body, {
+      status: 200,
+      headers: { "content-type": "application/json", "content-length": String(TOKEN_CONFIG_BODY_LIMIT + 1) }
+    })
+  }));
+  t.ok(cancelCalls === 1 && generic(error), "an oversized activation response is cancelled at the shared token-config byte ceiling");
+}
+
+{
   const calls = [];
+  const tokenCalls = [];
   const result = await setProductionWebhook({
     token: TOKEN,
     secret: SECRET,
+    tokenFetchImpl: async (url, init) => { tokenCalls.push({ url, init }); return activeTokenFetch(); },
     fetchImpl: async (url, init) => { calls.push({ url, init }); return response(url.endsWith("/getMe") ? ME : true); }
   });
   const body = JSON.parse(calls[1].init.body);
+  t.ok(tokenCalls.length === 1 && tokenCalls[0].url === PRODUCTION_TOKEN_JSON_URL && tokenCalls[0].init.method === "GET" &&
+    tokenCalls[0].init.redirect === "error" && tokenCalls[0].init.cache === "no-store", "set mode proves a non-null public activation before contacting Telegram");
   t.ok(calls.length === 2 && calls[0].url.endsWith("/getMe") && calls[1].url.endsWith("/setWebhook"),
     "set mode verifies the production bot before its one setWebhook call");
   t.ok(calls.every(call => call.init.redirect === "error"), "every Bot API request refuses HTTP redirects");
@@ -119,6 +182,7 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
   const error = await rejected(setProductionWebhook({
     token: TOKEN,
     secret: SECRET,
+    tokenFetchImpl: activeTokenFetch,
     fetchImpl: async url => {
       if (url.endsWith("/setWebhook")) setCalls++;
       return response({ id: 1, is_bot: true, username: "anotherbot" });
@@ -386,6 +450,7 @@ class FakeOutput {
       prompts.push({ label, limit });
       return prompts.length === 1 ? TOKEN : SECRET;
     },
+    tokenFetchImpl: activeTokenFetch,
     fetchImpl: async url => response(url.endsWith("/getMe") ? ME : true)
   });
   t.ok(status === 0 && prompts.length === 2 && prompts[0].limit === BOT_TOKEN_INPUT_LIMIT &&

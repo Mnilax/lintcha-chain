@@ -1,8 +1,9 @@
 # The bot's own worker, with its own config, so nothing here can disturb the site's wrangler.toml at the root.
 # The site is served by that one; this one answers /api/* on the same host and nothing else.
 #
-# No secret appears in this file and none may be added to it. Two are needed and both are set with
-# `wrangler secret put`, which keeps them out of the dashboard's plain text variable list:
+# No secret value appears in this file and none may be added to it. Two are needed and both are staged with
+# `wrangler versions secret put`, which creates an undeployed version and keeps them out of the dashboard's plain
+# text variable list:
 #
 #     TELEGRAM_BOT_TOKEN        the bot's token
 #     TELEGRAM_WEBHOOK_SECRET   a long random string, sent back by Telegram in every update's header
@@ -13,8 +14,9 @@
 name = "lintcha-chain-api"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
-# Keep the API on the route below; do not also publish an accidental workers.dev hostname.
+# Keep the API on the route below; do not also publish an accidental workers.dev hostname or preview alias.
 workers_dev = false
+preview_urls = false
 
 # The flag is here for exactly one reason, and it is worth writing down rather than leaving to be discovered.
 #
@@ -35,6 +37,11 @@ workers_dev = false
 #     [alias]
 #     crypto = "node:crypto"
 compatibility_flags = ["nodejs_compat"]
+
+# Names only, never values. On the supported production deploy Wrangler inherits these bindings from the latest
+# staged version and refuses the upload if either one is absent.
+[secrets]
+required = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"]
 
 # /api/* is intercepted before the assets worker; the root stays with the site, which is how the page and this
 # worker share one host. Confirmed by observation before the code was written.
@@ -83,7 +90,7 @@ crons = ["* * * * *"]
 
 [vars]
 # where the room is. Empty until the room exists: with no chat id the feed records buys and posts nothing.
-ROOM_CHAT_ID = ""
+ROOM_CHAT_ID = "-1004338369410"
 # the exact BotFather username without @. Unsuffixed commands still work; a command suffixed for another bot
 # is ignored. Fill this before deployment so Telegram's group form /command@username can be attributed safely.
 BOT_USERNAME = "lintchabot"

@@ -6,11 +6,13 @@
 import readline from "node:readline";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { TOKEN_CONFIG_BODY_LIMIT, tokenConfigBytesOf } from "../../lib/config-contract.mjs";
 import { TELEGRAM_RESPONSE_LIMIT, TELEGRAM_TIMEOUT_MS } from "../src/telegram.js";
 
 export const EXPECTED_BOT_USERNAME = "lintchabot";
 export const DISCOVERY_CHAT = "@lintcha";
 export const PRODUCTION_WEBHOOK_URL = "https://chain.lintcha.com/api/telegram";
+export const PRODUCTION_TOKEN_JSON_URL = "https://chain.lintcha.com/token.json";
 export const PRODUCTION_ALLOWED_UPDATES = Object.freeze(["message", "edited_message"]);
 // This is an implementation safety ceiling, not a claim about BotFather's undocumented exact token length.
 export const BOT_TOKEN_INPUT_LIMIT = TELEGRAM_RESPONSE_LIMIT;
@@ -52,7 +54,7 @@ const cancelBestEffort = target => {
   } catch {}
 };
 
-const boundedEnvelope = async (response, limit, deadline, setReader) => {
+const boundedBytes = async (response, limit, deadline, setReader) => {
   if (!response || !response.body || typeof response.body.getReader !== "function") fail("response");
   const declaredRaw = response.headers && typeof response.headers.get === "function"
     ? response.headers.get("content-length")
@@ -90,8 +92,13 @@ const boundedEnvelope = async (response, limit, deadline, setReader) => {
     setReader(null);
   }
   if (declared !== null && declared !== size) fail("response");
+  return bytes.subarray(0, size);
+};
+
+const boundedEnvelope = async (response, limit, deadline, setReader) => {
+  const bytes = await boundedBytes(response, limit, deadline, setReader);
   try {
-    const value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, size)));
+    const value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (!plainObject(value) || value.ok !== true || !Object.prototype.hasOwnProperty.call(value, "result")) fail("api");
     return value.result;
   } catch (error) {
@@ -138,6 +145,57 @@ export async function botApiRequest(method, params, options = {}) {
       fail("api");
     }
     return await boundedEnvelope(response, responseLimit, deadline, value => { reader = value; });
+  } catch (error) {
+    if (error instanceof BootstrapFailure) throw error;
+    fail("request");
+  } finally {
+    clearTimer(timer);
+    reader = null;
+  }
+}
+
+/** Fail closed unless the fixed public activation document currently carries one valid nonzero token address. */
+export async function requireProductionToken(options = {}) {
+  const fetchImpl = options.tokenFetchImpl || options.fetchImpl || globalThis.fetch;
+  const timeoutMs = options.timeoutMs === undefined ? TELEGRAM_TIMEOUT_MS : options.timeoutMs;
+  const setTimer = options.setTimer || globalThis.setTimeout;
+  const clearTimer = options.clearTimer || globalThis.clearTimeout;
+  if (typeof fetchImpl !== "function" || !safeInteger(timeoutMs) || timeoutMs < 1 ||
+      typeof setTimer !== "function" || typeof clearTimer !== "function") fail("input");
+
+  const controller = new AbortController();
+  let reader = null;
+  let timer;
+  const deadline = new Promise(resolve => {
+    timer = setTimer(() => {
+      try { controller.abort(); } catch {}
+      cancelBestEffort(reader);
+      resolve(DEADLINE);
+    }, timeoutMs);
+  });
+
+  try {
+    const request = Promise.resolve().then(() => fetchImpl(PRODUCTION_TOKEN_JSON_URL, {
+      method: "GET",
+      redirect: "error",
+      cache: "no-store",
+      headers: { accept: "application/json", "cache-control": "no-cache", "user-agent": "lintcha-chain-telegram-bootstrap" },
+      signal: controller.signal
+    }));
+    const response = await Promise.race([request, deadline]);
+    if (response === DEADLINE) fail("timeout");
+    const contentType = response && response.headers && typeof response.headers.get === "function"
+      ? response.headers.get("content-type")
+      : null;
+    if (!response || response.status !== 200 || typeof contentType !== "string" ||
+        !/^application\/json(?:\s*;|\s*$)/i.test(contentType)) {
+      if (response && response.body) cancelBestEffort(response.body);
+      fail("activation");
+    }
+    const bytes = await boundedBytes(response, TOKEN_CONFIG_BODY_LIMIT, deadline, value => { reader = value; });
+    const config = tokenConfigBytesOf(bytes);
+    if (!config || !config.address) fail("activation");
+    return { active: true };
   } catch (error) {
     if (error instanceof BootstrapFailure) throw error;
     fail("request");
@@ -207,6 +265,7 @@ export async function productionWebhookInfo(options = {}) {
 
 export async function setProductionWebhook(options = {}) {
   if (!validWebhookSecret(options.secret)) fail("input");
+  await requireProductionToken(options);
   const request = requestOptions(options);
   await verifiedBot(request);
   const result = await botApiRequest("setWebhook", {
@@ -288,6 +347,7 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
   const errorOutput = io.errorOutput || process.stderr;
   const prompt = io.prompt || readMasked;
   const fetchImpl = io.fetchImpl || globalThis.fetch;
+  const tokenFetchImpl = io.tokenFetchImpl || fetchImpl;
   if (!Array.isArray(argv) || argv.length !== 1 || !["discover", "webhook-info", "set-webhook", "delete-webhook"].includes(argv[0])) {
     errorOutput.write(USAGE + "\n");
     return 1;
@@ -307,7 +367,7 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
     else if (argv[0] === "webhook-info") result = await productionWebhookInfo({ token, fetchImpl });
     else if (argv[0] === "set-webhook") {
       secret = await prompt("Webhook secret: ", input, output, WEBHOOK_SECRET_INPUT_LIMIT);
-      result = await setProductionWebhook({ token, secret, fetchImpl });
+      result = await setProductionWebhook({ token, secret, fetchImpl, tokenFetchImpl });
     } else {
       confirmation = await prompt("Type DELETE to confirm: ", input, output, DELETE_CONFIRMATION.length);
       if (confirmation !== DELETE_CONFIRMATION) fail("confirmation");
