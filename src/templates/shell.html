@@ -40,7 +40,7 @@
 </header>
 <div class="strip">
   <div class="strip-in">
-    <span data-i18n="strip.chain"></span><span class="strip-dot" aria-hidden="true">·</span><span class="strip-id" data-pulse data-i18n="strip.id" data-i18n-vars="chain_id"></span><span class="strip-dot" aria-hidden="true">·</span><span data-i18n="strip.reads"></span><span class="strip-dot" aria-hidden="true">·</span><span data-i18n="strip.window" data-i18n-vars="from_block,to_block"></span><span class="strip-live" data-livetile="reserved"></span>
+    <span data-i18n="strip.chain"></span><span class="strip-dot" aria-hidden="true">·</span><span class="strip-id" data-pulse data-i18n="strip.id" data-i18n-vars="chain_id"></span><span class="strip-dot" aria-hidden="true">·</span><span data-i18n="strip.reads"></span><span class="strip-dot" aria-hidden="true">·</span><span data-i18n="strip.window" data-i18n-vars="from_block,to_block"></span><span class="strip-dot" aria-hidden="true">·</span><a class="strip-wall" href="/live/" data-i18n="strip.wall"></a><span class="strip-live" data-livetile="snapshot"><span class="badge badge-snapshot" data-i18n="strip.snapshot"></span><span data-i18n="strip.snapshot_v" data-i18n-vars="index_short"></span></span>
   </div>
 </div>
 {{contract_row}}
@@ -50,6 +50,11 @@
     <h1 class="hero-h1"><span data-i18n="hero.l1"></span><br><span class="hero-l2" data-i18n="hero.l2"></span></h1>
     <p class="hero-intro" data-i18n="launch.intro"></p>
     <p class="hero-privacy" data-i18n="launch.privacy"></p>
+    <nav class="hero-actions" data-i18n-attr="aria-label:hero.actions.label">
+      <a class="hero-action hero-action-primary" href="#s02" data-i18n="hero.actions.read"></a>
+      <a class="hero-action" href="/live/" data-i18n="hero.actions.live"></a>
+      <a class="hero-action" href="#s09" data-i18n="hero.actions.run"></a>
+    </nav>
   </section>
 
 <!-- section:process -->
@@ -134,7 +139,24 @@
 <!-- section:tool -->
   <section class="sec sec-tool" data-sec="tool">
     <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="launch.h1"></h2></div>
+    <p class="result-restored" data-share-restored aria-live="polite" hidden></p>
 {{main}}
+    <div class="result-tools" data-result-tools data-window-from="{{window_from}}" data-window-to="{{window_to}}" data-window-start="{{window_start}}" data-window-end="{{window_end}}" data-index-hash="{{index_hash}}" hidden>
+      <p class="result-context"><span data-i18n="result.window"></span> <strong data-window-age></strong>.</p>
+      <div class="result-share">
+        <button type="button" class="btn-quiet" data-share-result><span data-share-label data-i18n="result.share"></span></button>
+        <span class="result-share-note" data-i18n="result.share.note"></span>
+        <span class="sr-only" data-share-status aria-live="polite"></span>
+      </div>
+      <div class="result-receipt">
+        <div class="result-receipt-actions">
+          <button type="button" class="btn-quiet" data-copy-receipt><span data-receipt-copy-label data-i18n="result.receipt.copy"></span></button>
+          <button type="button" class="btn-quiet" data-download-receipt><span data-receipt-download-label data-i18n="result.receipt.download"></span></button>
+        </div>
+        <span class="result-share-note" data-i18n="result.receipt.note"></span>
+        <span class="sr-only" data-receipt-status aria-live="polite"></span>
+      </div>
+    </div>
   </section>
 <!-- /section:tool -->
 
@@ -145,6 +167,7 @@
     <p class="sec-p sec-p-lg" data-i18n="chain.p1"></p>
     <p class="sec-p sec-p-lg" data-i18n="chain.p2"></p>
     <p class="sec-p sec-p-lg" data-i18n="chain.p3"></p>
+    <p class="mono-line"><a href="https://docs.robinhood.com/chain/connecting/" target="_blank" rel="noopener noreferrer" data-i18n="chain.source"></a></p>
   </section>
 <!-- /section:chain -->
 
@@ -387,6 +410,9 @@
       <div class="qa"><h3 data-i18n="faq.code.q"></h3><p data-i18n="faq.code.a"></p></div>
       <div class="qa"><h3 data-i18n="faq.who.q"></h3><p data-i18n="faq.who.a"></p></div>
       <div class="qa"><h3 data-i18n="faq.score.q"></h3><p data-i18n="faq.score.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.wall.q"></h3><p data-i18n="faq.wall.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.bot_first.q"></h3><p data-i18n="faq.bot_first.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.signature.q"></h3><p data-i18n="faq.signature.a"></p></div>
     </div>
   </section>
 <!-- /section:faq -->

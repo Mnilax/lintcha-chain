@@ -1,0 +1,51 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Test the static site and engine
+        run: npm test
+
+      - name: Test the API worker and bot
+        run: npm test --prefix bot
+
+      - name: Install the pinned Worker toolchain
+        run: npm ci --prefix bot
+
+      - name: Bundle the API worker strictly
+        run: npm run bundle --prefix bot
+
+      - name: Check translations
+        run: npm run i18n
+
+      - name: Check the deterministic build
+        run: |
+          npm run build
+          git diff --exit-code -- site/index.html site/404.html site/sitemap.xml site/launch-manifest.json
+
+      - name: Check the rendered page contract
+        run: node tests/chain_browser.mjs site --pages "/,/live/,/deployer/,/hold/,/hold/?t=0123456789abcdef0123456789abcdef"
+
+      - name: Check the live pages at a narrow viewport
+        run: node tests/chain_browser.mjs site --pages "/,/live/,/deployer/,/hold/,/hold/?t=0123456789abcdef0123456789abcdef" --viewport 390x844 --out build/chain-browser-mobile.json
+
+      - name: Check published pages for console errors
+        env:
+          TEMP: ${{ runner.temp }}
+        run: bash tests/console_check.sh site

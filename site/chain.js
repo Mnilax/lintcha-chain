@@ -8,7 +8,8 @@
      - shows a blinking caret in the empty ticker field, sweeps one rule across the results block when a read completes
      - adds the state marker (a word and a shape) to each result line that carries a data-state attribute from
        lintcha's renderer; a line without the attribute gets no marker, and no state is ever read back from a sentence
-     - the two copy buttons (the command, the contract address)
+     - the copy controls (the command, the contract address, a fragment link that restores the form, and a local
+       fact receipt carrying the exact inputs, rendered lines and shipped snapshot metadata)
    Everything that moves stops under prefers-reduced-motion. */
 (function () {
   "use strict";
@@ -21,6 +22,33 @@
   function one(sel, el) { return (el || doc).querySelector(sel); }
   var timers = [];
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+
+  // launch-page.js is vendored and stays byte-for-byte intact. Its one lazy fetch is wrapped here so a
+  // valid-but-partial JSON response cannot be read as a table full of unique values. Only the exact same-origin
+  // index path is intercepted; its response bytes must match the build-injected SHA-256 before JSON parsing.
+  (function verifyLaunchIndexBytes() {
+    if (typeof window.fetch !== "function") return;
+    var nativeFetch = window.fetch;
+    window.fetch = function (input, init) {
+      var target;
+      try { target = new URL(typeof input === "string" ? input : input.url, location.href); }
+      catch (e) { return nativeFetch.apply(this, arguments); }
+      var expectedPath = new URL("launch-index.json", location.href).pathname;
+      if (target.origin !== location.origin || target.pathname !== expectedPath || target.search) return nativeFetch.apply(this, arguments);
+      var tools = one("[data-result-tools]"), expected = tools && tools.getAttribute("data-index-hash");
+      if (!/^[0-9a-f]{64}$/.test(expected || "") || !window.crypto || !window.crypto.subtle) return Promise.reject(new Error("index integrity unavailable"));
+      var self = this, args = arguments;
+      return nativeFetch.apply(self, args).then(function (response) {
+        if (!response.ok) return response;
+        return response.clone().arrayBuffer().then(function (bytes) { return window.crypto.subtle.digest("SHA-256", bytes); })
+          .then(function (digest) {
+            var actual = Array.from(new Uint8Array(digest), function (byte) { return byte.toString(16).padStart(2, "0"); }).join("");
+            if (actual !== expected) throw new Error("index integrity mismatch");
+            return response;
+          });
+      });
+    };
+  })();
 
   /* ---------------------------------------------------------------- the bar's height, for scroll-padding and scroll-margin */
   function topbar() {
@@ -218,17 +246,186 @@
     results.insertBefore(s, results.firstChild);
     later(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 1000);
   }
+  var SHARE_FIELDS = ["name", "ticker", "description", "twitter", "telegram", "discord", "website", "farcaster", "logo", "recipient"];
+  var pendingResultInput = null, committedResultInput = null;
+  function formSnapshot(form) {
+    var snapshot = {};
+    SHARE_FIELDS.forEach(function (name) { var field = form.elements[name]; snapshot[name] = field ? String(field.value || "") : ""; });
+    return snapshot;
+  }
   function results() {
     var res = one("#launch-results");
     if (!res || typeof MutationObserver !== "function") return;
     new MutationObserver(function (muts) {
-      if (res.hidden || !res.children.length) return;
       // the vendored renderer empties the block, appends the rows and unhides it in one run: one batch, one read, one sweep
       var notSweep = function (n) { return !(n.classList && n.classList.contains("sweep")); };
       var fresh = muts.some(function (m) { return m.type === "attributes" || (m.type === "childList" && Array.prototype.some.call(m.addedNodes, notSweep)); });
+      if (res.hidden || !res.children.length) {
+        if (res.hidden) pendingResultInput = null;
+        syncResultTools();
+        return;
+      }
+      if (fresh && pendingResultInput) { committedResultInput = pendingResultInput; pendingResultInput = null; }
+      syncResultTools();
       markResults();
       if (fresh) sweep(res);
     }).observe(res, { attributes: true, attributeFilter: ["hidden"], childList: true });
+  }
+
+  /* ---------------------------------------------------------------- result context and a shareable, network-silent fragment */
+  function ageWord(end) {
+    var time = Date.parse(end || "");
+    if (!isFinite(time)) return t("result.age.unknown");
+    var days = Math.floor((Date.now() - time) / 86400000);
+    if (days <= 0) return t("result.age.today");
+    if (days === 1) return t("result.age.yesterday");
+    if (days < 7) return t("result.age.recent");
+    return t("result.age.older");
+  }
+  function syncResultTools() {
+    var res = one("#launch-results"), tools = one("[data-result-tools]");
+    if (!res || !tools) return;
+    tools.hidden = res.hidden || !res.children.length || !committedResultInput;
+    var age = one("[data-window-age]", tools);
+    if (age) age.textContent = ageWord(tools.getAttribute("data-window-end"));
+  }
+  function restoreSharedFields() {
+    if (location.hash.indexOf("#read=") !== 0 || typeof URLSearchParams !== "function") return;
+    var form = one("#launch-form"), notice = one("[data-share-restored]");
+    if (!form || !notice) return;
+    var params;
+    try { params = new URLSearchParams(location.hash.slice(6)); } catch (e) { return; }
+    var restored = false;
+    SHARE_FIELDS.forEach(function (name) {
+      var field = form.elements[name];
+      if (!field || !params.has(name)) return;
+      field.value = params.get(name);
+      try { field.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {}
+      restored = true;
+    });
+    if (!restored) return;
+    var tools = one("[data-result-tools]"), sharedIndex = params.get("index"), currentIndex = tools && tools.getAttribute("data-index-hash");
+    notice.textContent = sharedIndex && currentIndex && sharedIndex !== currentIndex ? t("result.restored_older") : t("result.restored");
+    notice.hidden = false;
+  }
+  function copyPlainText(value) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { return Promise.resolve(navigator.clipboard.writeText(value)).then(function () { return true; }, function () { return false; }); }
+      catch (e) {}
+    }
+    var field = doc.createElement("textarea");
+    field.value = value; field.setAttribute("readonly", ""); field.style.position = "fixed"; field.style.opacity = "0";
+    doc.body.appendChild(field); field.select();
+    var copied = false; try { copied = doc.execCommand("copy"); } catch (e) {}
+    doc.body.removeChild(field);
+    return Promise.resolve(copied);
+  }
+  function receiptBlock(tools, name) {
+    var raw = tools.getAttribute(name);
+    if (!/^(0|[1-9]\d*)$/.test(raw || "")) return null;
+    var value = Number(raw);
+    return Number.isSafeInteger(value) ? value : null;
+  }
+  function receiptTime(tools, name) {
+    var raw = tools.getAttribute(name), at = Date.parse(raw || "");
+    return Number.isFinite(at) && new Date(at).toISOString() === raw ? raw : null;
+  }
+  function factReceipt(form, tools) {
+    var results = one("#launch-results");
+    var from = receiptBlock(tools, "data-window-from"), toBlock = receiptBlock(tools, "data-window-to");
+    var start = receiptTime(tools, "data-window-start"), end = receiptTime(tools, "data-window-end");
+    var indexHash = tools.getAttribute("data-index-hash");
+    if (!results || results.hidden || !results.children.length || !committedResultInput || from === null || toBlock === null ||
+        toBlock < from || !start || !end || Date.parse(end) < Date.parse(start) || !/^[0-9a-f]{64}$/.test(indexHash || "")) return null;
+    var input = {};
+    SHARE_FIELDS.forEach(function (name) { input[name] = committedResultInput[name]; });
+    var rendered = q(".launch-group", results).map(function (group) {
+      return {
+        heading: (one("h3", group) || {}).textContent || "",
+        checks: q(".launch-row", group).map(function (row) {
+          return {
+            check: (one(".launch-check", row) || {}).textContent || "",
+            lines: q(".launch-line", row).map(function (line) {
+              var field = one(".launch-field", line);
+              return { field: field ? field.textContent : null, text: line.textContent || "" };
+            })
+          };
+        })
+      };
+    });
+    return {
+      schema: "lintcha-chain/fact-receipt/v1",
+      source: location.origin + location.pathname,
+      language: root.getAttribute("lang") || "",
+      snapshot: { from_block: from, to_block: toBlock, from_time: start, to_time: end, index_sha256: indexHash },
+      input: input,
+      result: rendered
+    };
+  }
+  function receiptText(form, tools) {
+    var receipt = factReceipt(form, tools);
+    return receipt ? JSON.stringify(receipt, null, 2) + "\n" : null;
+  }
+  function receiptFeedback(tools, key) {
+    var message = t(key), status = one("[data-receipt-status]", tools);
+    if (status) status.textContent = message;
+    later(function () { if (status) status.textContent = ""; }, 1600);
+    return message;
+  }
+  function resultTools() {
+    var form = one("#launch-form"), tools = one("[data-result-tools]"), btn = one("[data-share-result]");
+    if (!form || !tools || !btn || typeof URLSearchParams !== "function") return;
+    var face = one("[data-share-label]", btn), was = face ? face.textContent : "", status = one("[data-share-status]", tools);
+    form.addEventListener("submit", function () { pendingResultInput = formSnapshot(form); tools.hidden = true; });
+    btn.addEventListener("click", function () {
+      if (!committedResultInput) return;
+      var params = new URLSearchParams();
+      SHARE_FIELDS.forEach(function (name) { if (committedResultInput[name]) params.set(name, committedResultInput[name]); });
+      var indexHash = tools.getAttribute("data-index-hash"); if (indexHash) params.set("index", indexHash);
+      var link = location.href.split("#")[0] + "#read=" + params.toString();
+      btn.setAttribute("data-share-url", link);
+      copyPlainText(link).then(function (copied) {
+        var key = copied ? "result.copied" : "result.copy_failed", message = t(key);
+        if (face) face.textContent = message;
+        if (status) status.textContent = message;
+        later(function () { if (face) face.textContent = was; if (status) status.textContent = ""; }, 1600);
+      });
+    });
+    var copyReceipt = one("[data-copy-receipt]", tools), downloadReceipt = one("[data-download-receipt]", tools);
+    if (copyReceipt) {
+      var copyFace = one("[data-receipt-copy-label]", copyReceipt), copyWas = copyFace ? copyFace.textContent : "";
+      copyReceipt.addEventListener("click", function () {
+        var text = receiptText(form, tools);
+        if (!text) { receiptFeedback(tools, "result.receipt.failed"); return; }
+        copyPlainText(text).then(function (copied) {
+          var key = copied ? "result.receipt.copied" : "result.receipt.failed";
+          if (copyFace) copyFace.textContent = t(key);
+          receiptFeedback(tools, key);
+          later(function () { if (copyFace) copyFace.textContent = copyWas; }, 1600);
+        });
+      });
+    }
+    if (downloadReceipt) {
+      var downloadFace = one("[data-receipt-download-label]", downloadReceipt), downloadWas = downloadFace ? downloadFace.textContent : "";
+      downloadReceipt.addEventListener("click", function () {
+        var text = receiptText(form, tools);
+        try {
+          if (!text || typeof Blob !== "function" || !window.URL || typeof window.URL.createObjectURL !== "function") throw new Error("receipt unavailable");
+          var url = window.URL.createObjectURL(new Blob([text], { type: "application/json;charset=utf-8" }));
+          var link = doc.createElement("a"); link.href = url; link.download = "lintcha-chain-fact-receipt.json"; link.hidden = true;
+          doc.body.appendChild(link); link.click(); doc.body.removeChild(link);
+          later(function () { window.URL.revokeObjectURL(url); }, 0);
+          if (downloadFace) downloadFace.textContent = t("result.receipt.downloaded");
+          receiptFeedback(tools, "result.receipt.downloaded");
+        } catch (e) {
+          if (downloadFace) downloadFace.textContent = t("result.receipt.failed");
+          receiptFeedback(tools, "result.receipt.failed");
+        }
+        later(function () { if (downloadFace) downloadFace.textContent = downloadWas; }, 1600);
+      });
+    }
+    var clear = one("#launch-clear"); if (clear) clear.addEventListener("click", function () { pendingResultInput = null; committedResultInput = null; later(syncResultTools, 0); });
+    syncResultTools();
   }
 
   /* ---------------------------------------------------------------- copy buttons: the command, the contract address */
@@ -243,6 +440,6 @@
     });
   }
 
-  function init() { topbar(); diagram(); sections(); charts(); caret(); results(); copyButtons(); }
+  function init() { topbar(); diagram(); sections(); charts(); caret(); restoreSharedFields(); results(); resultTools(); copyButtons(); }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();
 })();

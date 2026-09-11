@@ -1,0 +1,91 @@
+{
+  "schema": "lintcha-chain/identity-conformance/v1",
+  "engine": "LINTCHA_12",
+  "normalize": [
+    {
+      "field": "link",
+      "platform": "twitter",
+      "input": " HTTPS://twitter.com/Bob/ ",
+      "expected": "x.com/bob"
+    },
+    {
+      "field": "link-raw",
+      "input": "HTTPS://WWW.Example.com/Case/",
+      "expected": "example.com/Case"
+    },
+    {
+      "field": "logo",
+      "input": " ipfs://QmCaseSensitive ",
+      "expected": "ipfs://QmCaseSensitive"
+    },
+    {
+      "field": "recipient",
+      "input": "0xABCDEF0123456789abcdef0123456789ABCDEF01",
+      "expected": {
+        "value": "0xabcdef0123456789abcdef0123456789abcdef01",
+        "state": "ok"
+      }
+    },
+    {
+      "field": "description",
+      "input": "Hi! Visit https://example.com now; don't guess.",
+      "expected": "hi visit now dont guess"
+    },
+    {
+      "field": "ticker",
+      "input": " $$ bob ",
+      "expected": "BOB"
+    },
+    {
+      "field": "name",
+      "input": "  Bob-Coin!  ",
+      "expected": "bobcoin"
+    },
+    {
+      "field": "skeleton",
+      "input": "B0B rnoon",
+      "expected": "bob moon"
+    }
+  ],
+  "read": [
+    {
+      "input": {
+        "name": "Bob Coin",
+        "ticker": "$bob",
+        "description": "one two three four five six seven eight nine ten eleven twelve",
+        "links": {
+          "twitter": "@Bob",
+          "telegram": "",
+          "discord": "",
+          "website": "",
+          "farcaster": ""
+        },
+        "logo": "",
+        "recipient": "not an address"
+      },
+      "index": {},
+      "expected": {
+        "I1": {
+          "state": "unique",
+          "links": {
+            "twitter": { "state": "unique" },
+            "telegram": { "state": "empty" },
+            "discord": { "state": "empty" },
+            "website": { "state": "empty" },
+            "farcaster": { "state": "empty" }
+          }
+        },
+        "I2": { "state": "empty" },
+        "I3": { "state": "not readable" },
+        "I4": { "state": "unique" },
+        "N1": { "state": "unique" },
+        "N2": { "state": "unique" },
+        "N3": {
+          "state": "unique",
+          "ticker": { "state": "unique" },
+          "name": { "state": "unique" }
+        }
+      }
+    }
+  ]
+}

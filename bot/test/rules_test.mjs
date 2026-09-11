@@ -11,7 +11,7 @@
 // hash equality the page performs.
 //
 //   node test/rules_test.mjs
-import { parseRule, rifleOf, match, Rules, KINDS, MIN_SHARED, MAX_ARG, DEFAULT_RULES_PER_HOLDER } from "../src/rules.js";
+import { parseRule, rifleOf, match, Rules, KINDS, MIN_SHARED, MAX_ARG, DEFAULT_RULES_PER_HOLDER, MAX_RULES_PER_HOLDER } from "../src/rules.js";
 import { LINKS, normalize } from "../src/engine.js";
 import { rowOf } from "../src/tally.js";
 import { harness, fakeWatchCtx, OWNER_A, OWNER_B } from "./fakes.mjs";
@@ -30,7 +30,7 @@ const OTHER = { ...LAUNCH, token: "0x1000000000000000000000000000000000000002", 
 
 const subjectOf = async (launch, extra = {}) => {
   const row = await rowOf(launch);
-  return { deployer: launch.deployer, hashes: { ticker: row.hashes.ticker, name: row.hashes.name, link: row.hashes.link }, indexCount: 0, tailCount: 1, ...extra };
+  return { deployer: launch.deployer, hashes: { ticker: row.hashes.ticker, name: row.hashes.name, link: row.hashes.link }, indexState: "unique", indexCount: 0, tailCount: 1, ...extra };
 };
 const ruleOf = async (kind, arg) => ({ kind, arg, rifle: await rifleOf(kind, arg) });
 
@@ -48,6 +48,8 @@ t.ok(parseRule("shared", "3").arg === "3", "a shared rule takes a count");
 t.ok(parseRule("shared", String(MIN_SHARED - 1)).why === "number", "one below the floor is refused, because one launch carrying a ticker is the launch itself");
 t.ok(parseRule("shared", "two").why === "number", "and a word is not a count");
 t.ok(parseRule("shared", "2.5").why === "number", "nor is a fraction");
+t.ok(parseRule("shared", "9007199254740993").why === "number", "an unsafe integer is refused instead of being rounded into another threshold");
+t.ok(parseRule("shared", String(Number.MAX_SAFE_INTEGER)).arg === String(Number.MAX_SAFE_INTEGER), "the largest exactly representable threshold remains exact");
 t.ok(MIN_SHARED === 2, "the floor is two");
 
 // ---------------------------------------------------------------- a string rule fires on a match and is otherwise quiet
@@ -84,13 +86,23 @@ t.ok(match(onDev, await subjectOf({ ...LAUNCH, deployer: DEV_A.toUpperCase() }))
 
 // ---------------------------------------------------------------- a shared rule fires at the threshold and not below
 const onShared = await ruleOf("shared", "4");
-t.ok(match(onShared, await subjectOf(LAUNCH, { indexCount: 3, tailCount: 1 })).count === 4, "three in the index and one in the tail is four, which is the threshold");
-t.ok(match(onShared, await subjectOf(LAUNCH, { indexCount: 2, tailCount: 1 })) === null, "one below the threshold is silence");
-t.ok(match(onShared, await subjectOf(LAUNCH, { indexCount: 10, tailCount: 1 })).count === 11, "and above it fires with the real count, not the threshold");
-const fired = match(onShared, await subjectOf(LAUNCH, { indexCount: 3, tailCount: 2 }));
+t.ok(match(onShared, await subjectOf(LAUNCH, { indexState: "shared", indexCount: 3, tailCount: 1 })).count === 4, "three in the index and one in its disjoint suffix is four, which is the threshold");
+t.ok(match(onShared, await subjectOf(LAUNCH, { indexState: "shared", indexCount: 2, tailCount: 1 })) === null, "one below the threshold is silence");
+t.ok(match(onShared, await subjectOf(LAUNCH, { indexState: "shared", indexCount: 10, tailCount: 1 })).count === 11, "and above it fires with the real count, not the threshold");
+const fired = match(onShared, await subjectOf(LAUNCH, { indexState: "shared", indexCount: 3, tailCount: 2 }));
 t.ok(fired.indexCount === 3 && fired.tailCount === 2, "the two halves of the count are kept apart, because they come from two places");
-t.ok(match(onShared, await subjectOf(LAUNCH, { indexCount: null, tailCount: 9 })) === null,
+t.ok(fired.exact === true, "a present snapshot entry plus a disjoint suffix is marked exact");
+t.ok(match(onShared, await subjectOf(LAUNCH, { indexState: null, indexCount: null, tailCount: 9 })) === null,
   "and with no index to read it stays quiet: a threshold compared against half a count is compared against nothing");
+t.ok(match(onShared, await subjectOf(LAUNCH, { indexState: "unique", indexCount: 0, tailCount: 3 })) === null,
+  "an absent snapshot entry plus three suffix launches stays quiet, because the snapshot contributes zero or one rather than a known zero");
+const floor = match(onShared, await subjectOf(LAUNCH, { indexState: "unique", indexCount: 0, tailCount: 4 }));
+t.ok(floor && floor.count === 4 && floor.exact === false && floor.indexCount === null,
+  "the suffix may prove the threshold by itself, but the answer remains a floor rather than a false exact total");
+t.ok(match(onShared, await subjectOf(LAUNCH, { indexState: "shared", indexCount: 3, tailCount: null })) === null,
+  "without a readable snapshot boundary there is no disjoint suffix and the rule stays quiet");
+t.ok(match(onShared, await subjectOf(LAUNCH, { indexState: "shared", indexCount: Number.MAX_SAFE_INTEGER, tailCount: 1 })) === null,
+  "a combined count beyond the safe integer range is silence rather than a rounded match count");
 
 // ---------------------------------------------------------------- storing, listing, removing
 const ctx = fakeWatchCtx();
@@ -98,6 +110,10 @@ const rules = new Rules(ctx.storage.sql);
 t.ok(rules.countFor(OWNER_A) === 0, "a person starts with none");
 t.ok(rules.limit({}) === DEFAULT_RULES_PER_HOLDER, "the limit has a default");
 t.ok(rules.limit({ RULES_PER_HOLDER: "3" }) === 3, "and is a setting");
+t.ok(MAX_RULES_PER_HOLDER === DEFAULT_RULES_PER_HOLDER, "the documented default is also the product cap");
+for (const invalid of ["NaN", "Infinity", "-1", "0", "1.5", String(MAX_RULES_PER_HOLDER + 1), String(Number.MAX_SAFE_INTEGER + 1)]) {
+  t.ok(rules.limit({ RULES_PER_HOLDER: invalid }) === 0, `an explicit invalid rule limit ${JSON.stringify(invalid)} closes new-rule capacity`);
+}
 
 const first = rules.add(OWNER_A, "string", "SOLANA", await rifleOf("string", "SOLANA"), 1000);
 const second = rules.add(OWNER_A, "dev", DEV_A, await rifleOf("dev", DEV_A), 1001);
@@ -122,6 +138,9 @@ t.ok(rules.removeById(OWNER_A, first.id) === false, "and a second attempt answer
 rules.bumpHit(second.id);
 rules.bumpHit(second.id);
 t.ok(rules.list(OWNER_A)[0].hits === 2, "a rule counts its own hits");
+t.ok(rules.removeAll(OWNER_A) === true && rules.list(OWNER_A).length === 0, "full forget removes every rule for its owner");
+t.ok(rules.list(OWNER_B).length === 1, "full forget cannot remove another owner's rule");
+t.ok(rules.removeAll(OWNER_A) === true && rules.list(OWNER_B).length === 1, "full forget is idempotent");
 
 // ---------------------------------------------------------------- the engine, not a copy of it
 t.ok(normalize.ticker("$solana") === "SOLANA", "the normalizers a rule compares with are the engine's own");

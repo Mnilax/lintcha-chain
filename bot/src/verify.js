@@ -2,18 +2,18 @@
 //
 // What is kept, and nothing else is:
 //
-//   nonce:<random bytes>   -> the telegram id that asked          fifteen minutes
-//   session:<telegram id>  -> the address that signed             three days
+//   holder_nonce row       -> the telegram id that asked          fifteen minutes, in the Watch object
+//   session:<telegram id>  -> the address that signed             three days, in the sessions KV
 //
 // No purchase history, no signatures, no addresses of people who failed, no IP, no timestamps beyond the ones
-// the store keeps itself. The expiry does the deleting; there is no sweeper to write and none to go wrong.
+// the store keeps itself. A take deletes its row immediately; the existing minute watchdog removes expired rows.
 // /forget removes the session in one call.
 //
-// The mark is spent when it is looked up, not when the check succeeds. A second POST carrying the same mark is
-// refused whatever happened the first time, which is the strict reading and the safe one: a link that can be
-// replayed after a failure is a link that can be replayed.
+// The mark is spent when it is looked up, not when the check succeeds. In production the Watch Durable Object
+// performs that take synchronously against SQLite, so two concurrent POSTs cannot both receive the owner. A second
+// POST carrying the same mark is refused whatever happened the first time.
 
-import { SENTENCE } from "./texts.js";
+import { sentenceFor } from "./texts.js";
 import { recoverPersonal, normalizeAddress } from "./secp256k1.js";
 import { balanceOf, decimalsOf } from "./chain.js";
 
@@ -39,14 +39,30 @@ const randomHex = (bytes = 16) => {
 /** A fresh mark for this telegram id, put in the store with its own expiry. Returns the mark. */
 export async function newNonce(kv, telegramId) {
   const t = randomHex();
-  await kv.put("nonce:" + t, String(telegramId), { expirationTtl: NONCE_TTL_SECONDS });
+  if (kv && typeof kv.putNonce === "function") {
+    const stored = await kv.putNonce(t, String(telegramId));
+    if (stored === true) return t;
+    const replay = normalizeNonce(stored);
+    if (!replay) throw new Error("nonce store refused the mark");
+    return replay;
+  } else {
+    await kv.put("nonce:" + t, String(telegramId), { expirationTtl: NONCE_TTL_SECONDS });
+  }
   return t;
+}
+
+/** The exact canonical one-time mark, or null. There is deliberately no trimming or case folding. */
+export function normalizeNonce(t) {
+  if (typeof t !== "string") return null;
+  return /^[0-9a-f]{32}$/.test(t) ? t : null;
 }
 
 /** The telegram id a mark belongs to, spending the mark in the same breath. null when it is used or expired. */
 export async function spendNonce(kv, t) {
-  if (typeof t !== "string" || !/^[0-9a-f]{8,64}$/.test(t)) return null;
-  const key = "nonce:" + t;
+  const mark = normalizeNonce(t);
+  if (!mark) return null;
+  if (kv && typeof kv.takeNonce === "function") return await kv.takeNonce(mark);
+  const key = "nonce:" + mark;
   const id = await kv.get(key);
   if (id === null || id === undefined) return null;
   await kv.delete(key);
@@ -65,8 +81,10 @@ export async function putSession(kv, telegramId, address) {
 }
 
 export async function dropSession(kv, telegramId) {
-  const had = await kv.get(sessionKey(telegramId));
-  if (had === null || had === undefined) return false;
+  // Workers KV is eventually consistent, so a read before this delete cannot prove either that a session
+  // exists or that it does not. /forget is deliberately idempotent: issue the deletion every time and report
+  // only whether the store accepted that request. The router's wording names the short cache window instead
+  // of turning this acknowledgement into a false promise that every edge forgot at once.
   await kv.delete(sessionKey(telegramId));
   return true;
 }
@@ -84,17 +102,17 @@ export async function dropSession(kv, telegramId) {
  * The reasons are for this worker's own logging and for the page's wording. The bot's reply to a stranger never
  * spells out which check refused it beyond what the page already knows it sent.
  */
-export async function checkHold(env, kv, body, token) {
+export async function checkHold(env, kv, body, token, nonces = kv) {
   const claimed = normalizeAddress(body && body.address);
   const signature = body && typeof body.signature === "string" ? body.signature.trim() : null;
-  const t = body && typeof body.t === "string" ? body.t.trim() : null;
-  if (!claimed || !signature || !t) return { ok: false, why: "shape" };
+  const mark = normalizeNonce(body && body.t);
+  if (!claimed || !signature || !mark) return { ok: false, why: "shape" };
   if (!/^0x[0-9a-fA-F]{130}$/.test(signature)) return { ok: false, why: "shape" };
 
-  const telegramId = await spendNonce(kv, t);
+  const telegramId = await spendNonce(nonces, mark);
   if (!telegramId) return { ok: false, why: "nonce" };
 
-  const signer = recoverPersonal(SENTENCE, signature);
+  const signer = recoverPersonal(sentenceFor(mark), signature);
   if (!signer || signer !== claimed) return { ok: false, why: "signature", telegramId };
 
   const address = token && token.ok ? token.address : null;

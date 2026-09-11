@@ -1,25 +1,30 @@
-# launch-refresh: once a week, without a person, rebuild the launch index and its numbers file from the most recent
-# full day of launches, rebuild the page that prints their figures, and commit the three files. This is the job that
+# launch-refresh: parked as manual-only until the collector records and reuses one exact identity-state block/hash.
+# When deliberately dispatched, rebuild the launch index and its numbers file from the most recent full day of
+# launches, rebuild the page that prints their figures and integrity manifest, and commit the four files. This is the job that
 # writes to the repository on its own, so every guardrail is hard and the job commits nothing rather than something
 # wrong. Ported from lintcha's launch-refresh.yml (approved there 2026-09-08) with three differences, each marked
 # "chain:" below: the vendored code is guarded by verify-vendor instead of a hash of the frozen rule files (there are
 # none here); the page is rebuilt, because its figures and charts are baked in at build time; the membership test
-# allows site/index.html as the third file.
+# allows site/index.html and site/launch-manifest.json as the third and fourth files.
 #   - the collector runs over a day window ending at the latest finalised block, against the public RPC, no key
-#   - zero launches scanned, or an empty block range, aborts before anything is written
-#   - a collection below half of the published day aborts: a degraded endpoint, not a quiet day
+#   - the owned publication guard refuses an empty/partial run, incomplete records, malformed or duplicate factory
+#     events, event hashes that disagree with finalized block headers, and strict ABI metadata/records that do not
+#     rebuild the collector's exact tables and summaries. It reproduces the collector's transaction-sample counters,
+#     fully proves exact direct factory/forwarder calls, and classifies other outer envelopes without interpreting
+#     them; it re-reads the same finalized range with two smaller, differently aligned page layouts and compares
+#     their complete canonical rows before anything is written. This catches page truncation/boundary omissions but
+#     deliberately is not called an independent-provider proof because the configured endpoint is the same
 #   - the writer validates the index against its schema before writing; the index test and the engine test then run
 #     against the written files; a failure aborts before the commit
 #   - the vendored files are checked three times (tools/verify-vendor.mjs: every row matches its hash, every file
 #     under site/ src/ tests/ tools/ is a row or owned here): before the collector, right after the writer, after the
 #     build; any change aborts and names itself. build/ is a build output in .gitignore and is never cleaned by hand
-#   - the only paths that may change are site/launch-index.json, site/launch-numbers.json and site/index.html; any
+#   - the only paths that may change are site/launch-index.json, site/launch-numbers.json, site/launch-manifest.json
+#     and site/index.html; any
 #     other modified, deleted or untracked path aborts before the commit
 #   - GITHUB_TOKEN with contents: write; no personal token, no secret; both actions pinned by commit SHA
 name: launch-refresh
 on:
-  schedule:
-    - cron: "17 11 * * 1"   # Mondays, 11:17 UTC
   workflow_dispatch:
 permissions:
   contents: write
@@ -29,7 +34,10 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # A local full-day collector took 26.03 minutes and its guard was still running at 66.7 minutes: the former
+    # ninety-minute ceiling could terminate a healthy refresh before it reached the writer. 150 is that observed
+    # 92.73-minute lower bound with a fifty-percent margin, rounded up to the next thirty-minute boundary.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -44,24 +52,9 @@ jobs:
         run: |
           node tools/launch-collect.mjs --day --out "$RUNNER_TEMP/launch-day.json"
 
-      - name: abort on an empty window, zero launches, or a partial collection (below half of the published day)
+      - name: guard the collection with alternate partitions and rebuild its facts from strict chain returns
         run: |
-          node -e '
-            const r = require(process.env.RUNNER_TEMP + "/launch-day.json");
-            const w = r.window, v = r.verified;
-            console.log("window", w.from, "..", w.to, "(" + w.blocks + " blocks)", w.from_time, "..", w.to_time, "| launches in the log", v.launches_in_log, "| readable", v.tokens_readable, "| http 429", r.limiter.http429, "| retries", r.limiter.retries);
-            if (!(w.to > w.from) || !(w.blocks > 0)) { console.error("abort: empty block range"); process.exit(1); }
-            if (!(v.launches_in_log > 0) || !(v.tokens_readable > 0)) { console.error("abort: zero launches scanned"); process.exit(1); }
-            if (v.launches_in_log !== v.tokens_readable) { console.error("abort: a launch in the log was not read"); process.exit(1); }
-            // the floor: a run that read far fewer launches than the published day is a degraded endpoint, not a quiet day.
-            // The baseline is the numbers file as committed; missing or unreadable, the job never runs against an unknown one.
-            // No upper bound on purpose: activity can spike and that is a good day.
-            let published;
-            try { published = require(process.cwd() + "/site/launch-numbers.json").launches_scanned; } catch (e) { console.error("abort: site/launch-numbers.json is missing or unreadable: " + e.message); process.exit(1); }
-            if (!Number.isInteger(published) || !(published > 0)) { console.error("abort: the published launches_scanned is not a positive integer: " + published); process.exit(1); }
-            const ratio = v.launches_in_log / published;
-            console.log("published launches_scanned", published, "| this run", v.launches_in_log, "| ratio", ratio.toFixed(3));
-            if (ratio < 0.5) { console.error("abort: partial collection, " + v.launches_in_log + " launches against " + published + " published (ratio " + ratio.toFixed(3) + ", floor 0.5)"); process.exit(1); }'
+          node tools/collection-guard.mjs --in "$RUNNER_TEMP/launch-day.json" --published site/launch-numbers.json --audit-logs
 
       - name: rebuild the index and the numbers file (the writer validates the index against its schema first)
         run: |
@@ -71,8 +64,9 @@ jobs:
         run: |
           node tools/verify-vendor.mjs
 
-      - name: schema test and index test on the written files, and the engine test
+      - name: guard test, schema/index test on the written files, and the engine test
         run: |
+          node tests/collection_guard_test.mjs
           node tests/launch_index_test.mjs
           node tests/launch_test.js
 
@@ -80,27 +74,28 @@ jobs:
         run: |
           node tools/build.mjs
           node tests/chain_token_states.mjs
+          node tests/published_contract_test.mjs
 
       - name: the vendored files are unchanged   # chain: verify-vendor again, after the collector, the writer and the build
         run: |
           node tools/verify-vendor.mjs
 
-      - name: only the three files may have changed
+      - name: only the four build artifacts may have changed
         run: |
-          # membership test: every status line must name one of the three allowed paths, as a modification. Zero lines is
+          # membership test: every status line must name one of the four allowed paths, as a modification. Zero lines is
           # nothing to commit; lines naming only those paths commit; any other line aborts with the full status.
           git status --porcelain | tee "$RUNNER_TEMP/status.txt"
-          if [ "$(wc -l < "$RUNNER_TEMP/status.txt")" -eq 0 ]; then echo "nothing changed: the index, the numbers file and the page are already this window"; echo "changed=0" >> "$GITHUB_ENV"; exit 0; fi
-          if grep -v -x -E ' M site/(launch-(index|numbers)\.json|index\.html)' "$RUNNER_TEMP/status.txt"; then echo "abort: a path other than the three files changed, or one of them is not a plain modification; full status:"; cat "$RUNNER_TEMP/status.txt"; exit 1; fi
+          if [ "$(wc -l < "$RUNNER_TEMP/status.txt")" -eq 0 ]; then echo "nothing changed: the index, the numbers file, the manifest and the page are already this window"; echo "changed=0" >> "$GITHUB_ENV"; exit 0; fi
+          if grep -v -x -E ' M site/(launch-(index|numbers|manifest)\.json|index\.html)' "$RUNNER_TEMP/status.txt"; then echo "abort: a path other than the four build artifacts changed, or one of them is not a plain modification; full status:"; cat "$RUNNER_TEMP/status.txt"; exit 1; fi
           echo "changed=1" >> "$GITHUB_ENV"
 
-      - name: commit the three files
+      - name: commit the four build artifacts
         if: env.changed == '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/launch-index.json site/launch-numbers.json site/index.html
-          git commit -m "launch index: weekly refresh, $(node -p 'const n=require("./site/launch-numbers.json"); n.window.from_date+" to "+n.window.to_date+", blocks "+n.window.from_block+" to "+n.window.to_block+", "+n.launches_scanned+" launches, collected "+n.collected')"
+          git add site/launch-index.json site/launch-numbers.json site/launch-manifest.json site/index.html
+          git commit -m "launch index: manual refresh, $(node -p 'const n=require("./site/launch-numbers.json"); n.window.from_date+" to "+n.window.to_date+", blocks "+n.window.from_block+" to "+n.window.to_block+", "+n.launches_scanned+" launches, collected "+n.collected')"
           # explicit target, no retry: if main moved between checkout and push, the push is rejected and the job fails
-          # loudly with the rejection; the next scheduled run starts from the new main
+          # loudly with the rejection; the next deliberate run starts from the new main
           git push origin HEAD:main || { echo "abort: push to main rejected (main moved since checkout, or no permission); nothing retried"; exit 1; }

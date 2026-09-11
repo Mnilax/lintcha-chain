@@ -13,9 +13,9 @@ config and the bot's config cannot disturb each other.
 
 ## What is in here
 
-    wrangler.toml     the worker: name, routes, bindings, the migration, the cron, the settings
-    package.json      type module, and the test script. Nothing is installed: there are no dependencies
-    src/index.js      the worker. Two routes and a cron, and nothing else answers
+    wrangler.toml     the worker: name, routes, bindings, migrations, the cron, the settings
+    package.json      type module, the scripts, and one exact dev dependency: Wrangler 4.131.0
+    src/index.js      the worker. Five routes and a cron, and nothing else answers
     src/router.js     the commands. Returns actions and sends nothing, so a test can read what it would say
     src/texts.js      every sentence the bot can say
     src/telegram.js   sending, and the small amount of markup
@@ -31,7 +31,7 @@ config and the bot's config cannot disturb each other.
     src/engine-globals.js  the two vendored tables the engine needs, put where it looks for them
     src/tally.js      counting launches the way the collector counts them
     tools/verify-tail.mjs  rebuild the tail's block range with the collector and compare
-    test/*.mjs        twelve files, no network in any of them
+    test/*_test.mjs   the local test scripts named below; no test uses the live network
 
 ## The limiter is vendored, not written
 
@@ -52,7 +52,9 @@ written here, and `src/chain.js` puts every call through this Gate.
 
 The bot does not store the token address. It reads
 `https://chain.lintcha.com/token.json` and keeps the answer in the isolate's memory for
-at most a minute.
+at most a minute. A cache miss has a five-second abort and streams at most one kilobyte;
+declared or chunked overflow, truncation, invalid UTF-8/JSON and non-success responses all
+produce the unreadable state and never leave a stale activation document in cache.
 
 That is the whole point of the arrangement: **on the day of the launch, the same one file
 edit that lights the acid band on the page turns the bot on.** There is no second place
@@ -60,7 +62,7 @@ for the address to disagree with the site.
 
 While `address` is null:
 
-    /ca /price /me /verify /top /stats   say the token does not exist yet
+    /ca /price /me /verify /stats        say the token does not exist yet
     the feed                             does not start, and no alarm is set at all
 
 A site that cannot be read is a third state with its own sentence. It is never collapsed
@@ -70,14 +72,24 @@ when what actually happened was a network fault.
 ## Setting it up
 
 1. **A KV namespace** called `lintcha-chain-sessions`, bound as `SESSIONS`. Put its id in
-   `wrangler.toml`, replacing the placeholder. Two kinds of key ever live in it, both with
-   their own expiry:
+   `wrangler.toml`, replacing the placeholder. It contains only the holder sessions:
 
-        nonce:<random>      -> the telegram id that asked        fifteen minutes
         session:<tg id>     -> the address that signed           three days
 
-   Nothing else is written there: no purchase history, no signatures, no addresses of
-   people who failed, no IP. The expiry does the deleting, so there is no sweeper to write.
+   One-time marks do not use eventual-consistency KV. They live for fifteen minutes in the
+   `holder_nonce` SQLite table inside the existing `Watch` Durable Object, where one synchronous
+   take deletes and returns a mark's owner atomically. Two concurrent holder posts therefore
+   cannot both spend the same mark. The existing minute watchdog physically removes expired unused
+   rows. Neither store keeps a signature, an IP, purchase history or an address for a failed holder.
+
+   The same object claims each positive, exactly representable Telegram `update_id` before a command
+   can write or send. Its response ledger stores the rendered actions and their next unsent position;
+   its effect ledger makes `/verify`, `/rule`, `/unrule` and `/forget` mutations return their first
+   result when the same update is retried after a worker failure. Render and per-action leases stop two
+   local requests from doing the same work concurrently. A duplicate whose lease is still active gets
+   a retryable service response; a completed duplicate gets two hundred without running again. Rows are
+   removed at the [Telegram Bot API](https://core.telegram.org/bots/api#getting-updates)'s documented
+   twenty-four-hour webhook retention boundary.
 
 2. **Two secrets**, with `wrangler secret put`, never as variables: a variable is readable
    in the dashboard in plain text.
@@ -88,23 +100,67 @@ when what actually happened was a network fault.
 3. **The room's chat id** in `ROOM_CHAT_ID`. Until it is set the feed still records buys
    and posts nothing, which is the right way round: no chat id must never mean no records.
 
-4. **Deploy** from this folder. The migration creates the `Tape` object on SQLite, which a
-   new class has to be.
+   Put the exact BotFather username in `BOT_USERNAME`, without `@`. Telegram usernames are
+   case-insensitive, contain only Latin letters, digits and underscores, are five to thirty-two
+   characters long, and a bot username ends in `bot`. The worker accepts `/command@username`
+   only when that suffix matches this setting; a command addressed to another bot is silence.
+
+4. **Install and deploy** from this folder. `package.json` pins Wrangler `4.131.0` as the sole
+   dev dependency (and `package-lock.json` pins its resolved tree); the Worker has no runtime npm
+   dependency. The migrations create the SQLite-backed `Tape` and `Watch` classes. Their delivery,
+   nonce and webhook-dedupe tables are created idempotently by those already-existing class schemas,
+   so none needs a new class or Wrangler migration tag. An existing deployment applies only migration
+   tags it has not already recorded.
+
+        npm ci
+        npm run deploy
+
+   `npm run deploy` is the only supported production entrypoint: npm runs `predeploy` first, which
+   checks the local binding, runs every suite and builds the pinned strict bundle. Do not bypass it
+   with a direct `wrangler deploy`; Wrangler's own dry run accepts a placeholder namespace id.
 
 5. **Set the webhook** to `https://chain.lintcha.com/api/telegram`, with the same secret in
    `secret_token`. That command carries the bot token, so it is not written in this file,
    not in the report and not anywhere in this repository.
 
+   BotFather checklist before that manual step:
+
+   - copy the bot's exact username into `BOT_USERNAME` without `@`;
+   - confirm the username in BotFather is the one intended for this Worker;
+   - keep the token only in the `TELEGRAM_BOT_TOKEN` secret and the webhook secret only in
+     `TELEGRAM_WEBHOOK_SECRET`, never in `wrangler.toml`;
+   - after setting the webhook, test one unsuffixed direct command, this bot's suffixed command
+     in the room, and a command suffixed for another bot (which must receive no reply).
+
+6. **Verify live Cloudflare controls by hand.** The `HOLD_PER_SECOND` bucket is restart-local and
+   per isolate; it is a courtesy work bound, not security admission control. Put a dashboard-level
+   rate/admission rule in front of the production holder route, choosing and checking its exact
+   threshold against the live account rather than copying an unverified number from this repository.
+   In the same pass, verify the current plan's external-request allowance, both Durable Object
+   bindings, the KV id, secrets, routes and applied migrations. The local predeploy check cannot see
+   any of those live facts.
+
 Nothing here needs the token to exist. Deploy it against a `token.json` of three nulls and
 every command answers correctly; the feed sleeps.
 
-## The two routes
+## The five routes
 
     POST /api/telegram   every update must carry X-Telegram-Bot-Api-Secret-Token matching
                          the secret. A wrong or missing header gets four hundred and one
-                         with an empty body: no hint, no echo of what arrived
+                         with an empty body: no hint, no echo of what arrived. A valid positive
+                         update_id is durably claimed before side effects; command effects and
+                         response actions resume from durable state, and active work/unavailable state
+                         gets a retryable five hundred and three rather than rerunning a mutation
     POST /api/hold       the holder check, posted by the /hold page on the site. Same
-                         origin, which is why the vendored connect-src 'self' needed no edit
+                         origin, JSON media type and a bounded body are required before a separate
+                         courtesy limit can let the request touch Watch
+    GET/HEAD /api/tail   versioned, block-aligned committed pages of the public launch tail: ranges,
+                         counts and hashes only; no raw name, ticker, address or private holder data
+    GET/HEAD /api/wall   the public, strict post-snapshot suffix: bounded self-declared name
+                         and ticker only, with completeness metadata and a reproducible rows hash
+    GET/HEAD /api/deployer   bounded retained watcher history for one public deployer address:
+                             exact coverage, launch count and safe-to-display declarations only;
+                             no token address or transaction
 
 Anything else under `/api/` is four hundred and four. The site's own pages are untouched:
 the route is `/api/*` and the root stays with the assets worker.
@@ -112,18 +168,27 @@ the route is `/api/*` and the root stays with the assets worker.
 ## The holder check
 
     1  /verify in a direct message
-    2  the bot writes nonce:<random> -> telegram id, for fifteen minutes, and sends
+    2  the bot atomically writes a random mark and telegram id to Watch SQLite for fifteen minutes, and sends
        https://chain.lintcha.com/hold?t=<mark>
-    3  the page connects an injected wallet and signs one sentence
+    3  the page connects an injected wallet and builds the signed bytes from the exact production
+       origin, that link's one-time mark, and the sentence that says nothing moves
     4  POST /api/hold { t, address, signature }; the worker recovers the address from the
        signature itself and refuses when it does not match the one sent
     5  it reads balanceOf and compares with five hundred thousand
     6  session:<telegram id> -> the address, for three days, and the bot answers in the chat
 
-The mark is spent when it is looked up, not when the check succeeds. A second post carrying
-the same mark is refused whatever happened the first time.
+This is a domain- and nonce-bound sentence, not one static reusable proof. Both the page and worker
+assemble it from the pinned production origin `https://chain.lintcha.com` and the dynamic mark in
+that `/verify` link. A signature from one origin or link therefore cannot be moved to another. The
+mark is spent by an atomic SQLite take before signature and balance checks, not when the whole check
+succeeds. A second or concurrent post carrying the same mark is refused whatever happened to the first.
 
-`/forget` drops the session in one call. It also expires on its own.
+`/forget` independently asks both stores to remove what belongs to that Telegram id: the wallet-address session
+from KV and every saved rule from the Watch object's SQLite. The command is idempotent and still runs when the
+site, token or chain cannot be read. Its four responses say which stores acknowledged the request; they never
+turn an unconfirmed response into success. Workers KV can briefly serve an older cached value after deletion, so
+the bot says that explicitly rather than promising instant global disappearance. A message already in flight
+cannot be recalled. The session also expires on its own.
 
 Only an injected wallet, `window.ethereum`. WalletConnect would need a wss relay in
 `connect-src`, and `connect-src` is `'self'` in `site/_headers`, which is vendored from
@@ -134,19 +199,72 @@ work around.
 
 One Durable Object on SQLite, one instance.
 
-    alarm()   reads the token's Transfer log from the last block it saw, posts the buys to
-              the room, counts the sells, sets the next alarm
+    alarm()   first attempts one durable pending room line; with no backlog, reads the token's
+              Transfer log from the last block it saw, queues the buys, counts the sells and
+              sets the next alarm
     cron      once a minute, and only as a watchdog: if a round has not happened inside the
               window it wakes the object and says so in the room, because a silent gap reads
               as an absence of buys
 
-The interval is a setting, `FEED_INTERVAL_MS`, and starts at twelve seconds. That is about
-seven thousand two hundred wake ups a day, near seven per cent of the free plan's daily
-write limit. The cron is not the feed because one minute is the shortest cron Cloudflare
-accepts.
+The interval is a setting, `FEED_INTERVAL_MS`, and starts at twelve seconds. A shorter interval
+increases alarm and write volume, so measure the deployed workload and current account limits
+before tuning it. The cron is not the feed because one minute is the shortest configured beat here.
 
 A buy is the venue sending tokens to a wallet. A sell is a wallet sending them back. An
 ordinary wallet to wallet transfer is neither.
+
+A factory-derived curve is accepted only from the complete static launch record whose own token
+field exactly equals the address requested. Every address word must have canonical high bits;
+token, curve and deployer must be nonzero; and both boolean words must be canonical. A zero pair is
+the valid native-quote launch form, but it is not treated as an ERC-20 price venue. A plausible
+record for another token therefore cannot redirect the feed or price path.
+
+### Delivery ledgers
+
+Room buys, feed-gap notices and private rule matches use durable ledgers. Tape renders and queues every
+proved buy in one accepted finalized range before advancing the block cursor; it sends nothing inline
+while reading the range. An oversized multi-block log result gets one bounded retry at its first block.
+If that single block is still above the authored log ceiling, Tape records an explicit gap without
+publishing a prefix as complete. Relevant transfer blocks must share one canonical log hash and match
+their numbered finalized header before a buy or sell becomes a fact.
+
+Each beat attempts at most one pending room line, whether buy or gap notice. Old failures rotate behind
+untouched work, and a durable per-room window permits at most twenty attempts in sixty seconds. Tape
+drains a remaining backlog before reading another range. A Telegram refusal therefore keeps the
+rendered line pending without requiring an RPC replay. Completed-range buy dedupe rows and accepted
+delivery rows are removed only after the `last_block` cursor write. A pending rule line survives
+pruning of its tail row while the session that authorized it could still be live; without a live
+session it is retired at that session's maximum lifetime. Its hit counter advances only after
+Telegram accepts the send.
+
+This is deliberately described as at-least-once, not exactly-once. Telegram can accept a message and
+the Worker can fail before the local `sent` acknowledgement is durable; retrying that pending row can
+then repeat the message. The ledgers close the ordinary refusal and chain-range replay cases without
+pretending that an external-send/local-ack crash boundary can be made atomic.
+
+Command responses use the same honest boundary. A response is accepted only when Telegram returns an
+HTTP success whose bounded JSON body says `ok: true`. A definite refusal releases that action's lease
+for a later webhook retry; a lost or malformed success response keeps the lease until expiry because
+Telegram may already have posted the line. Multi-part responses resume at their durable next action.
+Joining the bot to a room is classified as a runnable service update, so its greeting uses this same
+dedupe and response path; unrelated updates are acknowledged without spending a user's command bucket.
+
+### The price proves its units on chain
+
+`VENUE_KIND = "v3"` selects one ABI shape; it supplies no figure, token address, decimal
+scale or orientation. Before `/price` or `/me` can state a value, the worker reads exact
+single-word `token0()` and `token1()` results from the venue, confirms that the address from
+the site's `token.json` is exactly one of those two sides, and reads `decimals()` from both
+tokens. The other side's address is printed as the unit of the quote. It then accepts
+`slot0()` only as the complete seven-word v3 record with every field inside its ABI width.
+
+An unreadable side, duplicate or zero token, pool that does not contain the launch token,
+unreadable decimals, short or extra `slot0` record, or invalid field width produces no price.
+There is intentionally no `PAIR_DECIMALS` or `TOKEN_IS_FIRST` setting: either value would be
+a manually supplied input to a figure the bot promises to read itself. `FEED_VENUE` may name
+a post-graduation venue, but that address earns no trust from being configured; the same
+on-chain topology and ABI proof runs against it before a quote is accepted. An explicit malformed,
+zero or whitespace-padded venue fails closed instead of silently falling back to the launch curve.
 
 ### Sells
 
@@ -176,9 +294,10 @@ what it needs; on the require branch those two assignments are dead weight, whic
 nothing is edited.
 
 **The one deploy-time consequence: this worker carries `nodejs_compat`.** On the require branch the vendored
-file calls `require("crypto")` and `Buffer.from`, so the bundle needs the node builtins to resolve. Nothing
-written in `bot/` imports a node builtin. If a wrangler version will not resolve the unprefixed name, the fix is
-an alias in `wrangler.toml`, written out in the comment there, and never an edit to the vendored file.
+file calls `require("crypto")` and `Buffer.from`, so the bundle needs the node builtins to resolve. No authored
+Worker module under `bot/src/` imports a node builtin; local test and build tools may. If a future deliberate
+Wrangler upgrade will not resolve the unprefixed name, the fix is an alias in `wrangler.toml`, written out in
+the comment there, and never an edit to the vendored file.
 
 `bot/test/engine_test.mjs` is the proof rather than this paragraph. It hashes `site/launch.js` and compares
 against the hash read out of `VENDOR.md`; it loads the file a second time the way the page does, from its own
@@ -194,14 +313,17 @@ the two implementations, so they cannot drift.
 
 A second Durable Object, separate from the feed so that one failing does not stop the other.
 
-    alarm()   reads the pons factory's launch log from the last block it saw, reads what each new launch calls
-              itself, stores it as counted hashes, checks the rules, drops anything older than the depth
+    alarm()   reads the pons factory's launch log from the last finalized block it saw, reads what each new launch calls
+              itself, stores it as counted hashes, checks the rules, and drops an old row only after the
+              published snapshot covers its block
     cron      once a minute, and only as a watchdog: it starts the object again after a stretch with no
               endpoint, when there was no alarm left to fire
 
     interval        WATCH_INTERVAL_MS, twelve seconds
-    depth           WATCH_DEPTH_DAYS, seven days. Older than that is inside the snapshot's window already
-    limiter         the vendored Gate, through bot/src/chain.js. There is one RPC client in this repository
+    depth           WATCH_DEPTH_DAYS, seven days. This is an age floor, not proof of coverage: age alone
+                    never deletes a row whose block is still after the published snapshot
+    limiter         the vendored Gate, through bot/src/chain.js. The Worker sets its owned Gate to zero
+                    within-call retries: the next durable beat retries without multiplying physical requests
 
 While the endpoint cannot be reached there is **no alarm at all**. Not a short one, not a retrying one: none.
 There is nothing readable, so there is nothing to schedule, and the cron is what tries again a minute later.
@@ -218,32 +340,97 @@ and the command; the `never` list says that if the site computes something the r
 is decoration. A live database whose range keeps moving cannot be rebuilt and compared, so replacing the
 snapshot with one would quietly break both.
 
+The watcher reads `launch-manifest.json` before the index or numbers file. It accepts those two files only when
+their exact bytes match the manifest's digests, so a weekly refresh cannot silently pair generations while files
+or isolate caches are changing. Each response is streamed into one preallocated buffer and refused above the
+authored four-megabyte runtime ceiling; the manifest itself has the smaller fixed contract ceiling.
+
 So the snapshot stays exactly as it is and gets a tail.
 
     GET /api/tail
-      { engine, from_block, to_block, collected_at, depth_days, snapshot_to_block, gap_blocks,
-        launches_in_tail, entries, hash, tables, launches }
+      { ok, tail_version, engine, watcher_started_block, watcher_started_at,
+        coverage_from_block, from_block, to_block, watcher_to_block, current_watcher_to_block,
+        page, page_limit, previous_page_commitment, page_commitment, more, next_cursor,
+        collected_at, depth_days, snapshot_to_block, gap_blocks, launches_in_tail,
+        launches_in_page, entries, hash, rows_hash, tables, launches }
+
+    GET /api/tail?cursor=<next_cursor>
+
+Version one is a bounded sequence of block-aligned pages. SQLite returns at most `page_limit + 1`
+rows to find the next complete block boundary; it never materializes the retained suffix and slices it
+afterward. A block that by itself cannot fit is a machine-readable `capacity` failure rather than a
+partial block. The first page fixes `watcher_to_block`; every `next_cursor` is authenticated by the
+Watch object, bound to that upper block, the snapshot boundary, watcher epoch and coverage boundary,
+and carries the prior page commitment. A changed boundary returns `reset_required`, so pages from two
+generations cannot be combined. `current_watcher_to_block` may move ahead while that fixed traversal is
+being read. Successful pages retain the old safe property: their own `from_block..to_block`, table and
+hash are complete and independently reproducible.
 
 `tables` is the index's own shape, per namespace, counted hashes. `launches` is one row per launch: a block, a
-date and its hashes, and nothing else — no address, no raw string, no handle. That is the rule
+date and its hashes, and nothing else — no address, no raw string, no handle. `rows_hash` commits that
+ordered list; `page_commitment` commits it together with the counted-table hash, range, total and prior
+page commitment. That is the rule
 `tools/launch-index.mjs` enforces on the file the page reads, and `bot/test/tail_test.mjs` checks the tail's
-whole answer with that file's own pattern.
+whole answer with that file's own pattern. Pruning also selects and deletes only one bounded batch per beat;
+it never loads every covered token merely because the weekly snapshot moved.
+
+`depth_days` is the configured pruning age floor. The object may keep an older row when the published snapshot
+has not yet covered its block; retaining a duplicate candidate is safer than deleting part of the live suffix.
 
 `from_block` is the first block the tail covers, not the block after the snapshot's last one. When those differ
 there is a hole, and `gap_blocks` says how wide it is instead of letting a reader assume the two ranges meet. A
 numbers file that cannot be read leaves both `snapshot_to_block` and `gap_blocks` null, never zero.
 
-Reproducing it is two commands, and neither edits anything:
+Reproducing one page is two commands, and neither edits anything:
 
     node tools/launch-collect.mjs --from <from_block> --to <to_block> --out build/tail-range.json
     node bot/tools/verify-tail.mjs --in build/tail-range.json
 
 The comparison is over the canonical text defined in `bot/src/tally.js` and used by both sides, so the tool does
-not get to decide what equal means.
+not get to decide what equal means. When `more` is true, fetch `next_cursor`, collect exactly that page's
+reported range, and pass the cursor to `verify-tail.mjs`; the tool verifies the page/row commitments and prints
+the next command. The authenticated cursor and `previous_page_commitment` keep the verified pages in order.
 
-The page is not touched in this round. It still reads the static file; the tail is here because the rules read
-it. `connect-src 'self'` already covers this worker's own `/api/`, so the vendored `site/_headers` needs no
-edit.
+Neither public endpoint replaces the page's static snapshot. The tail exists because the rules read it, and
+the wall exposes only its complete public suffix. `connect-src 'self'` already covers this worker's own
+`/api/`, so the vendored `site/_headers` needs no edit.
+
+## The public wall
+
+    GET /api/wall
+      { ok: true, snapshot_to_block, gap_blocks, watcher_to_block, read_at, page_limit,
+        mode, older_cursor, live_cursor, rows_hash, view_hash, rows: [{ name, ticker }] }
+
+The wall is the strict suffix after `snapshot_to_block`. Rows are ordered by their stored block and log index,
+but those coordinates stay internal: each public row has exactly the token's bounded, self-declared `name` and
+`ticker`. `rows_hash` is SHA-256 of `JSON.stringify(rows)`, so a client can reproduce it from the response.
+`read_at` is the watcher's saved last-round time, not the time the HTTP response happened to be built.
+
+It fails closed with HTTP 503 and `{ ok: false, why }` when the published numbers are unreadable or invalid,
+the watcher cursor or saved round time is invalid, the last round is stale, or the cursor is behind either the
+snapshot boundary or the last head the watcher observed. A launch the watcher could not read blocks the wall
+while its block is in the post-snapshot suffix; once a later published snapshot covers that block, it no longer
+blocks the wall. A post-snapshot row written before wall metadata existed returns `backfill` instead of silently
+disappearing. Retention likewise removes a row only when both its age floor has passed and the published
+snapshot covers its block; an unreadable snapshot boundary keeps the row. Invalid, blank or overlong
+declarations are omitted rather than trimmed, truncated or replaced with invented text.
+
+## Public deployer history
+
+    GET /api/deployer?address=<deployer address>
+      { ok, address, from_block, to_block, read_at, launches_seen, page_limit,
+        truncated, rows_hash, rows: [{ block, log_index, date, name, ticker }] }
+
+This is retained watcher history, not an all-time wallet profile. Its range begins after the saved watcher boundary
+and advances when an old covered prefix is pruned. The count includes every retained launch by that deployer inside
+the stated range; the bounded page keeps the newest factory positions and returns them in chronology. `truncated`
+says when the count is larger than the returned page. Unsafe declarations become `null`, never executable or
+rewritten text, and `rows_hash` is SHA-256 of `JSON.stringify(rows)`.
+
+`HISTORY_PAGE_ROWS` starts at two hundred rows. `HISTORY_PER_SECOND` starts at two requests per second and is used by
+both the public route's per-isolate courtesy bucket and the singleton Watch object's restart-local bucket. The two
+buckets are separate from `/api/tail`. Missing, stale, backlogged, unreadable or incompletely backfilled watcher state
+fails closed instead of becoming an empty successful history.
 
 ## Rules
 
@@ -254,6 +441,7 @@ For holders, in a direct message, after `/verify`.
     /rule shared <count>  a ticker already carried by that many launches or more
     /rules                your rules, and what the watcher has read
     /unrule <number>      drop one, by the number /rules gives it
+    /unrule all           drop all of your saved rules without dropping the holder session
 
 Not one of them carries a judgment. Three are string equality and the fourth is a count with a threshold the
 person picked. There is no score, no probability, no ordering by anything but the order they were made in, and
@@ -270,12 +458,18 @@ floor rather than none; or it could not be read at all, which is a network fault
 does not fire on a count it could not read.
 
 Rules live in the watcher's SQLite rather than in KV, because they are read against every new launch and that is
-work for the store next to the data. They belong to a telegram id and outlive the session that was needed to
-make one — but a rule only ever fires while that session is live, because a lapsed session is somebody who may
-no longer hold. `RULES_PER_HOLDER` is the limit.
+work for the store next to the data. They belong to a Telegram id and can outlive an expired session, but `/forget`
+removes them all; a rule only ever fires while a session is live, because a lapsed session is somebody who may no
+longer hold. `RULES_PER_HOLDER` is the limit.
+
+`/rules` keeps every stable `/unrule` number and splits the list into explicitly numbered
+messages before Telegram's text ceiling. If one send is transiently refused, the sender still
+attempts every later part; its `page N of M` header makes the missing part visible instead of
+silently making the remaining list look complete.
 
 `/unrule` takes the number `/rules` gave, resolved inside the sender's own list, and the delete carries the owner
-in its where clause. Another person's rule is unreachable twice over.
+in its where clause. Another person's rule is unreachable twice over. `/unrule all` uses the same owner-scoped
+delete as `/forget`, but leaves the holder session alone.
 
 ## What the page had to say before any of this
 
@@ -303,28 +497,42 @@ like anyone else.
 
 That last one is load bearing rather than decorative: it is why there is no price API in
 here and why there will not be one. A dollar figure from a third party would make the
-sentence false. Prices are quoted in whatever token the launch paired against, and when
-that cannot be read the bot says it cannot instead of printing a number.
+sentence false. A price is quoted only after the venue names the launch token on one side,
+names the paired token on the other, supplies both decimal scales and returns the complete
+known pool record. When any of that cannot be read the bot says it cannot instead of printing
+a number.
 
 ## Tests
 
     npm test --prefix bot
 
-Twelve files, no network in any of them. The site, the endpoint, Telegram, the store and both
-Durable Objects' contexts are all objects in `test/fakes.mjs`.
+`package.json` names every `*_test.mjs` explicitly, including the nonce, wall and history suites, so adding a
+file does not make it run by accident. None uses the live network: the site responses, RPC endpoint,
+Telegram, KV and both Durable Object contexts are local fakes from `test/fakes.mjs`.
 
     keccak_test    published digests, the selectors every wallet agrees on, and a comparison
                    against tools/launch/keccak.mjs so the two keccaks in this tree cannot drift
-    verify_test    recovery from a signature, an altered sentence, another address, the one
-                   time mark, and the threshold at exactly five hundred thousand and one unit below
+    nonce_test     the Watch SQLite nonce, webhook response/effect and dedupe tables: canonical
+                   marks, expiry, one-time take, durable command replay, leases and concurrent claims
+    verify_test    recovery from a signature, another origin or mark, an altered sentence, another
+                   address, the atomic nonce adapter, and the threshold at exactly five hundred
+                   thousand and one unit below
     router_test    every command answers, an unknown one is silent, and with three null on
                    the site nothing prints an address, a zero or a dash
-    webhook_test   the wrong header is four hundred and one with an empty body
-    chain_test     the site's file, the minute long cache, and a failed read that is null
-                   rather than zero
-    tape_test      no alarm while the address is null, a buy posted, a sell only counted
-    texts_test     section eight word for word, the sells paragraph in /start, and the signed
-                   sentence identical in bot/src/texts.js and site/hold/hold.js
+    webhook_test   bounded webhook parsing, fail-closed durable update claims, concurrent/render/send
+                   leases, response-store recovery, idempotent rule and nonce effects, room greeting,
+                   method refusals, and /api/hold failures through the same atomic nonce path
+    chain_test     the site's file, the minute long cache, zero within-call RPC retries, exact
+                   scalar/record/log reads, token-bound factory records, header-bound transfers,
+                   chain-proved pool sides and decimals, and failures that are null rather than invented
+    tape_test      no alarm while the address is null, proved buys and sells, explicit overflow gaps,
+                   bounded fair buy/gap delivery, finalized cursor identity and refusal recovery
+    texts_test     the section-eight prose, invariant-safe command list, the sells paragraph in /start, the signed
+                   origin, mark and sentence identical in bot/src/texts.js and site/hold/hold.js,
+                   and no retry button after a one-time mark was spent
+    predeploy_test the local deployment gate refuses the placeholder, missing or empty SESSIONS id,
+                   and invalid BotFather username, then accepts filled local values without claiming
+                   to verify live resources
     engine_test    the round's main test: site/launch.js hashed against VENDOR.md's own row,
                    loaded a second time the way the page loads it, and one fixture set through
                    both engines compared value for value, hash for hash, entry for entry, and
@@ -333,16 +541,22 @@ Durable Objects' contexts are all objects in `test/fakes.mjs`.
                    deployer and no other, a shared rule at the threshold and not one below,
                    and one person's rule is not removable by another
     watch_test     no alarm while there is no endpoint, a launch stored once, one that will
-                   not read neither written half nor stepped over, everything past the depth
-                   dropped, and a rule that fires for a live session and not for a lapsed one
-    tail_test      the answer carries no address and no raw string, by the index writer's own
-                   pattern; its hash is a function of its table and of nothing else; and the
-                   route caches, limits and answers four hundred and four beside itself
+                   not read neither written half nor stepped over, an old snapshot-covered row
+                   dropped, and a durable rule line retried before its hit is counted
+    tail_test      no address or raw string; >1000-row block-aligned paging, authenticated cursor
+                   tamper/staleness/order, reproducible row/table/page commitments, bounded SQL,
+                   interleaved state fencing, batched pruning, route caching and failure passthrough
+    wall_test      exact public keys and row shape, strict snapshot boundary, block/log ordering,
+                   JSON escaping, reproducible rows hash, cache and rate limits, plus fail-closed
+                   snapshot, watcher, unreadable-suffix, backfill and retention cases
+    history_test   exact retained coverage and public row shape, bounded newest-page behavior,
+                   reproducible rows hash, independent route/object limits and fail-closed watcher states
     rules_router_test   the three commands end to end, from a message with no session to a
-                   stored rule and back
+                   stored rule and back, including the longest legal list split into bounded,
+                   numbered messages and continued delivery after one transient send failure
 
-The last one of the first seven matters more than it looks. There is no build step under `site/`, so nothing
-else keeps those two copies of the sentence together, and one different space would mean
+The byte comparison in `texts_test` matters more than it looks. There is no build step under `site/`, so
+nothing else keeps those two message constructions together, and one different space would mean
 the worker recovers a stranger and refuses an honest holder.
 
 ## Two files under site/ belong to this work

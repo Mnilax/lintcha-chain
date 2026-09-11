@@ -21,9 +21,12 @@
 // is already holding the data for.
 
 import { LINKS, normalize, digest } from "./engine.js";
+import { integerSetting } from "./config.js";
 
 export const KINDS = ["string", "dev", "shared"];
 export const DEFAULT_RULES_PER_HOLDER = 20;
+/** The deployment setting may tighten this product cap, never silently raise or remove it. */
+export const MAX_RULES_PER_HOLDER = DEFAULT_RULES_PER_HOLDER;
 /** a string rule's query, at most: long enough for any ticker, name or url, short enough to store */
 export const MAX_ARG = 200;
 /** shared N below two would fire on every launch, because one launch carrying a ticker is the launch itself */
@@ -31,6 +34,7 @@ export const MIN_SHARED = 2;
 
 const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS rules (id INTEGER PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, arg TEXT NOT NULL, hashes TEXT NOT NULL, made INTEGER NOT NULL, hits INTEGER NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS rule_sequence (singleton INTEGER PRIMARY KEY, next_id INTEGER NOT NULL)",
   "CREATE INDEX IF NOT EXISTS rules_owner ON rules (owner)"
 ];
 
@@ -56,7 +60,7 @@ export function parseRule(kind, rest) {
   if (k === "shared") {
     if (!/^[0-9]+$/.test(arg)) return { ok: false, why: "number" };
     const n = Number(arg);
-    if (!Number.isInteger(n) || n < MIN_SHARED) return { ok: false, why: "number" };
+    if (!Number.isSafeInteger(n) || n < MIN_SHARED) return { ok: false, why: "number" };
     return { ok: true, kind: k, arg: String(n) };
   }
   return { ok: true, kind: k, arg };
@@ -93,10 +97,10 @@ export async function rifleOf(kind, arg) {
  * Does one launch match one rule.
  *
  * subject:
- *   { deployer, hashes: { ticker, name, link: [...] }, indexCount, tailCount }
+ *   { deployer, hashes: { ticker, name, link: [...] }, indexState, indexCount, tailCount }
  * indexCount is what the published index says about this ticker, straight out of the engine's own check(),
- * or null when the index could not be read. tailCount is how many launches in the watcher's tail carry it,
- * this one included.
+ * or null when the index has no exact count. tailCount is how many launches strictly after the published
+ * snapshot carry it, this one included. That boundary makes the two scopes disjoint.
  *
  * Returns null, or { where, count, indexCount, tailCount } — what matched, and the numbers behind it.
  */
@@ -110,13 +114,25 @@ export function match(rule, subject) {
   }
 
   if (rule.kind === "shared") {
-    // A count that could not be read is not a count. The rule stays quiet rather than firing on a number
-    // that is missing one of its two halves.
-    if (s.indexCount === null || s.indexCount === undefined) return null;
-    const total = Number(s.indexCount) + Number(s.tailCount || 0);
-    return total >= Number(r.threshold)
-      ? { where: "the ticker", count: total, indexCount: Number(s.indexCount), tailCount: Number(s.tailCount || 0) }
-      : null;
+    // No snapshot boundary means there is no provably disjoint suffix, so there is no count to compare.
+    if (s.tailCount === null || s.tailCount === undefined) return null;
+    const tail = Number(s.tailCount), threshold = Number(r.threshold);
+    if (!Number.isSafeInteger(tail) || tail < 0 || !Number.isSafeInteger(threshold) || threshold < MIN_SHARED) return null;
+    if (s.indexState === "shared") {
+      if (s.indexCount === null || s.indexCount === undefined) return null;
+      const indexed = Number(s.indexCount);
+      if (!Number.isSafeInteger(indexed) || indexed < 0 || !Number.isSafeInteger(indexed + tail)) return null;
+      const total = indexed + tail;
+      return total >= threshold
+        ? { where: "the ticker", count: total, exact: true, indexState: "shared", indexCount: indexed, tailCount: tail }
+        : null;
+    }
+    // An absent index entry means fewer than the count floor, not zero. It cannot be added as an exact
+    // number. The suffix can still prove the person's threshold by itself; that answer is a floor.
+    if (s.indexState === "unique" && tail >= threshold) {
+      return { where: "the ticker", count: tail, exact: false, indexState: "unique", indexCount: null, tailCount: tail };
+    }
+    return null;
   }
 
   if (rule.kind === "string") {
@@ -140,9 +156,26 @@ export class Rules {
   constructor(sql) {
     this.sql = sql;
     for (const stmt of SCHEMA) this.sql.exec(stmt);
+    const sequence = [...this.sql.exec("SELECT next_id FROM rule_sequence WHERE singleton = ?", 1)];
+    if (!sequence.length) {
+      const top = [...this.sql.exec("SELECT MAX(id) AS m FROM rules")];
+      const maximum = top.length && top[0].m !== null && top[0].m !== undefined ? Number(top[0].m) : 0;
+      if (Number.isSafeInteger(maximum) && maximum >= 0 && maximum < Number.MAX_SAFE_INTEGER) {
+        this.sql.exec("INSERT INTO rule_sequence (singleton, next_id) VALUES (?, ?)", 1, maximum + 1);
+      }
+    }
   }
 
-  limit(env) { return Math.max(1, Number((env && env.RULES_PER_HOLDER) || DEFAULT_RULES_PER_HOLDER)); }
+  limit(env) {
+    const configured = env && env.RULES_PER_HOLDER;
+    return integerSetting(configured, DEFAULT_RULES_PER_HOLDER, {
+      min: 1,
+      max: MAX_RULES_PER_HOLDER,
+      // An explicit malformed limit must not make `count >= limit` false as NaN did, or manufacture the
+      // default amount of storage. Zero makes the existing comparison refuse every new rule.
+      invalid: 0
+    });
+  }
 
   countFor(owner) {
     const rows = [...this.sql.exec("SELECT COUNT(*) AS n FROM rules WHERE owner = ?", String(owner))];
@@ -154,8 +187,12 @@ export class Rules {
    * launch. Returns the stored row.
    */
   add(owner, kind, arg, rifle, now) {
-    const top = [...this.sql.exec("SELECT MAX(id) AS m FROM rules")];
-    const id = (top.length && top[0].m ? Number(top[0].m) : 0) + 1;
+    const sequence = [...this.sql.exec("SELECT next_id FROM rule_sequence WHERE singleton = ?", 1)];
+    const id = sequence.length === 1 ? Number(sequence[0].next_id) : NaN;
+    if (!Number.isSafeInteger(id) || id < 1 || id >= Number.MAX_SAFE_INTEGER) return null;
+    // Advance first. A crash may leave an unused id, which is harmless; reusing an id could bind an old
+    // in-flight rule match or delivery to a later rule and is therefore forbidden.
+    this.sql.exec("UPDATE rule_sequence SET next_id = ? WHERE singleton = ?", id + 1, 1);
     this.sql.exec(
       "INSERT INTO rules (id, owner, kind, arg, hashes, made, hits) VALUES (?, ?, ?, ?, ?, ?, ?)",
       id, String(owner), kind, arg, JSON.stringify(rifle), Number(now), 0
@@ -172,6 +209,11 @@ export class Rules {
     return [...this.sql.exec("SELECT id, owner, kind, arg, hashes, made, hits FROM rules ORDER BY id")].map(read);
   }
 
+  get(id) {
+    const rows = [...this.sql.exec("SELECT id, owner, kind, arg, hashes, made, hits FROM rules WHERE id = ?", Number(id))];
+    return rows.length === 1 ? read(rows[0]) : null;
+  }
+
   /**
    * Remove one rule, by its id and its owner together.
    *
@@ -183,6 +225,12 @@ export class Rules {
     const before = this.list(owner).some(r => r.id === Number(id));
     this.sql.exec("DELETE FROM rules WHERE id = ? AND owner = ?", Number(id), String(owner));
     return before;
+  }
+
+  /** Remove every rule belonging to exactly one owner. Idempotent, so /forget is safe to repeat. */
+  removeAll(owner) {
+    this.sql.exec("DELETE FROM rules WHERE owner = ?", String(owner));
+    return true;
   }
 
   bumpHit(id) {
