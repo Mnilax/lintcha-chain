@@ -31,6 +31,9 @@ const viewportMatch = /^(\d+)x(\d+)$/.exec(VIEWPORT_ARG);
 if (VIEWPORT_ARG && !viewportMatch) { console.error("viewport must be WIDTHxHEIGHT"); process.exit(2); }
 const VIEWPORT = viewportMatch ? { width: Number(viewportMatch[1]), height: Number(viewportMatch[2]) } : null;
 const PORT = Number(opt("port", "8796")), CDP_PORT = Number(opt("cdp-port", "9332"));
+// One hosted run reached the former fifty-poll deadline while a duplicate run for the same commit passed.
+// Keep one hard deadline, but allow three of those former windows before declaring that CDP never opened.
+const BROWSER_START_POLL_MS = 200, BROWSER_START_TIMEOUT_MS = 3 * 50 * BROWSER_START_POLL_MS;
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535 || !Number.isInteger(CDP_PORT) || CDP_PORT < 1 || CDP_PORT > 65535 || PORT === CDP_PORT) {
   console.error("port and cdp-port must be distinct TCP port numbers");
   process.exit(2);
@@ -161,7 +164,7 @@ function findBrowser() {
   return ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files/Microsoft/Edge/Application/msedge.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "/usr/bin/google-chrome", "/usr/bin/chromium", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"].find(f => fs.existsSync(f));
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const getJson = async url => (await fetch(url)).json();
+const getJsonWithin = async (url, timeoutMs) => (await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })).json();
 class Cdp {
   constructor(ws) {
     this.ws = ws; this.id = 0; this.pending = new Map(); this.listeners = [];
@@ -169,7 +172,30 @@ class Cdp {
     ws.onclose = () => this.fail(new Error("browser protocol connection closed"));
     ws.onerror = () => this.fail(new Error("browser protocol connection failed"));
   }
-  static async connect(url) { const ws = new WebSocket(url); await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; }); return new Cdp(ws); }
+  static async connect(url, timeoutMs) {
+    const ws = new WebSocket(url);
+    await new Promise((res, rej) => {
+      let settled = false;
+      const finish = (fn, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        ws.onopen = null;
+        ws.onerror = null;
+        fn(value);
+      };
+      const timer = setTimeout(() => {
+        try { ws.close(); } catch (e) {}
+        finish(rej, new Error("browser protocol connection timed out"));
+      }, timeoutMs);
+      ws.onopen = () => finish(res);
+      ws.onerror = () => {
+        try { ws.close(); } catch (e) {}
+        finish(rej, new Error("browser protocol connection failed"));
+      };
+    });
+    return new Cdp(ws);
+  }
   fail(error) {
     for (const { rej, timer } of this.pending.values()) { clearTimeout(timer); rej(error); }
     this.pending.clear();
@@ -201,11 +227,27 @@ async function main() {
   if (VIEWPORT) browserArgs.push(`--window-size=${VIEWPORT.width},${VIEWPORT.height}`);
   browserArgs.push("about:blank");
   const proc = spawn(browser, browserArgs, { stdio: "ignore" });
-  let version = null;
-  for (let i = 0; i < 50 && !version; i++) { try { version = await getJson(`http://127.0.0.1:${CDP_PORT}/json/version`); } catch (e) { await sleep(200); } }
-  if (!version) { proc.kill(); srv.close(); console.error("browser did not open its protocol port"); process.exit(2); }
-  const page = (await getJson(`http://127.0.0.1:${CDP_PORT}/json/list`)).find(t => t.type === "page");
-  const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
+  let version = null, cdp = null;
+  const browserStartDeadline = Date.now() + BROWSER_START_TIMEOUT_MS;
+  while (!cdp && proc.exitCode === null) {
+    let remaining = browserStartDeadline - Date.now();
+    if (remaining <= 0) break;
+    try {
+      version = await getJsonWithin(`http://127.0.0.1:${CDP_PORT}/json/version`, Math.min(BROWSER_START_POLL_MS, remaining));
+      remaining = browserStartDeadline - Date.now();
+      if (remaining <= 0) break;
+      const page = (await getJsonWithin(`http://127.0.0.1:${CDP_PORT}/json/list`, Math.min(BROWSER_START_POLL_MS, remaining))).find(t => t.type === "page" && t.webSocketDebuggerUrl);
+      if (!page) throw new Error("browser protocol page target is not ready");
+      remaining = browserStartDeadline - Date.now();
+      if (remaining <= 0) break;
+      cdp = await Cdp.connect(page.webSocketDebuggerUrl, Math.min(BROWSER_START_POLL_MS, remaining));
+    }
+    catch (e) {
+      const waitMs = Math.min(BROWSER_START_POLL_MS, Math.max(0, browserStartDeadline - Date.now()));
+      if (waitMs) await sleep(waitMs);
+    }
+  }
+  if (!cdp) { proc.kill(); srv.close(); console.error("browser did not open its protocol port"); process.exit(2); }
   await cdp.send("Network.enable"); await cdp.send("Page.enable"); await cdp.send("Runtime.enable"); await cdp.send("Log.enable");
   if (VIEWPORT) await cdp.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
 
