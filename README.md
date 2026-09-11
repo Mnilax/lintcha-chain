@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/avatar.png" width="128" height="128" alt=""></p>
 <p align="center"><img src="assets/banner.png" alt="lintcha-chain" width="100%"></p>
 <p align="center">
-<img alt="tests" src="https://img.shields.io/badge/tests-2051_passing-d4fc50?labelColor=08090a&style=flat-square">
+<img alt="tests" src="https://img.shields.io/badge/tests-2163_passing-d4fc50?labelColor=08090a&style=flat-square">
 <img alt="node" src="https://img.shields.io/badge/node-%3E%3D24-5e5a53?labelColor=08090a&style=flat-square">
 <img alt="runtime deps" src="https://img.shields.io/badge/runtime_deps-0-5e5a53?labelColor=08090a&style=flat-square">
 <img alt="chain" src="https://img.shields.io/badge/chain-4663-5e5a53?labelColor=08090a&style=flat-square">
