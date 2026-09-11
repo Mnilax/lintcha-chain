@@ -19,7 +19,7 @@
     "build": "node tools/build.mjs",
     "verify": "node tools/verify-index.mjs",
     "smoke:production": "node tools/production-smoke.mjs",
-    "test": "node tools/verify-vendor.mjs && node tests/config_contract_test.mjs && node tests/published_contract_test.mjs && node tests/chain_token_states.mjs && node tests/activate_token_test.mjs && node tests/hour_x_workflow_test.mjs && node tests/live_wall_test.mjs && node tests/deployer_history_test.mjs && node tests/launch_test.js && node tests/launch_abi_test.mjs && node tests/launch_collector_state_test.mjs && node tests/launch_gate_test.mjs && node tests/collection_guard_test.mjs && node tests/launch_index_test.mjs && node tests/identity_cli_test.mjs && node tests/production_smoke_test.mjs",
+    "test": "node tools/verify-vendor.mjs && node tests/config_contract_test.mjs && node tests/published_contract_test.mjs && node tests/chain_token_states.mjs && node tests/activate_token_test.mjs && node tests/hour_x_workflow_test.mjs && node tests/live_wall_test.mjs && node tests/deployer_history_test.mjs && node tests/launch_test.js && node tests/launch_abi_test.mjs && node tests/launch_collector_state_test.mjs && node tests/launch_gate_test.mjs && node tests/launch_rpc_split_test.mjs && node tests/collection_guard_test.mjs && node tests/launch_index_test.mjs && node tests/identity_cli_test.mjs && node tests/production_smoke_test.mjs",
     "activate-token": "node tools/activate-token.mjs",
     "identity": "node tools/identity.mjs",
     "i18n": "node tools/i18n-merge.mjs && node src/tools/i18n_check.js"
