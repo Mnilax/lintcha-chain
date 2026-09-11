@@ -1,4 +1,4 @@
-# launch-refresh: manual-only until a strict full refresh is demonstrated against a no-key public endpoint.
+# launch-refresh: manual-only until a strict full refresh is demonstrated against the configured endpoint.
 # When deliberately dispatched, rebuild the launch index and its numbers file from the most recent full day of
 # launches, rebuild the page that prints their figures and integrity manifest, and open a PR containing the four files. This is the job that
 # writes a branch on its own, so every guardrail is hard and the job commits nothing rather than something
@@ -6,7 +6,8 @@
 # "chain:" below: the vendored code is guarded by verify-vendor instead of a hash of the frozen rule files (there are
 # none here); the page is rebuilt, because its figures and charts are baked in at build time; the membership test
 # allows site/index.html and site/launch-manifest.json as the third and fourth files.
-#   - the collector runs over a day window ending at the latest finalised block, against the public RPC, no key
+#   - the collector runs over a day window ending at the latest finalised block; a repository RPC secret is passed
+#     only through the environment, and an absent secret preserves the collector's checked-in public fallback
 #   - the owned publication guard refuses an empty/partial run, incomplete records, malformed or duplicate factory
 #     events, event hashes that disagree with finalized block headers, and strict ABI metadata/records that do not
 #     rebuild the collector's exact tables and summaries. It reproduces the collector's transaction-sample counters,
@@ -22,10 +23,10 @@
 #   - the only paths that may change are site/launch-index.json, site/launch-numbers.json, site/launch-manifest.json
 #     and site/index.html; any
 #     other modified, deleted or untracked path aborts before the commit
-#   - GITHUB_TOKEN with contents, pull-requests and actions write; no personal token or provider secret; both actions
-#     are pinned by commit SHA. A unique draft PR is opened, then the full test and vendor workflows are explicitly
-#     dispatched and awaited before the PR is marked ready, because pushes made by GITHUB_TOKEN do not recursively
-#     trigger ordinary push workflows
+#   - GITHUB_TOKEN with contents, pull-requests and actions write; no personal token; the optional provider secret is
+#     exposed only to the two RPC-reading steps. Both actions are pinned by commit SHA. A unique draft PR is opened,
+#     then the full test and vendor workflows are explicitly dispatched and awaited before the PR is marked ready,
+#     because pushes made by GITHUB_TOKEN do not recursively trigger ordinary push workflows
 name: launch-refresh
 on:
   workflow_dispatch:
@@ -55,11 +56,15 @@ jobs:
         run: |
           node tools/verify-vendor.mjs
 
-      - name: collect the most recent full day from the public RPC
+      - name: collect the most recent full day from the configured RPC
+        env:
+          LINTCHA_CHAIN_RPC_URL: ${{ secrets.LINTCHA_CHAIN_RPC_URL }}
         run: |
           node tools/launch-collect.mjs --day --out "$RUNNER_TEMP/launch-day.json"
 
       - name: guard the collection with alternate partitions and rebuild its facts from strict chain returns
+        env:
+          LINTCHA_CHAIN_RPC_URL: ${{ secrets.LINTCHA_CHAIN_RPC_URL }}
         run: |
           node tools/collection-guard.mjs --in "$RUNNER_TEMP/launch-day.json" --published site/launch-numbers.json --audit-logs
 
