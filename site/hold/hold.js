@@ -12,10 +12,13 @@
 (function () {
   "use strict";
 
-  // THE SENTENCE. It must match bot/src/texts.js SENTENCE character for character: the worker recovers the
-  // address from this exact string, and one different space would recover a stranger. bot/test/hold_page_test.mjs
-  // reads both files and fails when they drift, because there is no build step here to keep them together.
-  var SENTENCE = "I am proving to the lintcha bot that this wallet is mine. This signature moves nothing, approves nothing and spends nothing.";
+  // THE SENTENCE. These bytes must match bot/src/texts.js character for character: the worker recovers the
+  // address from the exact origin and one-time mark shown here. bot/test/texts_test.mjs reads both files and
+  // fails when they drift, because this plain page deliberately has no bundler to keep them together.
+  var HOLDER_ORIGIN = "https://chain.lintcha.com";
+  var SENTENCE_BEFORE_MARK = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://chain.lintcha.com and one-time mark ";
+  var SENTENCE_AFTER_MARK = ". This signature moves nothing, approves nothing and spends nothing.";
+  function sentenceFor(mark) { return SENTENCE_BEFORE_MARK + String(mark) + SENTENCE_AFTER_MARK; }
 
   var connectBtn = document.querySelector("[data-connect]");
   var signBtn = document.querySelector("[data-sign]");
@@ -24,16 +27,25 @@
   var sentenceOut = document.querySelector("[data-sentence]");
   var account = null;
 
-  sentenceOut.textContent = SENTENCE;
-
   function say(text, tone) {
     stateOut.textContent = text;
     if (tone) stateOut.setAttribute("data-tone", tone); else stateOut.removeAttribute("data-tone");
   }
 
   function markOf() {
-    var m = /[?&]t=([0-9a-fA-F]{8,64})(?:&|$)/.exec(window.location.search || "");
-    return m ? m[1].toLowerCase() : null;
+    var marks = new URLSearchParams(window.location.search || "").getAll("t");
+    return marks.length === 1 && /^[0-9a-f]{32}$/.test(marks[0]) ? marks[0] : null;
+  }
+
+  // Cloudflare must redirect the production host to HTTPS, but the signing page also defends itself. A network
+  // path that serves this file over plain HTTP must never get as far as the injected wallet. Loopback is retained
+  // solely for the repository's real browser harness; the signed sentence still names the production origin.
+  var loopback = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" || window.location.hostname === "[::1]";
+  if (window.location.origin !== HOLDER_ORIGIN && !loopback) {
+    say("This holder check only runs at its HTTPS address. Nothing will be signed here.", "bad");
+    connectBtn.disabled = true;
+    signBtn.disabled = true;
+    return;
   }
 
   var mark = markOf();
@@ -42,6 +54,8 @@
     connectBtn.disabled = true;
     return;
   }
+  var sentence = sentenceFor(mark);
+  sentenceOut.textContent = sentence;
 
   function provider() {
     return typeof window.ethereum === "undefined" ? null : window.ethereum;
@@ -86,7 +100,7 @@
     if (!eth || !account) return;
     signBtn.disabled = true;
     say("Waiting for the signature.");
-    eth.request({ method: "personal_sign", params: [hexOf(SENTENCE), account] }).then(function (signature) {
+    eth.request({ method: "personal_sign", params: [hexOf(sentence), account] }).then(function (signature) {
       say("Signed. Reading the balance from the chain.");
       return fetch("/api/hold", {
         method: "POST",
@@ -99,17 +113,21 @@
     }).then(function (res) {
       if (!res) return;
       if (res.body && res.body.ok) {
-        say("Checked. That wallet holds enough, and the bot has answered in the chat you came from. You can close this page.");
+        say("Checked. That wallet holds enough, and the holder session was saved. You can close this page and ask the bot again if its reply has not arrived.");
         signBtn.textContent = "Done";
         return;
       }
       var why = res.body && res.body.why;
-      if (why === "below") say("That wallet does not hold one million $LINTCHA, so I did not open a session. Nothing was stored.", "bad");
+      if (why === "below") say("That wallet does not hold five hundred thousand $LINTCHA, so I did not open a session. Nothing was stored.", "bad");
       else if (why === "signature") say("The signature does not belong to the account it came with, so I did not read a balance. Send /verify for a fresh link.", "bad");
       else if (why === "nonce") say("This link is used or expired. Send /verify to the bot for a new one.", "bad");
-      else if (why === "unreadable") say("I could not read the chain just now, so I will not guess. Try the same link again in a moment.", "bad");
+      else if (why === "rate_limited") say("This site is receiving too many checks just now. Wait a moment and press sign again; this link has not been used.", "bad");
+      else if (why === "unreadable") say("I could not read the chain just now, so I will not guess. Send /verify to the bot for a new link.", "bad");
       else say("That did not go through. Send /verify to the bot for a fresh link.", "bad");
-      signBtn.disabled = why === "nonce";
+      // Shape and rate-limit failures happen before Watch spends the mark. Every other named failure comes
+      // after the atomic take (or says it was already taken), so offering the same signature again would be
+      // a button whose only possible answer is "used".
+      signBtn.disabled = why !== "rate_limited" && why !== "shape";
     }).catch(function () {
       signBtn.disabled = false;
       say("The wallet turned the signature down, or the request did not go through. Nothing moved either way.", "bad");

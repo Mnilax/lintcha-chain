@@ -20,14 +20,16 @@
 // answer into a sentence, which keeps the "what would it say" test possible for them too.
 
 import * as T from "./texts.js";
-import { readToken, hasToken, balanceOf, decimalsOf, totalSupply, venueOf, priceInPair } from "./chain.js";
+import { readToken, hasToken, balanceOf, decimalsOf, totalSupply, venueOf, priceInPair, unitsNumber } from "./chain.js";
 import { getSession, dropSession, newNonce } from "./verify.js";
 import { parseRule } from "./rules.js";
 import { code, link, esc } from "./telegram.js";
 import { formatUnits, shortAddress } from "./texts.js";
+import { requiredHttpsUrlOf } from "../../lib/config-contract.mjs";
+import { botUsernameOf } from "./config.js";
 
 /** the commands that answer anywhere, and the ones that only answer in a direct message */
-export const PUBLIC_COMMANDS = ["start", "ca", "price", "top", "stats", "site"];
+export const PUBLIC_COMMANDS = ["start", "ca", "price", "stats", "site"];
 export const PRIVATE_COMMANDS = ["verify", "me", "forget", "rule", "rules", "unrule"];
 export const KNOWN_COMMANDS = [...PUBLIC_COMMANDS, ...PRIVATE_COMMANDS];
 
@@ -37,11 +39,25 @@ const send = (chat, text, options = {}) => ({ kind: "send", chat, text, ...optio
  * The command in a message, without its @botname suffix, or null when the text is not a command of ours.
  * Telegram sends "/ca@lintcha_chain_bot" in a room, so the suffix is stripped before the name is compared.
  */
-export function commandOf(text) {
+export function commandOf(text, botUsername = null) {
   if (typeof text !== "string") return null;
   const m = /^\/([A-Za-z_]+)(@[A-Za-z0-9_]+)?(?:\s|$)/.exec(text.trim());
   if (!m) return null;
+  if (m[2]) {
+    const expected = botUsernameOf(botUsername);
+    if (!expected || m[2].slice(1).toLowerCase() !== expected) return null;
+  }
   return m[1].toLowerCase();
+}
+
+/** A room service update is ours only when Telegram names this exact configured bot among the joined members. */
+export function ourBotJoined(update, botUsername = null) {
+  const expected = botUsernameOf(botUsername);
+  const joined = update && update.message && update.message.new_chat_members;
+  return !!expected && Array.isArray(joined) && joined.some(member =>
+    !!member && typeof member === "object" && !Array.isArray(member) && member.is_bot === true &&
+    botUsernameOf(member.username) === expected
+  );
 }
 
 /** Whatever followed the command, whitespace collapsed. Empty string when there was nothing. */
@@ -63,21 +79,30 @@ export async function handleUpdate(update, deps) {
   const kv = deps && deps.kv;
   const tape = (deps && deps.tape) || null;
   const watch = (deps && deps.watch) || null;
+  // Production passes this property even when the durable object is unavailable, so there is no silent KV
+  // fallback. Tests that exercise the pure router can omit it and use their local store.
+  const nonces = deps && Object.prototype.hasOwnProperty.call(deps, "nonces") ? deps.nonces : kv;
 
-  // somebody joined the room: one greeting, and nothing else ever gets said unprompted
+  // Telegram uses this service field for every member. Only this configured bot joining earns the one greeting;
+  // an ordinary person's arrival is silence even if a malformed service update also happens to carry text.
   const joined = update && update.message && update.message.new_chat_members;
   if (Array.isArray(joined) && joined.length) {
-    return [send(update.message.chat.id, T.GREETING, { quiet: true })];
+    return ourBotJoined(update, env.BOT_USERNAME)
+      ? [send(update.message.chat.id, T.GREETING, { quiet: true })]
+      : [];
   }
 
   const msg = (update && (update.message || update.edited_message)) || null;
   if (!msg || !msg.chat) return [];
   const chat = msg.chat.id;
-  const cmd = commandOf(msg.text);
+  const cmd = commandOf(msg.text, env.BOT_USERNAME);
   if (!cmd) return [];
   if (!KNOWN_COMMANDS.includes(cmd)) return [];                      // silence, on purpose
   if (PRIVATE_COMMANDS.includes(cmd) && !isPrivate(msg)) return [send(chat, T.PRIVATE_ONLY)];
 
+  // Forgetting stored data must not depend on the site, the token or the chain being readable. It is intentionally
+  // dispatched before every network-backed gate so the privacy promise still works during an outage and before launch.
+  if (cmd === "forget") return await forgetActions(kv, watch, chat, msg);
   if (cmd === "start") return [send(chat, T.START)];
   if (cmd === "site") {
     const token = await readToken(env);
@@ -92,11 +117,9 @@ export async function handleUpdate(update, deps) {
   switch (cmd) {
     case "ca": return [send(chat, caText(token))];
     case "price": return [send(chat, await priceText(env, token))];
-    case "top": return [send(chat, await topText(tape))];
     case "stats": return [send(chat, await statsText(tape))];
-    case "verify": return await verifyActions(env, kv, chat, msg);
+    case "verify": return await verifyActions(env, nonces, chat, msg);
     case "me": return await meActions(env, kv, chat, msg, token);
-    case "forget": return await forgetActions(kv, chat, msg);
     case "rule": return await ruleActions(kv, watch, chat, msg);
     case "rules": return await rulesActions(kv, watch, chat, msg);
     case "unrule": return await unruleActions(kv, watch, chat, msg);
@@ -121,31 +144,23 @@ async function priceText(env, token) {
   const venue = await venueOf(env, token.address);
   if (!venue) return "I cannot see where this token trades yet, so I have no price to give. Nothing here is a guess, so there is no number instead.";
   const dec = await decimalsOf(env, token.address);
+  if (dec === null) return "I cannot read this token's decimals from the chain just now, so I cannot scale or state a price. Nothing here is a guess, so there is no number instead.";
   const supply = await totalSupply(env, token.address);
-  const pairDec = Number(env.PAIR_DECIMALS || 18);
-  const price = await priceInPair(env, venue, dec === null ? 18 : dec, pairDec, String(env.TOKEN_IS_FIRST || "") === "true");
-  if (price === null) {
+  const quote = await priceInPair(env, venue, token.address);
+  if (quote === null) {
     const lines = ["I cannot read a price from the venue yet."];
     if (supply !== null && dec !== null) lines.push("", "Supply: " + code(formatUnits(supply, dec)));
     lines.push("", "The venue is " + code(shortAddress(venue)) + ". Everything I say is read from the chain, so until I can read that pool there is no number here rather than a number from somewhere else.");
     return lines.join("\n");
   }
-  const lines = ["Price: " + code(price.toPrecision(6)) + " of the paired token per $LINTCHA"];
+  const lines = ["Price: " + code(quote.value.toPrecision(6)) + " of paired token " + code(shortAddress(quote.pairToken)) + " per $LINTCHA"];
   if (supply !== null && dec !== null) {
-    const cap = price * Number(formatUnits(supply, dec).replace(/,/g, ""));
-    if (Number.isFinite(cap)) lines.push("Market cap: " + code(cap.toPrecision(6)) + " of the paired token");
+    const wholeSupply = unitsNumber(supply, dec);
+    const cap = wholeSupply === null ? null : quote.value * wholeSupply;
+    if (cap !== null && Number.isFinite(cap)) lines.push("Market cap: " + code(cap.toPrecision(6)) + " of paired token " + code(shortAddress(quote.pairToken)));
     lines.push("Supply: " + code(formatUnits(supply, dec)));
   }
-  lines.push("", "Quoted in the token this launch paired against, " + code(shortAddress(venue)) + ", because that is what the chain says. No exchange rate is fetched from anywhere.");
-  return lines.join("\n");
-}
-
-async function topText(tape) {
-  if (!tape) return "The feed is not up, so there is nobody to list yet.";
-  const rows = await tape.top();
-  if (!rows || !rows.length) return "The feed is up and has seen no buys yet. That is the whole answer; there is no placeholder list.";
-  const lines = ["The biggest buyers since the feed went up:", ""];
-  rows.forEach((r, i) => lines.push(String(i + 1) + ". " + code(shortAddress(r.wallet)) + " — " + code(r.total) + " over " + r.buys + (r.buys === 1 ? " buy" : " buys")));
+  lines.push("", "The paired token and its decimals were read from venue " + code(shortAddress(venue)) + "; no orientation or decimal scale came from a deployment setting. No exchange rate is fetched from anywhere.");
   return lines.join("\n");
 }
 
@@ -172,11 +187,14 @@ async function statsText(tape) {
   return lines.join("\n");
 }
 
-async function verifyActions(env, kv, chat, msg) {
-  if (!kv) return [send(chat, T.SITE_UNREADABLE)];
+async function verifyActions(env, nonces, chat, msg) {
+  if (!nonces) return [send(chat, T.SITE_UNREADABLE)];
+  const holdPage = requiredHttpsUrlOf(env.HOLD_PAGE || T.HOLD_PAGE);
+  if (!holdPage) return [send(chat, T.SITE_UNREADABLE)];
   const who = (msg.from && msg.from.id) || chat;
-  const t = await newNonce(kv, who);
-  const url = (env.HOLD_PAGE || T.HOLD_PAGE) + "?t=" + t;
+  let t;
+  try { t = await newNonce(nonces, who); } catch { return [send(chat, T.SITE_UNREADABLE)]; }
+  const url = new URL(holdPage); url.searchParams.set("t", t);
   return [send(chat, T.VERIFY_INTRO + "\n\n" + link("Open the check", url), { preview: false })];
 }
 
@@ -193,11 +211,11 @@ async function meActions(env, kv, chat, msg, token) {
     "Holding: " + code(formatUnits(bal, dec)) + " $LINTCHA"
   ];
   const venue = await venueOf(env, token.address);
-  const price = venue ? await priceInPair(env, venue, dec, Number(env.PAIR_DECIMALS || 18), String(env.TOKEN_IS_FIRST || "") === "true") : null;
-  if (price !== null) {
-    const whole = Number(formatUnits(bal, dec).replace(/,/g, ""));
-    const worth = whole * price;
-    if (Number.isFinite(worth)) lines.push("Worth: " + code(worth.toPrecision(6)) + " of the paired token");
+  const quote = venue ? await priceInPair(env, venue, token.address) : null;
+  if (quote !== null) {
+    const whole = unitsNumber(bal, dec);
+    const worth = whole === null ? null : whole * quote.value;
+    if (worth !== null && Number.isFinite(worth)) lines.push("Worth: " + code(worth.toPrecision(6)) + " of paired token " + code(shortAddress(quote.pairToken)));
   } else {
     lines.push("", "I cannot read a price yet, so there is no value here rather than a made up one.");
   }
@@ -244,6 +262,7 @@ async function ruleActions(kv, watch, chat, msg) {
   const r = await watch.add(gate.who, read.kind, read.arg);
   if (!r || !r.ok) {
     if (r && r.why === "limit") return [send(chat, T.RULE_LIMIT_REACHED)];
+    if (r && r.why === "capacity") return [send(chat, T.RULE_CAPACITY_REACHED)];
     return [send(chat, T.RULES_NOT_UP)];
   }
   return [send(chat, T.ruleAddedText(r.number, r.rule, r.count, r.limit), { preview: false })];
@@ -254,24 +273,38 @@ async function rulesActions(kv, watch, chat, msg) {
   if (gate.no) return gate.no;
   const r = await watch.list(gate.who);
   if (!r || !r.ok) return [send(chat, T.RULES_NOT_UP)];
-  return [send(chat, T.rulesListText(r.rules, r.state), { preview: false })];
+  return T.rulesListTexts(r.rules, r.state).map(text => send(chat, text, { preview: false }));
 }
 
 async function unruleActions(kv, watch, chat, msg) {
   const gate = await ruleGate(kv, watch, chat, msg);
   if (gate.no) return gate.no;
   const rest = argsOf(msg.text);
+  if (rest.toLowerCase() === "all") {
+    const r = typeof watch.forget === "function" ? await watch.forget(gate.who) : null;
+    return [send(chat, r && r.ok ? T.UNRULE_ALL_DONE : T.RULES_NOT_UP)];
+  }
   if (!/^[0-9]+$/.test(rest)) return [send(chat, T.UNRULE_NEEDS_NUMBER)];
   const r = await watch.remove(gate.who, Number(rest));
   if (!r || !r.ok) return [send(chat, r && r.why === "number" ? T.UNRULE_NOT_YOURS : T.RULES_NOT_UP)];
   return [send(chat, T.UNRULE_DONE)];
 }
 
-async function forgetActions(kv, chat, msg) {
-  if (!kv) return [send(chat, T.SITE_UNREADABLE)];
+async function forgetActions(kv, watch, chat, msg) {
   const who = (msg.from && msg.from.id) || chat;
-  const had = await dropSession(kv, who);
-  return [send(chat, had ? T.FORGOTTEN : T.NOTHING_FORGOTTEN)];
+  // The two stores are independent. A failure or lost response from either must not suppress the other
+  // deletion, and an acknowledgement is not upgraded into a claim about the operation that was not seen.
+  const session = kv && typeof kv.delete === "function"
+    ? Promise.resolve().then(() => dropSession(kv, who)).then(() => true, () => false)
+    : Promise.resolve(false);
+  const rules = watch && typeof watch.forget === "function"
+    ? Promise.resolve().then(() => watch.forget(who)).then(r => !!(r && r.ok), () => false)
+    : Promise.resolve(false);
+  const [sessionOk, rulesOk] = await Promise.all([session, rules]);
+  if (sessionOk && rulesOk) return [send(chat, T.FORGOTTEN)];
+  if (sessionOk) return [send(chat, T.FORGET_RULES_UNCONFIRMED)];
+  if (rulesOk) return [send(chat, T.FORGET_SESSION_UNCONFIRMED)];
+  return [send(chat, T.FORGET_UNCONFIRMED)];
 }
 
 export { esc };

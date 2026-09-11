@@ -47,7 +47,7 @@
   .hold-foot { margin:34px 0 0; font-size:14px; line-height:1.6; color:var(--ink-3); }
 </style>
 </head>
-<body data-page="chain" data-lang="en">
+<body data-page="chain" data-lang="en" data-hold-page>
 <div class="hold">
   <h1>Prove you hold $LINTCHA</h1>
   <p class="hold-kicker">One signature · nothing moves</p>
@@ -56,9 +56,12 @@
   transaction: nothing moves, nothing is approved and no gas is spent. This page reads your balance from the
   chain afterwards.</p>
 
+  <p>The sentence names this site and the one-time mark from your link. A signature made for one link cannot
+  be reused with another.</p>
+
   <div class="hold-sentence" data-sentence></div>
 
-  <p>Needed: one million $LINTCHA. When it checks out, the bot answers in the chat you came from.</p>
+  <p>Needed: five hundred thousand $LINTCHA. When it checks out, the bot answers in the chat you came from.</p>
 
   <div class="hold-row">
     <button type="button" class="hold-btn" data-connect>Connect wallet</button>
@@ -69,7 +72,7 @@
   <p class="hold-state" data-state></p>
 
   <ul class="hold-never">
-    <li>This page asks for a signature over that sentence and nothing else. It never asks for a key, a seed or
+    <li>This page asks for a signature over the displayed site and one-time mark and nothing else. It never asks for a key, a seed or
     an approval to spend.</li>
     <li>It holds no funds and cannot move any.</li>
     <li>What is kept afterwards is one address for three days. Send /forget to the bot and it goes now.</li>

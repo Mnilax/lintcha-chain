@@ -67,7 +67,10 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .strip-in { max-width:1080px; margin:0 auto; padding:9px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3); }
 .strip-dot { color:var(--line); }
 .strip-id { color:var(--accent); animation:lc-pulse 4s ease-in-out infinite; }
-.strip-live { margin-left:auto; }   /* reserved: a live tile drops in here later without moving anything */
+.strip-live { margin-left:auto; display:inline-flex; align-items:center; gap:8px; color:var(--ink-2); }
+.strip-live .badge { font-size:8px; padding:2px 7px; }
+.strip-wall { color:var(--ink-2); border-bottom:1px solid var(--line); }
+.strip-wall:hover { color:var(--accent); border-color:var(--accent); }
 
 /* the token, header part: the contract row under the strip and the filled buy button in the cluster. Rendered by the
    build only when site/token.json carries an address (the row) and a pons link (the button); nothing otherwise. */
@@ -99,6 +102,11 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .hero-l2 { color:var(--ink-2); }
 .hero-intro { font-size:18px; line-height:1.6; color:var(--ink-2); margin:0 0 14px; max-width:700px; }
 .hero-privacy { font-size:15px; line-height:1.6; color:var(--ink-3); margin:0; max-width:700px; }
+.hero-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
+.hero-action { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.13em; text-transform:uppercase; padding:10px 16px; border:1px solid var(--btn-quiet-line); border-radius:999px; color:var(--ink-2); }
+.hero-action:hover { border-color:var(--accent); color:var(--accent); }
+body[data-page="chain"] .hero-action-primary { border-color:var(--accent); background:var(--accent); color:var(--accent-ink); }
+body[data-page="chain"] .hero-action-primary:hover { color:var(--accent-ink); opacity:0.88; }
 .sec { padding:52px 0; border-top:1px solid var(--line); scroll-margin-top:calc(var(--topbar-h, 60px) + 8px); }
 .sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:8px; }
 .sec-p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:14px 0 6px; max-width:720px; }
@@ -173,6 +181,15 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .sec-tool .launch-line { line-height:1.55; }
 .sec-tool .launch-line .st { margin-right:8px; font-size:10px; padding:2px 8px; }
 .sec-tool .launch-fixed { display:none; }   /* the four paragraphs are lifted into section five by the build; the class stays for the vendored rule */
+.result-restored { max-width:780px; margin:0 0 22px; padding:12px 14px; border-left:2px solid var(--accent); background:var(--panel); color:var(--ink-2); font-size:14px; line-height:1.55; }
+.result-tools { margin-top:20px; padding:18px 20px; border:1px solid var(--line); border-radius:14px; background:var(--panel); display:grid; gap:14px; }
+.result-context { margin:0; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.04em; text-transform:uppercase; color:var(--ink-3); }
+.result-context strong { color:var(--ink); font-weight:600; }
+.result-share { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; }
+.result-receipt { padding-top:14px; border-top:1px solid var(--line); display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; }
+.result-receipt-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.result-share-note { color:var(--ink-3); font-size:13px; line-height:1.5; max-width:620px; }
+.sr-only { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important; }
 
 /* section five, what it cannot tell you: the vendored fixed paragraphs, verbatim, larger */
 .sec .launch-fixed { margin-top:22px; max-width:780px; display:grid; gap:18px; }
@@ -337,6 +354,43 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .token-sec .cell { padding:18px 20px; }
 .token-sec .cell-v { font-size:22px; }
 
+/* ---------------------------------------------------------------- live wall: a separate, read-only view of the
+   publishable name/ticker suffix. API strings stay in isolated table cells; status and coverage remain global. */
+:is([data-live-page],[data-history-page]) .live-nav-current { color:var(--accent); }
+:is([data-live-page],[data-history-page]) .live-page { padding-bottom:72px; }
+:is([data-live-page],[data-history-page]) .live-hero { padding-bottom:12px; }
+:is([data-live-page],[data-history-page]) .wall-cells { grid-template-columns:repeat(4,minmax(0,1fr)); }
+:is([data-live-page],[data-history-page]) .wall-cells .cell-v { font-size:17px; }
+:is([data-live-page],[data-history-page]) .wall-controls { display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; }
+:is([data-live-page],[data-history-page]) .btn-quiet:disabled { cursor:not-allowed; opacity:0.5; }
+:is([data-live-page],[data-history-page]) .wall-state { min-height:1.6em; margin:14px 0 0; font-size:14px; line-height:1.6; color:var(--ink-2); }
+:is([data-live-page],[data-history-page]) .wall-gap-note { margin-top:18px; }
+:is([data-live-page],[data-history-page]) .wall-find { display:flex; align-items:end; justify-content:space-between; gap:14px 20px; flex-wrap:wrap; margin-top:20px; }
+:is([data-live-page],[data-history-page]) .wall-search { display:grid; gap:7px; min-width:min(100%,320px); font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-3); }
+:is([data-live-page],[data-history-page]) .wall-search input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--ink); font:400 14px/1.4 'IBM Plex Mono',monospace; letter-spacing:0; text-transform:none; }
+:is([data-live-page],[data-history-page]) .wall-search input:focus { outline:2px solid var(--accent); outline-offset:2px; }
+:is([data-live-page],[data-history-page]) .wall-filter-state { min-height:1.5em; margin:10px 0 0; color:var(--ink-3); font-size:13px; line-height:1.5; }
+:is([data-live-page],[data-history-page]) .wall-table-wrap { margin-top:20px; border:1px solid var(--line); border-radius:18px; overflow-x:auto; background:var(--panel); }
+:is([data-live-page],[data-history-page]) .wall-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+:is([data-live-page],[data-history-page]) .wall-table th { padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel-2); font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.14em; text-align:left; text-transform:uppercase; color:var(--ink-3); }
+:is([data-live-page],[data-history-page]) .wall-table td { width:50%; padding:15px 20px; border-top:1px solid var(--line-soft); font-size:15px; line-height:1.55; color:var(--ink-2); vertical-align:top; overflow-wrap:anywhere; word-break:break-word; }
+:is([data-live-page],[data-history-page]) .wall-table tbody tr:first-child td { border-top:0; }
+:is([data-live-page],[data-history-page]) .wall-table bdi { unicode-bidi:isolate; }
+:is([data-live-page],[data-history-page]) .wall-read { color:inherit; text-decoration:none; border-bottom:1px solid transparent; }
+:is([data-live-page],[data-history-page]) .wall-read:hover, :is([data-live-page],[data-history-page]) .wall-read:focus-visible { color:var(--accent); border-bottom-color:currentColor; }
+:is([data-live-page],[data-history-page]) .wall-ticker { font-family:'IBM Plex Mono',monospace; color:var(--ink); }
+:is([data-live-page],[data-history-page]) .wall-empty { width:auto !important; text-align:center; color:var(--ink-3) !important; }
+:is([data-live-page],[data-history-page]) .wall-hash code { color:var(--ink-2); }
+:is([data-live-page],[data-history-page]) .wall-boundary { margin-top:12px; }
+[data-history-page] .history-form { display:flex; align-items:end; gap:12px; flex-wrap:wrap; }
+[data-history-page] .history-address { flex:1 1 520px; }
+[data-history-page] .history-filter { margin-top:20px; }
+[data-history-page] .history-table { min-width:760px; }
+[data-history-page] .history-table td { width:auto; }
+[data-history-page] .history-table th:first-child, [data-history-page] .history-table td:first-child { width:110px; }
+[data-history-page] .history-table th:nth-child(2), [data-history-page] .history-table td:nth-child(2) { width:110px; }
+[data-history-page] .history-block, [data-history-page] .history-date { font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-3); }
+
 /* ---------------------------------------------------------------- footer */
 .foot { position:relative; z-index:1; border-top:1px solid var(--line); background:var(--panel); }
 .foot-in { max-width:1080px; margin:0 auto; padding:30px 24px 48px; display:grid; gap:16px; }
@@ -389,12 +443,13 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   [data-phase="shipped"] .road-tick { top:7px; left:-28px; width:16px; height:3px; }
   .road-label, .road-group:first-child .road-stop:first-child .road-label, .road-group:last-child .road-stop:last-child .road-label { position:static; width:auto; padding-right:0; transform:none; text-align:left; }
   .road-sprite { left:6px; top:0; transform:translate(-50%,-46%); }
+  :is([data-live-page],[data-history-page]) .wall-cells { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
 /* ---------------------------------------------------------------- narrow */
 @media (max-width:640px) {
   .bar-in { gap:12px 16px; }
-  .nav { margin:0; order:3; flex-basis:100%; gap:9px; font-size:10px; letter-spacing:0.06em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* ten items since chain and run joined the bar; the narrowest rows scroll, and overflow-x is that guard */
+  .nav { margin:0; order:3; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; gap:9px; font-size:10px; letter-spacing:0.06em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* ten items since chain and run joined the bar; the narrowest rows scroll, and overflow-x is that guard */
   .nav::-webkit-scrollbar { display:none; }
   .nav-bar { bottom:0; }
   .cmd-line { grid-template-columns:minmax(0,1fr); }
@@ -403,10 +458,15 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .sec-tool .launch-check { flex-basis:auto; }
   .band-in { padding:13px 24px; gap:10px 12px; }
   .band-address { font-size:12px; }
+  .lore { grid-template-columns:minmax(0,1fr); }
   .lore-card { padding-left:14px; }
   .lore-card[data-lore-mark] { grid-template-columns:minmax(0,1fr); gap:12px; }
   .lore-card[data-lore-mark] .sprite { grid-row:auto; }
   .sprite-l { width:48px; height:48px; }
   .cells-run { grid-template-columns:minmax(0,1fr); }
   .cells-run .cmd-line code, .cells-run-wide .cmd-line code { font-size:13px; }
+  :is([data-live-page],[data-history-page]) .live-nav { order:initial; flex-basis:auto; margin-left:auto; width:auto; }
+  :is([data-live-page],[data-history-page]) .wall-cells { grid-template-columns:minmax(0,1fr); }
+  :is([data-live-page],[data-history-page]) .wall-table { min-width:520px; }
+  :is([data-live-page],[data-history-page]) .wall-table th, :is([data-live-page],[data-history-page]) .wall-table td { padding-left:16px; padding-right:16px; }
 }

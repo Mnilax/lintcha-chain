@@ -1,24 +1,27 @@
 // Every sentence the bot can say. English only: the room is English, and no i18n table is opened for it.
 //
-// The five texts of specification section eight are here word for word. Two things about how they are stored,
-// both of them deliberate and both named in the report rather than done quietly:
+// The five texts of specification section eight are the source here. Three deliberate storage/product-boundary
+// choices are named rather than made quietly:
 //
 //   1. The specification wraps its prose at about seventy characters because it is a plain text document.
 //      Telegram reflows, so a hard break inside a sentence would render as ragged verse on a phone. The
 //      wrapped prose lines are therefore joined into one paragraph each. Blank lines are kept, and every
-//      line of a list stays its own line. Not one word is changed, added or removed inside those texts.
+//      line of a list stays its own line. The prose sentences are not rewritten.
 //
 //   2. START carries one paragraph that section eight does not contain: the one about sells. It is not an
 //      improvement of the text and it does not touch it; it is appended after it, because the round's
-//      instruction makes saying it a condition rather than a wish. It is the only addition anywhere in
-//      this file, and it is the last paragraph of the message so the borrowed text reads uninterrupted.
+//      instruction makes saying it a condition rather than a wish. It is the last paragraph of the message
+//      so the borrowed prose reads uninterrupted.
+//
+//   3. The ordered-buyer command is absent from START. A biggest-buyers list is an ordering, and the site's
+//      product boundary forbids ordering. Keeping the command would make the code contradict the page.
 
 // The one import in this file, and it is here for a reason worth naming: a rule carries a string its owner
 // typed, and every message goes out with Telegram's HTML parse mode. An unescaped angle bracket in somebody's
 // rule would either render as markup or be refused by the api as a broken entity, which would lose them the
 // message their rule exists to deliver. So the escaping happens where the sentence is assembled and not at
 // each call site, because a call site can forget.
-import { esc, code } from "./telegram.js";
+import { esc, code, TELEGRAM_TEXT_LIMIT } from "./telegram.js";
 
 /** the site's own pages, and the repository the bot ships in */
 export const SITE = "https://chain.lintcha.com/";
@@ -26,14 +29,13 @@ export const REPO = "https://github.com/Mnilax/lintcha-chain";
 export const TOKEN_JSON = "https://chain.lintcha.com/token.json";
 export const HOLD_PAGE = "https://chain.lintcha.com/hold";
 
-// ---------------------------------------------------------------- section eight, word for word
+// ---------------------------------------------------------------- section eight source, with the invariant edits above
 
 const START_AS_GIVEN = [
   "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is the room's half of that: it reads the chain and answers, and it does nothing else.",
   "",
   "/ca — the contract",
   "/price — price and market cap",
-  "/top — the biggest buyers since the feed went up",
   "/stats — what the feed has seen",
   "/site — the site, the repository, the chart",
   "",
@@ -69,8 +71,15 @@ export const VERIFY_INTRO = [
   "Come back here when you have signed. I check every few seconds."
 ].join("\n");
 
-/** The sentence a holder signs. One altered character recovers a different address, so this string is load bearing. */
-export const SENTENCE = "I am proving to the lintcha bot that this wallet is mine. This signature moves nothing, approves nothing and spends nothing.";
+/**
+ * The sentence a holder signs. Its origin and one-time mark are part of the signed bytes, so a signature made
+ * for this page cannot be replayed against a second /verify link or quietly moved to another site. The two
+ * constants are mirrored by site/hold/hold.js and bot/test/texts_test.mjs fails on any drift.
+ */
+export const HOLDER_ORIGIN = "https://chain.lintcha.com";
+export const SENTENCE_BEFORE_MARK = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://chain.lintcha.com and one-time mark ";
+export const SENTENCE_AFTER_MARK = ". This signature moves nothing, approves nothing and spends nothing.";
+export const sentenceFor = mark => SENTENCE_BEFORE_MARK + String(mark) + SENTENCE_AFTER_MARK;
 
 export const NO_TOKEN_YET = "$LINTCHA does not exist yet. When it does, its address will be on the site and this command will answer. Nothing here is a presale and there is no list to join.";
 
@@ -93,9 +102,13 @@ export const NO_SESSION = [
 
 export const PRIVATE_ONLY = "This one only works in a direct message. Send it to me there.";
 
-export const FORGOTTEN = "Dropped. The address is gone from my side; sign again with /verify whenever you like.";
+export const FORGOTTEN = "Removal requested. The watcher confirmed that all of your saved rules were removed, and the wallet-address store accepted its deletion. That store can briefly serve an older cached copy, so I will not claim the address vanished everywhere at once. A message already being sent cannot be recalled. Use /verify whenever you want to start again.";
 
-export const NOTHING_FORGOTTEN = "There was nothing to drop.";
+export const FORGET_RULES_UNCONFIRMED = "The wallet-address store accepted its deletion, but the watcher did not confirm removal of your saved rules. Retry /forget. The address store can briefly serve an older cached copy, so a rule may remain active until the retry succeeds.";
+
+export const FORGET_SESSION_UNCONFIRMED = "The watcher confirmed that all of your saved rules were removed, but the wallet-address store did not confirm the deletion request. The address will still expire on its original schedule. Retry /forget.";
+
+export const FORGET_UNCONFIRMED = "I could not confirm either the wallet-address deletion request or removal of your saved rules. Retry /forget.";
 
 export const SESSION_DONE = "Checked. That wallet holds enough, and I will remember the address for three days and nothing else about it.";
 
@@ -115,9 +128,9 @@ export const NEVER = [
 
 /** /site. The chart is only named when the site names it, which is the same rule the page follows. */
 export function siteText(token) {
-  const lines = ["The site: " + SITE, "The repository: " + REPO];
-  if (token && token.pons) lines.push("The chart: " + token.pons);
-  if (token && token.uniswap) lines.push("Also trading: " + token.uniswap);
+  const lines = ["The site: " + esc(SITE), "The repository: " + esc(REPO)];
+  if (token && token.pons) lines.push("The chart: " + esc(token.pons));
+  if (token && token.uniswap) lines.push("Also trading: " + esc(token.uniswap));
   if (!token || (!token.pons && !token.uniswap)) lines.push("There is no chart to link yet; when there is, the site will carry it first.");
   return lines.join("\n");
 }
@@ -160,6 +173,7 @@ export const RULE_HELP = [
   "/rule shared <count> — a ticker already carried by that many launches or more",
   "/rules — your rules, and what I have read",
   "/unrule <number> — drop one, by the number /rules gives it",
+  "/unrule all — drop all of your saved rules",
   "",
   "When one matches I say what matched, with what, and how many launches carry it. I do not say whether that is good or bad, and there is no plan for me to start."
 ].join("\n");
@@ -177,12 +191,15 @@ export const RULE_NEEDS_ADDRESS = "A dev rule takes an address, forty hex charac
 export const RULE_NEEDS_COUNT = "A shared rule takes a whole count, two or more. One launch carrying a ticker is the launch itself, so one would fire on everything.";
 
 export const RULE_LIMIT_REACHED = "You are at your limit for rules. Drop one with /unrule and this one will fit.";
+export const RULE_CAPACITY_REACHED = "The rule store is at its overall limit just now. Your existing rules still work, and you can list or remove them with /rules and /unrule.";
 
-export const UNRULE_NEEDS_NUMBER = "/unrule takes the number /rules gives a rule. Send /rules to see them.";
+export const UNRULE_NEEDS_NUMBER = "/unrule takes the number /rules gives a rule, or the word all. Send /rules to see them.";
 
 export const UNRULE_NOT_YOURS = "You have no rule with that number. /rules shows the ones you do have, and I only ever remove your own.";
 
 export const UNRULE_DONE = "Dropped. I will not write to you about that one again.";
+
+export const UNRULE_ALL_DONE = "Removed all of your saved rules. A message already being sent cannot be recalled.";
 
 export const RULES_NOT_UP = "The watcher is not up, so I cannot keep a rule for you yet. Nothing is queued and nothing is lost: send this again when it is.";
 
@@ -195,7 +212,7 @@ export const ruleLine = (n, rule) => n + ". " + esc(rule.kind) + " " + esc(rule.
  * What a rule owner is told when one matches.
  *
  * data:
- *   { kind, arg, where, indexState, indexCount, tailCount, block, address, txUrl }
+ *   { kind, arg, where, indexState, indexCount, tailCount, tailScope, block, address, txUrl }
  *
  * The published index has three answers about a value and they get three sentences, because collapsing them
  * would be the exact thing this project's front page argues against:
@@ -213,7 +230,7 @@ export function ruleHitText(data) {
     "Rule: " + esc(d.kind) + " " + esc(d.arg),
     "Matched: " + esc(d.where)
   ];
-  const since = d.tailCount + " since I started reading";
+  const since = d.tailCount + (d.tailScope === "after_snapshot" ? " after the published snapshot" : " in the currently retained tail");
   if (d.kind === "dev") {
     lines.push("Launches from that deployer: " + since + ". The published index carries no deployers, so it cannot answer this one and I am not going to pretend it did.");
   } else if (d.indexState === "shared") {
@@ -235,7 +252,16 @@ export function watcherStateText(state) {
   const s = state || {};
   const lines = [];
   lines.push("I have read " + LAUNCH_LOG + " up to block " + (s.lastBlock === null || s.lastBlock === undefined ? "nothing yet" : s.lastBlock) + ".");
-  if (s.launches !== undefined) lines.push("Launches in the tail: " + s.launches + ", kept for " + s.depthDays + (Number(s.depthDays) === 1 ? " day" : " days") + ".");
+  if (s.launches !== undefined) lines.push("Launches in the tail: " + s.launches + ". Rows reach their pruning age floor at " + s.depthDays + (Number(s.depthDays) === 1 ? " day" : " days") + " and stay until the published snapshot covers their block.");
+  if (Number.isSafeInteger(s.ruleDeliveryBacklog) && Number.isSafeInteger(s.ruleDeliveryCapacity)) {
+    lines.push("Pending rule notifications: " + s.ruleDeliveryBacklog + " of the durable capacity " + s.ruleDeliveryCapacity + ".");
+  }
+  if (Number.isSafeInteger(s.ruleDeliveryBlockedAt)) {
+    lines.push("The launch cursor is paused before block " + s.ruleDeliveryBlockedAt + " while that durable backlog drains. The same uncommitted range will be read again.");
+  }
+  if (Number.isSafeInteger(s.launchOverflowBlock)) {
+    lines.push("Block " + s.launchOverflowBlock + " carries more launch events than one bounded beat can inspect, so the cursor remains before it rather than consuming a partial page.");
+  }
   if (s.gaps) lines.push("Times my reading stopped and had to be restarted: " + s.gaps + ". A rule cannot match a launch I did not read, so that number is here rather than left out.");
   return lines.join("\n");
 }
@@ -256,13 +282,45 @@ export function ruleAddedText(number, rule, count, limit) {
   ].join("\n");
 }
 
-/** A person's own rules, and what the watcher has actually read. */
-export function rulesListText(rules, state) {
+/** A person's own rules, and what the watcher has actually read, split into sendMessage-sized pages. */
+export function rulesListTexts(rules, state) {
   const list = Array.isArray(rules) ? rules : [];
-  if (!list.length) return [RULES_EMPTY, "", watcherStateText(state)].join("\n");
-  const lines = ["Your rules:", ""];
-  list.forEach((r, i) => lines.push(ruleLine(i + 1, r)));
-  lines.push("", watcherStateText(state));
-  lines.push("", "/unrule with one of those numbers drops it. /rules is the only place they are listed, and only to you.");
-  return lines.join("\n");
+  if (!list.length) return [[RULES_EMPTY, "", watcherStateText(state)].join("\n")];
+
+  const tail = [
+    watcherStateText(state),
+    "",
+    "/unrule with one of those numbers drops it; /unrule all drops every saved rule of yours. /rules is the only place they are listed, and only to you."
+  ].join("\n");
+
+  // A page count cannot exceed one page per rule plus a final state page. Reserve the widest possible header
+  // before splitting so adding the real page numbers afterwards cannot push a legal page over the wire limit.
+  const widest = String(list.length + 1).length;
+  const reservedHeader = "Your rules (page " + "9".repeat(widest) + " of " + "9".repeat(widest) + "):\n\n";
+  const bodyLimit = TELEGRAM_TEXT_LIMIT - reservedHeader.length;
+  const bodies = [];
+  let lines = [];
+  let length = 0;
+  for (let i = 0; i < list.length; i++) {
+    const line = ruleLine(i + 1, list[i]);
+    const added = line.length + (lines.length ? 1 : 0);
+    if (lines.length && length + added > bodyLimit) {
+      bodies.push(lines.join("\n"));
+      lines = [];
+      length = 0;
+    }
+    lines.push(line);
+    length += line.length + (lines.length > 1 ? 1 : 0);
+  }
+  if (lines.length) bodies.push(lines.join("\n"));
+
+  const joinedTail = "\n\n" + tail;
+  if (bodies.length && bodies[bodies.length - 1].length + joinedTail.length <= bodyLimit) {
+    bodies[bodies.length - 1] += joinedTail;
+  } else {
+    bodies.push(tail);
+  }
+
+  if (bodies.length === 1) return ["Your rules:\n\n" + bodies[0]];
+  return bodies.map((body, i) => "Your rules (page " + (i + 1) + " of " + bodies.length + "):\n\n" + body);
 }

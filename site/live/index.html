@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live launch names and tickers — lintcha</title>
+<meta name="description" content="The self-declared name and ticker of launches read after lintcha's published snapshot, with coverage and freshness stated.">
+<link rel="canonical" href="https://chain.lintcha.com/live/">
+<meta name="robots" content="index,follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Live launch names and tickers — lintcha">
+<meta property="og:description" content="The self-declared name and ticker of launches read after lintcha's published snapshot, with coverage and freshness stated.">
+<meta property="og:image" content="https://chain.lintcha.com/og.png">
+<meta property="og:url" content="https://chain.lintcha.com/live/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Live launch names and tickers — lintcha">
+<meta name="twitter:description" content="The self-declared name and ticker of launches read after lintcha's published snapshot, with coverage and freshness stated.">
+<meta name="twitter:image" content="https://chain.lintcha.com/og.png">
+<link rel="icon" type="image/png" href="/icon-32.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/launch.css">
+<link rel="stylesheet" href="/chain.css">
+</head>
+<body data-page="chain" data-live-page>
+<div class="wash" aria-hidden="true"><div class="wash-l"></div><div class="wash-r"></div></div>
+<header class="topbar">
+  <div class="bar-in">
+    <a class="brand" href="/" aria-label="lintcha comparison">
+      <span class="mark" aria-hidden="true"></span>
+      <span class="wordmark">lintcha</span>
+    </a>
+    <nav class="nav live-nav" aria-label="Pages">
+      <a href="/">comparison</a>
+      <a href="/#s10">method</a>
+      <a href="/deployer/">deployer</a>
+      <span class="live-nav-current" aria-current="page">live</span>
+    </nav>
+    <div class="cluster"><a class="out" href="https://github.com/Mnilax/lintcha-chain" rel="noopener" target="_blank"><span>GitHub</span><span class="arrow" aria-hidden="true">↗</span></a></div>
+  </div>
+</header>
+<div class="strip">
+  <div class="strip-in">
+    <span>Robinhood Chain</span><span class="strip-dot" aria-hidden="true">·</span><span>self-declared name and ticker only</span>
+    <span class="strip-live"><span class="badge badge-notdata" data-wall-badge>connecting</span></span>
+  </div>
+</div>
+
+<main id="top" class="page live-page" data-wall aria-busy="true">
+  <section class="hero live-hero">
+    <p class="kicker">post-snapshot wall</p>
+    <h1 class="hero-h1">Live launch names<br><span class="hero-l2">and tickers.</span></h1>
+    <p class="hero-intro">What launches call themselves as the factory log arrives. This wall reads two strings and nothing else.</p>
+    <p class="hero-privacy">It does not inspect a contract, calculate a price, follow a wallet or make a judgment. The weekly comparison remains a separate snapshot with its own exact window.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="wall-coverage-title">
+    <div class="sec-head"><span class="num" aria-hidden="true">↳</span><h2 class="sec-h" id="wall-coverage-title">Coverage</h2></div>
+    <div class="cells wall-cells">
+      <div class="cell"><span class="badge badge-snapshot">snapshot</span><div class="cell-v" data-wall-snapshot>—</div><div class="cell-l">published through block</div></div>
+      <div class="cell"><span class="badge badge-live">watcher</span><div class="cell-v" data-wall-watcher>—</div><div class="cell-l">last finalized block read through</div></div>
+      <div class="cell"><span class="badge badge-notdata">gap</span><div class="cell-v" data-wall-gap>—</div><div class="cell-l">blocks between snapshot and watcher start</div></div>
+      <div class="cell"><span class="badge badge-notdata">freshness</span><div class="cell-v" data-wall-freshness>—</div><div class="cell-l">last complete watcher read</div></div>
+    </div>
+    <p class="sec-p wall-gap-note" data-wall-gap-note>Coverage is being checked before any row is shown.</p>
+    <div class="wall-controls">
+      <button type="button" class="btn-quiet" data-wall-pause disabled aria-pressed="false">Pause updates</button>
+      <button type="button" class="btn-quiet" data-wall-retry hidden>Retry</button>
+    </div>
+    <p class="wall-state" role="status" aria-live="polite" aria-atomic="true" data-wall-status>Reading this site's wall endpoint.</p>
+  </section>
+
+  <section class="sec" aria-labelledby="wall-rows-title">
+    <div class="sec-head"><span class="num" aria-hidden="true">↳</span><h2 class="sec-h" id="wall-rows-title">Declarations</h2></div>
+    <p class="sec-p">The newest verified page arrives first. Factory-log chronology is preserved inside every page; it is not a ranking, and duplicates stay duplicated. Rows contain no launch address, deployer, transaction or timestamp.</p>
+    <div class="wall-find">
+      <label class="wall-search"><span>Filter this loaded page</span><input type="search" data-wall-search autocomplete="off" spellcheck="false" maxlength="200" placeholder="name or ticker"></label>
+      <button type="button" class="btn-quiet" data-wall-older hidden>Load earlier declarations</button>
+    </div>
+    <p class="wall-filter-state" role="status" aria-live="polite" data-wall-filter-state></p>
+    <div class="wall-table-wrap">
+      <table class="wall-table">
+        <caption class="sr-only">Publishable self-declared names and tickers after the snapshot boundary</caption>
+        <thead><tr><th scope="col">Self-declared name</th><th scope="col">Self-declared ticker</th></tr></thead>
+        <tbody data-wall-rows><tr><td class="wall-empty" colspan="2">Waiting for a verified response.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="mono-line wall-hash"><span>page rows sha-256</span> <code data-wall-hash>—</code></p>
+    <p class="sec-p wall-boundary" id="wall-boundary">The hash above is recomputed in this browser from the exact ordered rows in the response. Live deltas are also checked against the hash of the bounded page they would produce before the table changes. A mismatched response is not displayed. Open either field to restore both strings in Read; Read never starts on its own.</p>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="foot-in">
+    <div class="foot-links"><a href="/">weekly comparison</a><a href="/deployer/">deployer history</a><a href="/#s10">method</a><a href="https://github.com/Mnilax/lintcha-chain" rel="noopener" target="_blank">repository</a></div>
+    <p class="foot-p">Two self-declared strings, their coverage and their reproducible row hash. Nothing here is a verdict.</p>
+  </div>
+</footer>
+<script src="/live/live.js"></script>
+</body>
+</html>

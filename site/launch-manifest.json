@@ -1,0 +1,22 @@
+{
+  "schema": "lintcha-chain/published-manifest/v1",
+  "index": {
+    "sha256": "fd3e40d53697d5d4d296939eb94f8aca50a9ac4e08f7d441d91f6a83ce230748",
+    "bytes": 1381421,
+    "entries": {
+      "link": 4894,
+      "logo": 2709,
+      "recipient": 137,
+      "description": 630,
+      "ticker": 4040,
+      "name": 4063,
+      "ticker_skeleton": 4065,
+      "name_skeleton": 4083
+    },
+    "entries_total": 24621
+  },
+  "numbers": {
+    "sha256": "ee3c21833400c8f622b307dc83ea3c8292db202e703d1b510f6282a9b485f3c8",
+    "bytes": 1511
+  }
+}

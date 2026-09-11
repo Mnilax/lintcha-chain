@@ -8,7 +8,14 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node test/keccak_test.mjs && node test/verify_test.mjs && node test/router_test.mjs && node test/webhook_test.mjs && node test/chain_test.mjs && node test/tape_test.mjs && node test/texts_test.mjs && node test/engine_test.mjs && node test/rules_test.mjs && node test/watch_test.mjs && node test/tail_test.mjs && node test/rules_router_test.mjs",
-    "verify-tail": "node tools/verify-tail.mjs"
+    "test": "node test/keccak_test.mjs && node test/nonce_test.mjs && node test/verify_test.mjs && node test/router_test.mjs && node test/webhook_test.mjs && node test/chain_test.mjs && node test/tape_test.mjs && node test/texts_test.mjs && node test/predeploy_test.mjs && node test/engine_test.mjs && node test/rules_test.mjs && node test/watch_test.mjs && node test/tail_test.mjs && node test/wall_test.mjs && node test/history_test.mjs && node test/rules_router_test.mjs",
+    "verify-tail": "node tools/verify-tail.mjs",
+    "check-config": "node tools/predeploy.mjs",
+    "bundle": "node tools/bundle.mjs",
+    "predeploy": "npm run check-config && npm test && npm run bundle",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.131.0"
   }
 }

@@ -41,7 +41,7 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 
 Files this repository writes itself. Paths only, never hashed: verify-vendor requires every file under a vendored
 directory to be in the table above or in this list, and reports a file in neither. Code is vendored, data is
-generated here: the index and the numbers file are rebuilt weekly by launch-refresh.yml and live in this list.
+generated here: the index and the numbers file are rebuilt only by a deliberately dispatched launch-refresh.yml and live in this list.
 
 A path is added here in the same commit that creates the file.
 
@@ -69,14 +69,31 @@ A path is added here in the same commit that creates the file.
 - `tools/build-viz.mjs`
 - `tools/build-method.mjs`
 - `tools/verify-index.mjs`
+- `tools/collection-guard.mjs`
 - `tests/chain_token_states.mjs`
+- `tests/live_wall_test.mjs`
 - `site/icon-32.png`
 - `site/icon-180.png`
 - `site/icon-512.png`
 - `site/og.png`
 - `site/launch-site.json`
+- `site/launch-manifest.json`
 - `site/mark-acid.png`
 - `site/sitemap.xml`
 - `site/links.json`
 - `site/hold/index.html`
 - `site/hold/hold.js`
+- `site/live/index.html`
+- `site/live/live.js`
+- `site/deployer/index.html`
+- `site/deployer/deployer.js`
+- `lib/config-contract.mjs`
+- `lib/published-contract.mjs`
+- `lib/identity.mjs`
+- `tools/identity.mjs`
+- `fixtures/identity-conformance.json`
+- `tests/identity_cli_test.mjs`
+- `tests/deployer_history_test.mjs`
+- `tests/config_contract_test.mjs`
+- `tests/published_contract_test.mjs`
+- `tests/collection_guard_test.mjs`

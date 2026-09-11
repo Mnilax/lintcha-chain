@@ -7,16 +7,17 @@
 //   round, not a preference, and section eight's own text does not contain it, so it is checked separately
 //   from the borrowed words it follows.
 //
-//   The sentence a holder signs is identical in bot/src/texts.js and in site/hold/hold.js. There is no build
-//   step under site/, so nothing else keeps those two strings together, and one different space would mean the
-//   worker recovers a stranger's address and refuses an honest holder.
+//   The origin- and nonce-bound sentence a holder signs is byte-identical in bot/src/texts.js and in
+//   site/hold/hold.js. There is no build step under site/, so nothing else keeps those two constructions
+//   together, and one different space would mean the worker recovers a stranger's address.
 //
 //   node test/texts_test.mjs
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as T from "../src/texts.js";
-import { harness } from "./fakes.mjs";
+import { link } from "../src/telegram.js";
+import { harness, FIXTURE } from "./fakes.mjs";
 
 const t = harness("texts");
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -24,6 +25,8 @@ const repo = path.resolve(here, "..", "..");
 
 const words = s => String(s).trim().split(/\s+/);
 const sameWords = (a, b) => words(a).join(" ") === words(b).join(" ");
+t.ok(link("<open>", 'https://example.invalid/\" onclick=\"bad') === '<a href="https://example.invalid/&quot; onclick=&quot;bad">&lt;open&gt;</a>', "Telegram link text and quoted href attribute are escaped independently");
+t.ok(T.siteText({ pons: "https://example.invalid/?x=&lt;tag&gt;", uniswap: null }).includes("?x=&amp;lt;tag&amp;gt;"), "a plain chart URL cannot become an HTML entity in Telegram parse mode");
 
 // ---------------------------------------------------------------- section eight, word for word
 const GIVEN = {
@@ -33,7 +36,6 @@ const GIVEN = {
 
     /ca — the contract
     /price — price and market cap
-    /top — the biggest buyers since the feed went up
     /stats — what the feed has seen
     /site — the site, the repository, the chart
 
@@ -74,12 +76,13 @@ t.ok(startWords.length > givenStartWords.length, "and then says something more")
 
 t.ok(sameWords(T.GREETING, GIVEN.greeting), "the room greeting is word for word");
 t.ok(sameWords(T.VERIFY_INTRO, GIVEN.verify), "the /verify text is word for word");
-t.ok(sameWords(T.SENTENCE, GIVEN.sentence), "the signed sentence is word for word");
+t.ok(T.sentenceFor(FIXTURE.nonce).startsWith("I am proving to the lintcha bot that this wallet is mine. "), "the signed message keeps the proof sentence word for word");
+t.ok(T.sentenceFor(FIXTURE.nonce).endsWith(" This signature moves nothing, approves nothing and spends nothing."), "the signed message keeps the safety sentence word for word");
 t.ok(sameWords(T.NO_TOKEN_YET, GIVEN.noToken), "the no token text is word for word");
 
 // the shape of the two that are lists as well as prose
 t.ok(T.START.includes("/ca — the contract"), "/start keeps each command on its own line");
-t.ok(T.START.split("\n").filter(l => l.startsWith("/")).length === 7, "seven command lines in /start: five for the room and two for a holder");
+t.ok(T.START.split("\n").filter(l => l.startsWith("/")).length === 6, "six command lines in /start: four for the room and two for a holder");
 t.ok(T.GREETING.includes("\n\n/ca for the contract"), "the greeting keeps its last line apart");
 
 // ---------------------------------------------------------------- the sells disclosure, and where it sits
@@ -91,16 +94,42 @@ t.ok(/choice about which facts reach you/.test(T.START), "/start gives the reaso
 t.ok(T.START.indexOf("The feed posts buys") > T.START.indexOf("read from the chain, and its code is in the repository"),
   "and it comes after the borrowed text, not inside it");
 
-// ---------------------------------------------------------------- the sentence, in both places it lives
+// ---------------------------------------------------------------- the origin- and mark-bound sentence, in both places it lives
 const holdPage = fs.readFileSync(path.join(repo, "site", "hold", "hold.js"), "utf8");
-const m = /var SENTENCE = "((?:[^"\\]|\\.)*)";/.exec(holdPage);
-t.ok(!!m, "site/hold/hold.js declares the sentence in one place a test can find");
-if (m) {
-  const onPage = JSON.parse('"' + m[1] + '"');
-  t.ok(onPage === T.SENTENCE, "and it is identical to the one the worker recovers against");
+const holdHtml = fs.readFileSync(path.join(repo, "site", "hold", "index.html"), "utf8");
+const pageLiteral = name => {
+  const m = new RegExp("var " + name + " = \\\"((?:[^\\\"\\\\]|\\\\.)*)\\\";").exec(holdPage);
+  return m ? JSON.parse('"' + m[1] + '"') : null;
+};
+const pageOrigin = pageLiteral("HOLDER_ORIGIN");
+const pageBefore = pageLiteral("SENTENCE_BEFORE_MARK");
+const pageAfter = pageLiteral("SENTENCE_AFTER_MARK");
+t.ok(pageOrigin === T.HOLDER_ORIGIN, "the page pins the same production origin as the worker");
+t.ok(pageBefore === T.SENTENCE_BEFORE_MARK && pageAfter === T.SENTENCE_AFTER_MARK, "the page carries the same exact sentence bytes around the mark");
+t.ok(holdPage.includes('window.location.origin !== HOLDER_ORIGIN') && holdPage.includes('window.location.hostname === "127.0.0.1"'), "the signing page refuses a non-production origin while retaining the loopback browser harness");
+if (pageBefore !== null && pageAfter !== null) {
+  t.ok(pageBefore + FIXTURE.nonce + pageAfter === T.sentenceFor(FIXTURE.nonce), "page and worker build the same message for one known mark");
 }
-t.ok(fs.readFileSync(path.join(repo, "site", "hold", "index.html"), "utf8").indexOf("<script src=") > 0, "the page loads its script from a file");
-t.ok(!/<script(?![^>]*\ssrc=)/.test(fs.readFileSync(path.join(repo, "site", "hold", "index.html"), "utf8")), "and carries no inline script, which the vendored CSP would block");
+t.ok(T.sentenceFor(FIXTURE.nonce).includes(T.HOLDER_ORIGIN), "the signed bytes bind the production origin");
+t.ok(T.sentenceFor(FIXTURE.nonce).includes(FIXTURE.nonce), "the signed bytes bind the one-time mark");
+t.ok((T.sentenceFor(FIXTURE.nonce).match(/moves nothing, approves nothing and spends nothing/g) || []).length === 1, "the safety assurance appears exactly once");
+t.ok(/getAll\("t"\)/.test(holdPage), "the page sees duplicate mark parameters instead of choosing one silently");
+t.ok(/marks\.length === 1 && \/\^\[0-9a-f\]\{32\}\$\//.test(holdPage), "the page accepts exactly one canonical generated mark");
+t.ok(/why === "rate_limited"[\s\S]*this link has not been used/.test(holdPage), "the page says a locally limited request did not spend its one-time mark");
+t.ok(/signBtn\.disabled = why !== "rate_limited" && why !== "shape"/.test(holdPage), "the page only offers the same mark again after a failure that happened before the atomic take");
+t.ok(/holder session was saved/.test(holdPage) && !/bot has answered/.test(holdPage), "the page confirms the completed session write without claiming the background Telegram send succeeded");
+t.ok(holdHtml.indexOf("<script src=") > 0, "the page loads its script from a file");
+t.ok(!/<script(?![^>]*\ssrc=)/.test(holdHtml), "and carries no inline script, which the vendored CSP would block");
+
+// ---------------------------------------------------------------- the holder threshold, everywhere a person reads it
+const thresholdWords = "five hundred thousand";
+t.ok(T.VERIFY_INTRO.includes("Needed: " + thresholdWords + " $LINTCHA."), "the bot states the executable holder threshold in words");
+t.ok(holdHtml.includes("Needed: " + thresholdWords + " $LINTCHA."), "the holder page states the same threshold before the wallet opens");
+t.ok(holdPage.includes("does not hold " + thresholdWords + " $LINTCHA"), "the holder page states the same threshold after a low balance");
+t.ok(!/one million/i.test(holdHtml + "\n" + holdPage), "the holder page carries no stale threshold");
+
+const watcherState = T.watcherStateText({ lastBlock: 10, launches: 2, depthDays: 7, gaps: 0 });
+t.ok(/pruning age floor/.test(watcherState) && /until the published snapshot covers their block/.test(watcherState), "watcher state does not mistake an age floor for guaranteed retention");
 
 // ---------------------------------------------------------------- what the bot does not do
 t.ok(T.NEVER.length === 6, "six absences, as section seven lists them");

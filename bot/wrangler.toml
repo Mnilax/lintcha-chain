@@ -13,21 +13,25 @@
 name = "lintcha-chain-api"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
+# Keep the API on the route below; do not also publish an accidental workers.dev hostname.
+workers_dev = false
 
 # The flag is here for exactly one reason, and it is worth writing down rather than leaving to be discovered.
 #
 # The watcher counts string matches with site/launch.js, the page's own engine, loaded and never copied. That
 # file is vendored and may not be edited, and it is a UMD factory: when a bundler gives it `module` and
 # `exports` it takes its own require branch, and that branch calls require("crypto") and Buffer.from. So the
-# bundle needs the node builtins to resolve, and this is the flag that resolves them. Nothing written in bot/
-# imports a node builtin: the limiter, the hash and the curve are still written against the platform's own
-# fetch, crypto.getRandomValues and BigInt.
+# bundle needs the node builtins to resolve, and this is the flag that resolves them. No authored Worker module
+# under bot/src/ imports a node builtin (local tests and build tools may): the limiter, the hash and the curve
+# are still written against the platform's own fetch, crypto.getRandomValues and BigInt.
 #
 # Both branches of that file hash a value to the same bytes — sha256 of the utf-8, cut to the same sixteen hex
 # characters by the same line — so which branch runs changes nothing about what the tail counts.
 #
-# If a wrangler version refuses to resolve the unprefixed name, the fix is an alias here and not an edit
-# there:
+# Wrangler is not a Worker runtime dependency. package.json pins it exactly at 4.131.0 as the sole dev
+# dependency, and package-lock.json pins the resolved tooling tree; that is the version this config and bundle
+# are tested with. If a future, deliberately updated Wrangler refuses to resolve the unprefixed name, the fix
+# is an alias here and not an edit there:
 #     [alias]
 #     crypto = "node:crypto"
 compatibility_flags = ["nodejs_compat"]
@@ -38,30 +42,36 @@ compatibility_flags = ["nodejs_compat"]
 pattern = "chain.lintcha.com/api/*"
 zone_name = "lintcha.com"
 
-# The mark and the session. Nothing else is ever written here, and both keys carry their own expiry.
+# Holder sessions only: session:<telegram id> -> signed address, with a three-day KV expiry. One-time marks do
+# not live in eventual-consistency KV; Watch stores and atomically consumes them in its SQLite holder_nonce
+# table. No signature, failed-holder address, purchase history or IP is written to this namespace.
 [[kv_namespaces]]
 binding = "SESSIONS"
 id = "REPLACE_WITH_THE_LINTCHA_CHAIN_SESSIONS_NAMESPACE_ID"
 
-# The feed. One instance, reached by a fixed name.
+# The feed. One instance, reached by a fixed name. Its idempotent SQLite schema also owns the durable
+# pending/sent buy-delivery ledger and queued gap notice; this is an existing class and adds no migration tag.
 [[durable_objects.bindings]]
 name = "TAPE"
 class_name = "Tape"
 
-# The watcher: the launch log's live tail, and the rules read against it. A separate object from the feed on
-# purpose — one alarm each, one failure each. The feed sleeping because the site carries no address must not
-# stop the tail, and the watcher standing still because the endpoint is unreachable must not stop the feed.
+# The watcher: the launch log's live tail, the rules read against it, the strongly consistent fifteen-minute
+# one-time holder marks, Telegram update dedupe, replay-safe command effects/responses and durable pending/sent
+# rule delivery. Its idempotent SQLite schema creates those tables inside this existing class, and the minute watchdog removes expired nonce and
+# update rows. None adds a Durable Object class or needs a new Wrangler migration tag. Watch remains separate from the
+# feed on purpose — one alarm each, one failure each. The feed sleeping because the site carries no address must
+# not stop the tail, and the watcher standing still because the endpoint is unreachable must not stop the feed.
 [[durable_objects.bindings]]
 name = "WATCH"
 class_name = "Watch"
 
-# A new class has to be SQLite backed, and SQLite backed objects are on the free plan.
+# Both classes use SQLite and already have their migration tags below.
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Tape"]
 
-# The second object gets its own tag. v1 is already applied on the live worker, so the watcher arrives as a
-# new migration rather than as an edit to the one that ran.
+# The second object gets its own tag. Existing deployments add Watch through a new migration rather than
+# rewriting the migration that created Tape.
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Watch"]
@@ -74,37 +84,51 @@ crons = ["* * * * *"]
 [vars]
 # where the room is. Empty until the room exists: with no chat id the feed records buys and posts nothing.
 ROOM_CHAT_ID = ""
+# the exact BotFather username without @. Unsuffixed commands still work; a command suffixed for another bot
+# is ignored. Fill this before deployment so Telegram's group form /command@username can be attributed safely.
+BOT_USERNAME = ""
 
-# the site is the one source of truth about the address, and this is the file it lives in
+# The site is the one source of truth about the address, and this is the file it lives in. Authored code applies
+# a five-second abort and one-kilobyte streamed response ceiling before parsing this small three-field document.
 TOKEN_JSON_URL = "https://chain.lintcha.com/token.json"
 HOLD_PAGE = "https://chain.lintcha.com/hold"
 
-# the public endpoint and the vendored limiter's three numbers, the same ones the collector runs with
+# the public endpoint and the vendored limiter's three pacing numbers, the same ones the collector runs with.
+# Unlike the offline collector, the Worker performs no within-call RPC retry: its durable next beat retries the
+# range, keeping one logical RPC call to one physical external request.
 RPC_URL = "https://rpc.mainnet.chain.robinhood.com"
 RPC_IN_FLIGHT = "2"
 RPC_SPACING_MS = "600"
 RPC_LOGS_SPACING_MS = "1500"
 
-# the feed's beat. Twelve seconds is the start, and it is a setting because seven thousand two hundred
-# wake ups a day is about seven per cent of the free plan's daily writes and that ratio is worth tuning.
+# the feed's beat. Twelve seconds is the start. A shorter interval raises alarm and write volume, so measure
+# the deployed workload and current account limits before tuning it.
 FEED_INTERVAL_MS = "12000"
 # how long a silence has to be before the watchdog says so in the room
 FEED_WATCHDOG_MS = "90000"
 # the most blocks one round will ask for, so a long sleep cannot turn into one enormous eth_getLogs
 FEED_MAX_BLOCKS = "2000"
+# A complete Transfer page above this authored ceiling is retried only at the range's first block. A single
+# overflowing block is recorded as an explicit gap and never consumed as a plausible prefix.
+FEED_MAX_LOGS = "2000"
+# One beat attempts only this many durable room lines. A separate durable window permits at most twenty attempts
+# per sixty seconds, older failures rotate behind untouched work, and the feed drains a remaining backlog before
+# reading another block range.
+FEED_DELIVERY_BATCH = "1"
 
 # Where buys and sells happen. Empty on purpose: with no value the bot reads the curve out of the factory's own
 # record for the token, which is the venue a launch trades against first. After graduation the pool's address
-# cannot be derived from anything in this repository, so it goes here when it is known.
+# cannot be derived from anything in this repository, so it goes here when it is known. A nonempty malformed
+# value fails closed; it is never treated as permission to fall back to another venue.
 FEED_VENUE = ""
 
 # The shape of that venue, for reading a price. The only shape implemented is "v3", meaning a pool that answers
-# slot0(). Empty means the bot has no way to read a price and says so in words instead of printing a number.
+# token0(), token1() and the exact seven-word slot0(). Empty means the bot has no way to read a price and says so
+# in words instead of printing a number. The worker reads both token addresses and both decimals from the chain;
+# orientation and decimal scale are deliberately not deployment settings that could disagree with the pool.
 # There is no price API here and there will not be one: /start promises everything the bot says is read from
 # the chain, and a figure from a third party would make that sentence false.
 VENUE_KIND = ""
-PAIR_DECIMALS = "18"
-TOKEN_IS_FIRST = ""
 
 # The explorer, for the link on a buy line. Empty means the line carries no transaction link rather than a
 # broken one.
@@ -118,25 +142,57 @@ WATCH_INTERVAL_MS = "12000"
 WATCH_WATCHDOG_MS = "90000"
 # the most blocks one round will ask the log for
 WATCH_MAX_BLOCKS = "2000"
-# how far back the tail keeps launches. Anything older is inside the snapshot's window already, and keeping
-# two copies of the same launch would mean two answers to one question.
+# Four launches fit the authored cold-beat request budget even when each needs four contract reads, one header,
+# all three corpus files, the base chain reads, and a full private-delivery drain. An overflowing range gets one
+# bounded retry at its first block; a still-overflowing block remains an explicit gap.
+WATCH_MAX_LAUNCHES = "4"
+# minimum age before a row may be pruned. Age is not proof of coverage: the watcher also requires the
+# published snapshot boundary to cover that row's block, so a delayed refresh cannot punch a silent hole.
 WATCH_DEPTH_DAYS = "7"
 
-# The two published files the watcher reads. The index is the one the page reads, and that is the whole point:
-# a rule reads what the page reads, and no private index exists to read instead. The numbers file is read for
-# one figure, the snapshot's last block, so /api/tail can say where the snapshot ends and where the tail
-# begins instead of implying the two meet.
+# The three published files the watcher reads. The index is the one the page reads, and that is the whole point:
+# a rule reads what the page reads, and no private index exists to read instead. The manifest binds the exact bytes
+# of that index and the numbers file; the latter supplies the snapshot boundary. /api/tail reports where the two
+# ranges meet or have a startup gap; /api/wall also uses
+# it to publish only the strict suffix and returns 503 rather than a stale or incomplete wall when the boundary
+# or current watcher state cannot establish that suffix.
 LAUNCH_INDEX_URL = "https://chain.lintcha.com/launch-index.json"
 LAUNCH_NUMBERS_URL = "https://chain.lintcha.com/launch-numbers.json"
+LAUNCH_MANIFEST_URL = "https://chain.lintcha.com/launch-manifest.json"
 # how long this isolate remembers them. The index is rebuilt weekly, so ten minutes is fresh by a wide margin.
 INDEX_TTL_MS = "600000"
 
-# How long the tail's answer is held and handed out unchanged, and what one isolate will serve per second.
-# The second number is a courtesy and not a guarantee: many isolates run, and a real global limit would need a
-# write per request.
+# How long tail and wall answers are held, and what one isolate will serve per second. Tail responses are
+# versioned block-aligned pages: the code hard-caps each SQLite materialization, and an authenticated cursor binds
+# later pages to the first page's watcher/snapshot epoch and prior commitment. /api/wall has a separate
+# in-isolate bucket but uses TAIL_PER_SECOND when WALL_PER_SECOND is not set, as in this config. The limit is a
+# courtesy and not a guarantee: many isolates run, and a real global limit would need a write per request.
 TAIL_CACHE_MS = "5000"
 TAIL_PER_SECOND = "4"
+# The holder POST has a separate per-isolate courtesy bucket. Origin and media-type checks run before this bucket,
+# and the bucket runs before a request can touch the singleton Watch object. Neither a browser Origin header nor
+# an isolate-local bucket is global admission control; production requires a separately verified dashboard rule.
+HOLD_PER_SECOND = "4"
+
+# Public deployer history is a bounded newest page. The singleton Watch object enforces both the row cap and its
+# own restart-local courtesy limit; the worker route has a separate per-isolate bucket with the same setting.
+HISTORY_PAGE_ROWS = "200"
+HISTORY_PER_SECOND = "2"
 
 # How many rules one holder may keep. A number, not a judgment: it exists because each rule is read against
 # every new launch.
 RULES_PER_HOLDER = "20"
+# A product-wide storage/work ceiling. Existing rules remain listable and removable at the ceiling; only a
+# new add is refused. The authored code also has this value as a hard maximum, so a larger string cannot turn
+# one launch into an unbounded rule scan.
+RULES_TOTAL = "1000"
+# The watcher stops before committing a range when this many private notifications are pending. It drains first
+# and replays the same uncommitted range, so capacity pressure is visible and does not silently skip a match.
+RULE_DELIVERY_TOTAL = "1000"
+# One retry pass reads only this many durable rule notifications. Rows rotate by their last attempt, so a
+# dormant holder at the front cannot permanently hide later live work.
+RULE_DELIVERY_BATCH = "20"
+# Known commands share one durable fixed window per Telegram user. Unknown updates are deduped without
+# spending it, and /forget bypasses it so deleting stored session/rule data remains available.
+TELEGRAM_COMMANDS_PER_WINDOW = "20"
+TELEGRAM_COMMAND_WINDOW_MS = "60000"

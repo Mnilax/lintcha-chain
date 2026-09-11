@@ -4,11 +4,12 @@
 //    both hashes and whether they match. A rerun can differ if the endpoint returns differently under load; the
 //    shipped index is the one whose hash is printed here."
 // So: read site/launch-numbers.json for the block window; run tools/launch-collect.mjs over exactly that window
-// (--from N --to M, the public RPC, no key) into a temporary directory; run tools/launch-index.mjs on what it wrote,
+// (--from N --to M, the public RPC, no key) into a temporary directory; run the owned collection guard, whose
+// strict second chain read must rebuild the exact identity tables and summary; run tools/launch-index.mjs on what it wrote,
 // into that same temporary directory (the tree's site/ is never written); sha256 both indexes; print the shipped
 // hash, the rebuilt hash, and whether they match. The numbers file is not compared and the output says so: it records
 // the run itself, so it differs by design. Exit 0 on a match, 1 on a mismatch, 2 when a step could not run.
-// The only network use is the collector's. Nothing in the tree changes.
+// The network use is the collector plus the guard's independent read of the same range. Nothing in the tree changes.
 //   node tools/verify-index.mjs [--rpc URL] [--keep]      --keep leaves the temporary directory for inspection
 import fs from "node:fs";
 import os from "node:os";
@@ -16,6 +17,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { rpcOverrideAllowed } from "./collection-guard.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -29,6 +31,8 @@ if (!fs.existsSync(shippedIndex) || !fs.existsSync(shippedNumbers)) fail("site/l
 const numbers = JSON.parse(fs.readFileSync(shippedNumbers, "utf8"));
 const w = numbers.window;
 if (!(Number.isInteger(w.from_block) && Number.isInteger(w.to_block) && w.to_block > w.from_block)) fail("the numbers file has no usable block window");
+const rpcOverride = opt("rpc");
+if (rpcOverride && !rpcOverrideAllowed(rpcOverride)) fail("--rpc must be HTTPS with no credentials, query or fragment (plain HTTP is accepted only on loopback for a local harness)");
 const shippedHash = sha(shippedIndex);
 console.log(`window recorded in the numbers file: blocks ${w.from_block} to ${w.to_block} (${w.blocks} blocks), ${w.from_time} to ${w.to_time}`);
 console.log(`shipped index: ${shippedIndex.replace(root + path.sep, "")}, ${fs.statSync(shippedIndex).size} bytes, sha256 ${shippedHash}`);
@@ -36,13 +40,17 @@ console.log(`shipped index: ${shippedIndex.replace(root + path.sep, "")}, ${fs.s
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lintcha-verify-"));
 const collected = path.join(tmp, "launch-window.json");
 const run = (label, args) => {
-  console.log(`\n${label}:\n  node ${args.join(" ")}`);
+  const shown = args.map((value, index) => index > 0 && args[index - 1] === "--rpc" ? "<redacted-rpc>" : value);
+  console.log(`\n${label}:\n  node ${shown.join(" ")}`);
   const r = spawnSync(process.execPath, args, { cwd: root, stdio: "inherit" });
   if (r.status !== 0) fail(`${label} exited ${r.status}; nothing compared`);
 };
 const collectArgs = [path.join("tools", "launch-collect.mjs"), "--from", String(w.from_block), "--to", String(w.to_block), "--out", collected];
-if (opt("rpc")) collectArgs.push("--rpc", opt("rpc"));
+if (rpcOverride) collectArgs.push("--rpc", rpcOverride);
 run("re-running the collector over that window, against the public RPC, no key", collectArgs);
+const guardArgs = [path.join("tools", "collection-guard.mjs"), "--in", collected, "--published", shippedNumbers, "--audit-logs"];
+if (rpcOverride) guardArgs.push("--rpc", rpcOverride);
+run("strictly re-reading and guarding the collection before the writer sees it", guardArgs);
 run("rebuilding the index from what it wrote", [path.join("tools", "launch-index.mjs"), "--in", collected, "--site", tmp]);
 
 const rebuiltIndex = path.join(tmp, "launch-index.json");

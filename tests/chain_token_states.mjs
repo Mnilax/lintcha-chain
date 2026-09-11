@@ -54,6 +54,8 @@ const uniswap = "https://example.invalid/uniswap/" + crypto.randomBytes(4).toStr
 const xAccount = "https://example.invalid/x/" + crypto.randomBytes(4).toString("hex");
 const telegram = "https://example.invalid/telegram/" + crypto.randomBytes(4).toString("hex");
 const X_DEFAULT = "https://x.com/mnilax";   // the account the vendored footer links; the build falls back to it when links.json carries no x
+const shippedNumbers = JSON.parse(fs.readFileSync(path.join(root, "site", "launch-numbers.json"), "utf8"));
+const shippedIndexHash = crypto.createHash("sha256").update(fs.readFileSync(path.join(root, "site", "launch-index.json"))).digest("hex");
 function build(name, tokenJson, linksJson) {
   const dir = path.join(tmp, name); fs.mkdirSync(dir, { recursive: true });
   const tokenFile = path.join(dir, "token.json"); fs.writeFileSync(tokenFile, JSON.stringify(tokenJson));
@@ -79,6 +81,8 @@ ok(count(a, /data-i18n="nav\.telegram"/g) === 0 && count(a, /class="out"/g) === 
 ok(outHrefs(a).length === 2 && outHrefs(a)[1] === X_DEFAULT, "X points at the default account");
 ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are nowhere");
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
+ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 3, "the hero has one three-action start path");
+ok(/class="hero-actions"[\s\S]*?href="#s02"[\s\S]*?href="\/live\/"[\s\S]*?href="#s09"[\s\S]*?<\/nav>/.test(a), "the hero actions lead to read, live names and the local run in that order");
 // The order gained the lore section in round B and the chain block in round C, and each moved every number after it
 // and every anchor with it. All of it is read back off the built page rather than trusted: the bar's anchors have to
 // name sections that are on the page, there have to be as many anchors as items, the numbers they point at have to
@@ -94,12 +98,17 @@ ok(navNums.every((n, i) => i === 0 || Number(n) > Number(navNums[i - 1])), "the 
 ok(secNums.join(" ") === "01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16", "sixteen sections, numbered without a gap");
 ok(count(a, /class="sec sec-chain" id="s03"/g) === 1 && count(a, /data-nav="03" data-i18n="nav\.chain"/g) === 1, "the chain block is section three, and the bar names it there");
 ok(a.indexOf('id="s03"') < a.indexOf('id="s04"') && count(a, /<section class="sec" id="s04"[\s\S]{0,400}data-i18n="reads\.h2"/g) === 1, "the chain block comes before what this reads");
+ok(count(a, /href="https:\/\/docs\.robinhood\.com\/chain\/connecting\/"/g) === 1 && count(a, /data-i18n="chain\.source"/g) === 1, "the chain facts link to Robinhood's official network configuration");
 ok(count(a, /data-nav="09" data-i18n="nav\.run"/g) === 1, "run has a bar item, at section nine");
 ok(count(a, /data-nav="14" data-i18n="nav\.lore"/g) === 1, "lore is the bar item for section fourteen");
 ok(count(a, /class="sec sec-lore" id="s14"/g) === 1, "the lore section is section fourteen");
 ok(a.indexOf('id="s14"') < a.indexOf('id="s15"'), "lore comes before the roadmap");
 ok(count(a, /class="lore-card"/g) === 6, "six lore cards");
 ok(count(a, /class="never"/g) === 1 && count(a, /<li data-i18n="road\.never\.l\d">/g) === 8, "the never list, eight lines");
+ok(count(a, /data-livetile="snapshot"/g) === 1 && a.includes(shippedIndexHash.slice(0, 16)), "the status strip identifies the shipped snapshot by its index key");
+ok(count(a, /data-result-tools/g) === 1 && count(a, /data-share-result/g) === 1 && count(a, /data-copy-receipt/g) === 1 && count(a, /data-download-receipt/g) === 1, "one result context block with share, copy-receipt and download-receipt controls");
+ok(a.includes(`data-window-from="${shippedNumbers.window.from_block}"`) && a.includes(`data-window-to="${shippedNumbers.window.to_block}"`) && a.includes(`data-window-start="${shippedNumbers.window.from_time}"`) && a.includes(`data-window-end="${shippedNumbers.window.to_time}"`) && a.includes(`data-index-hash="${shippedIndexHash}"`), "the result context carries both shipped snapshot boundaries, both times and the full index hash");
+ok(count(a, /data-i18n="faq\.(?:bot_first|signature)\.q"/g) === 2, "the FAQ carries both bot questions");
 ok(a.lastIndexOf('data-i18n="roadmap.close"') > a.lastIndexOf('data-i18n="road.check.p"'), "roadmap.close is still the last thing in the section");
 // the closing angle bracket matters: without it the first pattern also matches the opening tag of cells-run-wide
 ok(count(a, /class="cells cells-run">/g) === 1 && count(a, /class="cells cells-run-wide">/g) === 1, "the run section is three cards and one wide");
@@ -175,6 +184,20 @@ ok(count(tree, /class="contract"|class="buy"|token-sec|class="band"/g) === 0, "s
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
 ok(count(tree, /class="out"/g) === 2 && outHrefs(tree)[1] === X_DEFAULT, "the tree's page links the default X account and carries no telegram item");
+
+// The eight never lines are the product boundary, not ordinary copy. Pin the ordered set in every source language so
+// a wording edit, a missing translation or a reordered line cannot pass merely because eight list items still exist.
+const NEVER_DIGESTS = {
+  en: "67a23b62b12149e602b7b7a397d789ebe98b1b75fd8326579024ba48ab837c97",
+  es: "9142b4ed4fa3fe46194285b21410372c5edd550d7544c1fa4f618fe148b3dee2",
+  pt: "0fdfd3d1028dbec27202cf27ec52ac1e8bfecc4a8025bce94a94bdcd2d052343"
+};
+for (const [lang, expected] of Object.entries(NEVER_DIGESTS)) {
+  const strings = JSON.parse(fs.readFileSync(path.join(root, "src", "i18n-src", `chain.${lang}.json`), "utf8"));
+  const lines = Array.from({ length: 8 }, (_, i) => strings[`road.never.l${i + 1}`]);
+  const actual = crypto.createHash("sha256").update(JSON.stringify(lines)).digest("hex");
+  ok(lines.every(line => typeof line === "string" && line.length > 0) && actual === expected, `${lang}: the eight never lines stay word for word and in order`);
+}
 
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`chain token states: ${checks} checks, ${failures} failure(s)`);

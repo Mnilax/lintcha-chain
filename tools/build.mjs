@@ -1,6 +1,7 @@
 // lintcha-chain build. Node standard library only, no dependency. Reads the templates, substitutes every figure from
 // site/launch-numbers.json and site/launch-index.json, inlines the i18n island, writes the page into site/ (the served
-// directory). One page and a 404; English only is emitted while the i18n machinery stays whole.
+// directory). The comparison and its 404 are generated; the owned live wall stays static. English only is emitted
+// while the i18n machinery stays whole.
 //   node tools/build.mjs [--origin https://your.host] [--token path/to/token.json] [--links path/to/links.json]
 //                        [--out dir] [--preview strings.json]
 // What it does, in order:
@@ -16,7 +17,7 @@
 //     the charts and the ornament (tools/build-viz.mjs), the method tables from the engine (tools/build-method.mjs)
 //   - refuses a digit in the text of a template or in an i18n string of this site (the gate, below)
 //   - writes site/index.html and site/404.html (the same shell around two approved strings, the wordmark and the nav
-//     pointing back at the page), and site/sitemap.xml with the one page under the site's origin
+//     pointing back at the comparison), and site/sitemap.xml with the public comparison, live wall and deployer history
 //   - the origin (canonical, og:url, the sitemap) is read from site/launch-site.json, beside the three lintcha
 //     addresses, so a later move is one file; --origin overrides it for a test
 import fs from "node:fs";
@@ -26,6 +27,8 @@ import { fileURLToPath } from "node:url";
 import { mergeAll } from "./i18n-merge.mjs";
 import { charts, ornament } from "./build-viz.mjs";
 import { loadEngine, normalization, alias, skeleton, indexTable } from "./build-method.mjs";
+import { tokenConfigBytesOf, linksConfigOf } from "../lib/config-contract.mjs";
+import { MANIFEST_SCHEMA, validLaunchIndex } from "../lib/published-contract.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url)), root = path.resolve(here, "..");
 const SRC = path.join(root, "src"), SITE = path.join(root, "site");
@@ -84,9 +87,14 @@ const escText = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").repl
 const inlineJson = obj => JSON.stringify(obj).replace(/<\//g, "<\\/");
 
 // ---------------------------------------------------------------- the figures: every one from launch-numbers.json or the index
-const numbers = JSON.parse(read(path.join(SITE, "launch-numbers.json")));
+const numbersBytes = fs.readFileSync(path.join(SITE, "launch-numbers.json"));
+const numbers = JSON.parse(numbersBytes.toString("utf8"));
 const indexBytes = fs.readFileSync(path.join(SITE, "launch-index.json"));
 const index = JSON.parse(indexBytes.toString("utf8"));
+if (!numbers.index || numbers.index.bytes !== indexBytes.length ||
+    !validLaunchIndex(index, { entries: numbers.index.entries, entries_total: numbers.index.entries_total })) {
+  throw new Error("launch-index.json does not match the published numbers and runtime corpus contract");
+}
 const stamp = iso => iso.slice(0, 10) + " " + iso.slice(11, 16);   // 2026-09-07T10:36:34.000Z -> 2026-09-07 10:36
 // The specimen (section one, stage four): three slots in the diagram that show the shape of a result. They are marked
 // SPECIMEN on the page and carry no badge. A formatted number there read as a live figure (LINTCHA_CHAIN_06, 1.2), so
@@ -95,11 +103,12 @@ const stamp = iso => iso.slice(0, 10) + " " + iso.slice(11, 16);   // 2026-09-07
 const SPECIMEN = { sp_n: "n", sp_d: "d", sp_v: "v" };
 function figures(lang) {
   const nf = new Intl.NumberFormat(lang), w = numbers.window, c = numbers.collector || {};
+  const indexHash = crypto.createHash("sha256").update(indexBytes).digest("hex");
   return Object.assign({
     from_date: w.from_date, to_date: w.to_date, from_block: w.from_block, to_block: w.to_block, from_stamp: stamp(w.from_time), to_stamp: stamp(w.to_time),
     blocks: nf.format(w.blocks), hours: w.hours, chain_id: numbers.chain_id, launches: nf.format(numbers.launches_scanned), collected: numbers.collected,
     min_words: numbers.description_min_words, count_floor: numbers.count_floor, recipient_floor: recipientFloor(),
-    index_hash: crypto.createHash("sha256").update(indexBytes).digest("hex"), index_bytes: nf.format(numbers.index.bytes), index_entries: nf.format(numbers.index.entries_total),
+    index_hash: indexHash, index_short: indexHash.slice(0, 16), index_bytes: nf.format(numbers.index.bytes), index_entries: nf.format(numbers.index.entries_total),
     calls: nf.format(c.calls), limited: nf.format(c.http_429), retries: nf.format(c.retries), errors: nf.format(c.other_errors), seconds: nf.format(c.seconds), in_log: nf.format(c.launches_in_log)
   }, SPECIMEN);
 }
@@ -130,11 +139,13 @@ const engine = loadEngine(SITE);
 //   b. address and a pons link: BUY $LINTCHA (the one filled button on the site) joins the cluster, the contract row
 //      sits under the status strip, section sixteen carries the address, the pons button and the live tiles
 //   c. a uniswap link as well: the outline button arrives beside the pons one; each renders only when its link exists
-const token = JSON.parse(read(TOKEN_FILE));
+const token = tokenConfigBytesOf(fs.readFileSync(TOKEN_FILE));
+if (!token) throw new Error("token.json does not match the shared activation contract");
 // the cluster's two accounts, from one file so a later move is one edit, like the origin: an empty value keeps the
 // address the vendored footer already links (X_URL), a filled one replaces it. A missing telegram is absent from the
 // tree, not a stub: there is no third item at all until the account exists.
-const links = JSON.parse(read(LINKS_FILE));
+const links = linksConfigOf(JSON.parse(read(LINKS_FILE)));
+if (!links) throw new Error("links.json does not match the shared outbound-link contract");
 const outbound = (href, key) => `<a class="out" href="${esc(href)}" rel="noopener" target="_blank"><span data-i18n="${key}"></span><span class="arrow" aria-hidden="true">↗</span></a>`;
 function cluster() {
   const items = [outbound(REPO, "nav.github"), outbound(links.x || X_URL, "nav.x")];
@@ -238,6 +249,8 @@ function render(tplName, lang, extra) {
     charts: landed("viz") ? charts(index, numbers, T, TO, lang) : "", ornament: landed("viz") ? ornament(T) : "",
     method_norm: landed("method") ? normalization(T, engine.L) : "", method_alias: landed("method") ? alias(T, engine.Links) : "",
     method_skeleton: landed("method") ? skeleton(T, engine.Skeleton) : "", method_index: landed("method") ? indexTable(T, numbers, engine.L, nf) : "",
+    window_from: esc(numbers.window.from_block), window_to: esc(numbers.window.to_block),
+    window_start: esc(numbers.window.from_time), window_end: esc(numbers.window.to_time), index_hash: esc(vars.index_hash),
     i18n_json: inlineJson({ lang, strings: i18n[lang], fallback: lang === "en" ? null : i18n.en })
   }, extra || {});
   html = sections(html);
@@ -251,8 +264,29 @@ for (const lang of EMIT) {
   fs.writeFileSync(path.join(OUT, "index.html"), render("shell.html", lang));
   if (fs.existsSync(path.join(SRC, "templates", "404.html"))) fs.writeFileSync(path.join(OUT, "404.html"), render("404.html", lang, { url: abs("/404"), nav: nav("/"), anchor_method: "/#s" + NUM.method }));
 }
-// the sitemap: the one page, absolute, under the origin from launch-site.json; the 404 page is noindex and is not listed
-if (ORIGIN) fs.writeFileSync(path.join(OUT, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${ORIGIN}/</loc></url>\n</urlset>\n`);
+// the sitemap: public pages, absolute, under the origin from launch-site.json; the 404 and holder signing page are
+// not listed. Owned static pages must exist in the output tree before they are advertised.
+if (ORIGIN) {
+  const urls = ["/"];
+  if (fs.existsSync(path.join(OUT, "live", "index.html"))) urls.push("/live/");
+  if (fs.existsSync(path.join(OUT, "deployer", "index.html"))) urls.push("/deployer/");
+  const entries = urls.map(url => `  <url><loc>${ORIGIN}${url}</loc></url>`).join("\n");
+  fs.writeFileSync(path.join(OUT, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`);
+}
+const publishedManifest = {
+  schema: MANIFEST_SCHEMA,
+  index: {
+    sha256: crypto.createHash("sha256").update(indexBytes).digest("hex"),
+    bytes: indexBytes.length,
+    entries: numbers.index.entries,
+    entries_total: numbers.index.entries_total
+  },
+  numbers: {
+    sha256: crypto.createHash("sha256").update(numbersBytes).digest("hex"),
+    bytes: numbersBytes.length
+  }
+};
+fs.writeFileSync(path.join(OUT, "launch-manifest.json"), JSON.stringify(publishedManifest, null, 2) + "\n");
 const out = fs.readFileSync(path.join(OUT, "index.html"));
 const state = !token.address ? "a, off (address null)" : token.uniswap ? "c, pons and uniswap" : token.pons ? "b, pons only" : "address without a buy link";
 const clusterState = `${links.x ? "x from links.json" : "x default"}, ${links.telegram ? "telegram present" : "no telegram"}`;
