@@ -5,7 +5,7 @@
 // launch-index.json was fetched at load, the full run on the tool page (paste every field, read, read again, clear,
 // toggle theme), the index fetched once on the first read and not on the second, the storage keys after the run,
 // the hosts contacted, and every console error.
-//   node tests/chain_browser.mjs [served-dir] [--pages /,/live/,/deployer/,/hold/?t=MARK] [--viewport 390x844] [--port PORT] [--cdp-port PORT] [--browser PATH] [--out build/chain-browser.json]
+//   node tests/chain_browser.mjs [served-dir] [--pages /,/es/,/pt/,/live/,/deployer/,/hold/?t=MARK] [--viewport 390x844] [--port PORT] [--cdp-port PORT] [--browser PATH] [--out build/chain-browser.json]
 // Exit 1 on: a host other than the served origin, the index fetched at load, the first read fetching it other than
 // once, the second read fetching anything, a storage key outside lintcha:theme and lintcha:lang, a session key, a
 // cookie, a database, a cache, a service worker, or a console error. The pasted values are made up and name nobody.
@@ -39,6 +39,12 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535 || !Number.isInteger(CDP
   process.exit(2);
 }
 const ORIGIN = `http://127.0.0.1:${PORT}`;
+const PUBLIC_ORIGIN = JSON.parse(fs.readFileSync(path.join(HERE, "..", "site", "launch-site.json"), "utf8")).origin;
+const COMPARISON_LOCALES = Object.freeze({ "/": "en", "/es/": "es", "/pt/": "pt" });
+const LOCALE_PATHS = Object.freeze({ en: "/", es: "/es/", pt: "/pt/" });
+const LOCALE_STRINGS = Object.fromEntries(Object.keys(LOCALE_PATHS).map(lang => [lang,
+  JSON.parse(fs.readFileSync(path.join(HERE, "..", "src", "i18n-src", `launch.${lang}.json`), "utf8"))
+]));
 const ALLOWED_KEYS = ["lintcha:theme", "lintcha:lang"];
 const INPUT = {
   name: "pons", ticker: "pons",
@@ -108,7 +114,7 @@ const HOLD_MARK = "0123456789abcdef".repeat(2);
 const HOLD_SENTENCE = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://chain.lintcha.com and one-time mark " + HOLD_MARK + ". This signature moves nothing, approves nothing and spends nothing.";
 let liveWallRequests = 0;
 let deployerRequests = 0;
-let launchIndexRequests = 0;
+const launchIndexRequests = new Map();
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json", ".txt": "text/plain; charset=utf-8", ".xml": "application/xml" };
 function serve() {
@@ -117,8 +123,11 @@ function serve() {
       const requestUrl = new URL(req.url, ORIGIN);
       let p = decodeURIComponent(requestUrl.pathname);
       if (p === "/launch-index.json") {
-        launchIndexRequests++;
-        if (launchIndexRequests === 1) {
+        let sourcePath = "/";
+        try { sourcePath = new URL(req.headers.referer || ORIGIN, ORIGIN).pathname; } catch (e) {}
+        const sourceReads = (launchIndexRequests.get(sourcePath) || 0) + 1;
+        launchIndexRequests.set(sourcePath, sourceReads);
+        if (sourceReads === 1) {
           res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
           res.end("{}\n");
           return;
@@ -271,10 +280,20 @@ async function main() {
   const failed = [];
   for (const p of PAGES) {
     const r = { page: p, violations: [] };
+    const pagePath = new URL(p, ORIGIN).pathname;
+    const expectedLocale = COMPARISON_LOCALES[pagePath] || null;
+    const pageTarget = ORIGIN + p + (expectedLocale ? RESTORED_FRAGMENT : "");
+    // A preceding selector contract may have landed on the next requested page with the same fragment. Leave that
+    // document first so Page.navigate performs a real load and the next page keeps an independent request audit.
+    if (await cdp.eval(`location.href === ${JSON.stringify(pageTarget)}`)) {
+      const blankLoad = new Promise(res => { loaded = res; });
+      await cdp.send("Page.navigate", { url: "about:blank" });
+      await blankLoad;
+    }
     await cdp.send("Storage.clearDataForOrigin", { origin: ORIGIN, storageTypes: "all" });
     phase = "load"; const m0 = requests.length, c0 = consoleErrors.length;
     const onLoad = new Promise(res => { loaded = res; });
-    await cdp.send("Page.navigate", { url: ORIGIN + p + (p === "/" ? RESTORED_FRAGMENT : "") });
+    await cdp.send("Page.navigate", { url: pageTarget });
     await onLoad; await settle();
     const loadReqs = since(m0);
     r.load = { requests: loadReqs.length, hosts: hosts(loadReqs), urls: loadReqs.map(x => x.url.replace(ORIGIN, "")), index_fetched: indexFetches(loadReqs), title: await cdp.eval("document.title") };
@@ -290,6 +309,28 @@ async function main() {
     const isLive = await cdp.eval(`!!document.querySelector("[data-live-page]")`);
     const isHistory = await cdp.eval(`!!document.querySelector("[data-history-page]")`);
     const isHold = await cdp.eval(`!!document.querySelector("[data-hold-page]")`);
+    if (hasForm) {
+      r.locale = await cdp.eval(`(function () {
+        var island = document.getElementById("i18n-data"), select = document.querySelector("[data-lang-select]");
+        return {
+          html: document.documentElement.getAttribute("lang"), body: document.body.getAttribute("data-lang"),
+          selected: select && select.value, island: island && JSON.parse(island.textContent).lang,
+          intro: document.querySelector(".hero-intro").textContent,
+          canonical: document.querySelector('link[rel="canonical"]').href,
+          alternates: Array.from(document.querySelectorAll('link[rel="alternate"][hreflang]')).map(function (link) { return [link.getAttribute("hreflang"), link.href]; })
+        };
+      })()`);
+      const expectedAlternates = [
+        ["en", PUBLIC_ORIGIN + "/"], ["es", PUBLIC_ORIGIN + "/es/"], ["pt", PUBLIC_ORIGIN + "/pt/"], ["x-default", PUBLIC_ORIGIN + "/"]
+      ];
+      if (!expectedLocale || r.locale.html !== expectedLocale || r.locale.body !== expectedLocale || r.locale.selected !== expectedLocale ||
+          r.locale.island !== expectedLocale || r.locale.intro !== LOCALE_STRINGS[expectedLocale]["launch.intro"]) {
+        r.violations.push("the explicit comparison URL is not authoritative for document, selector and rendered-copy locale");
+      }
+      if (r.locale.canonical !== PUBLIC_ORIGIN + LOCALE_PATHS[expectedLocale] || JSON.stringify(r.locale.alternates) !== JSON.stringify(expectedAlternates)) {
+        r.violations.push("canonical or hreflang metadata does not match the emitted locale routes");
+      }
+    }
     if (hasForm && VIEWPORT) {
       r.viewport.hero = await cdp.eval(`(function () {
         function box(selector) {
@@ -507,7 +548,7 @@ async function main() {
       if (loadReqs.some(req => req.url.includes("#read="))) r.violations.push("the shared fragment reached an HTTP request");
       phase = "altered index"; const mx = requests.length;
       await cdp.eval(`(function(){ var f = document.getElementById("launch-form"); var v = ${JSON.stringify(INPUT)}; Object.keys(v).forEach(function (k) { f.elements[k].value = v[k]; }); f.requestSubmit(); return true; })()`);
-      const badIndexRejected = await waitFor(`!document.getElementById("launch-state").hidden && document.getElementById("launch-state").textContent.includes("could not be fetched") && document.getElementById("launch-read").disabled === false`);
+      const badIndexRejected = await waitFor(`!document.getElementById("launch-state").hidden && document.getElementById("launch-state").textContent === ${JSON.stringify(LOCALE_STRINGS[expectedLocale]["launch.state.fetch_failed"])} && document.getElementById("launch-read").disabled === false`);
       await settle();
       const badIndexReqs = since(mx);
       all.push(...badIndexReqs);
@@ -557,7 +598,7 @@ async function main() {
       let receipt = null; try { receipt = JSON.parse(captured.text); } catch (e) {}
       r.receipt = { copied: !!receipt, downloaded: download.filename, requests: receiptReqs.length, schema: receipt && receipt.schema, snapshot: receipt && receipt.snapshot, input: receipt && receipt.input };
       if (receiptReqs.length) r.violations.push("fact receipt controls made " + receiptReqs.length + " request(s)");
-      if (!receipt || Object.keys(receipt).join(",") !== "schema,source,language,snapshot,input,result" || receipt.schema !== "lintcha-chain/fact-receipt/v1" || receipt.source !== ORIGIN + "/" || receipt.language !== captured.language || JSON.stringify(receipt.snapshot) !== JSON.stringify(captured.snapshot) || JSON.stringify(receipt.input) !== JSON.stringify(INPUT) || JSON.stringify(receipt.result) !== JSON.stringify(captured.result)) r.violations.push("copied fact receipt does not reproduce the exact input, rendered result and shipped snapshot context");
+      if (!receipt || Object.keys(receipt).join(",") !== "schema,source,language,snapshot,input,result" || receipt.schema !== "lintcha-chain/fact-receipt/v1" || receipt.source !== ORIGIN + LOCALE_PATHS[expectedLocale] || receipt.language !== captured.language || JSON.stringify(receipt.snapshot) !== JSON.stringify(captured.snapshot) || JSON.stringify(receipt.input) !== JSON.stringify(INPUT) || JSON.stringify(receipt.result) !== JSON.stringify(captured.result)) r.violations.push("copied fact receipt does not reproduce the exact input, rendered result and shipped snapshot context");
       if (download.filename !== "lintcha-chain-fact-receipt.json" || download.text !== captured.text || download.revoked !== "blob:lintcha-receipt-test") r.violations.push("downloaded fact receipt differs from the copied receipt or leaves its object URL active");
       phase = "share"; const ms = requests.length;
       await cdp.eval(`document.querySelector("[data-share-result]").click()`); await settle();
@@ -568,7 +609,7 @@ async function main() {
       if (shareReqs.length) r.violations.push("sharing made " + shareReqs.length + " request(s)");
       try {
         const shared = new URL(r.result_context.share_url), params = new URLSearchParams(shared.hash.slice(6));
-        if (shared.origin !== ORIGIN || !shared.hash.startsWith("#read=") || params.get("ticker") !== INPUT.ticker || params.get("index") !== r.result_context.index_hash) r.violations.push("the share link does not reproduce the fields and snapshot locally");
+        if (shared.origin !== ORIGIN || shared.pathname !== LOCALE_PATHS[expectedLocale] || !shared.hash.startsWith("#read=") || params.get("ticker") !== INPUT.ticker || params.get("index") !== r.result_context.index_hash) r.violations.push("the share link does not reproduce the fields and snapshot locally");
       } catch (e) { r.violations.push("the share control produced no valid link"); }
       phase = "second read"; const m2 = requests.length;
       await cdp.eval(`(function(){ var f = document.getElementById("launch-form"); f.elements.ticker.value = "madeupticker"; f.elements.name.value = "made up name"; f.requestSubmit(); return true; })()`);
@@ -589,6 +630,18 @@ async function main() {
       if (r.controls.requests) r.violations.push("clear or theme made " + r.controls.requests + " request(s)");
       if (!r.controls.result_tools_hidden) r.violations.push("clear left the result context visible");
       if (r.controls.theme_before === r.controls.theme_after) r.violations.push("the theme toggle did not change the theme");
+
+      const targetLocale = { en: "es", es: "pt", pt: "en" }[expectedLocale];
+      const targetPath = LOCALE_PATHS[targetLocale];
+      phase = "language navigation"; const ml = requests.length;
+      const hashBeforeLanguage = await cdp.eval("location.hash");
+      await cdp.eval(`(function () { var select = document.querySelector("[data-lang-select]"); select.value = ${JSON.stringify(targetLocale)}; select.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+      const languageNavigated = await waitFor(`location.pathname === ${JSON.stringify(targetPath)} && document.body && document.body.getAttribute("data-lang") === ${JSON.stringify(targetLocale)} && document.documentElement.getAttribute("lang") === ${JSON.stringify(targetLocale)} && document.querySelector("[data-lang-select]") && document.querySelector("[data-lang-select]").value === ${JSON.stringify(targetLocale)}`);
+      await settle();
+      const languageReqs = since(ml);
+      all.push(...languageReqs);
+      r.language_navigation = { navigated: languageNavigated, from: expectedLocale, to: targetLocale, path: await cdp.eval("location.pathname"), hash_preserved: await cdp.eval("location.hash") === hashBeforeLanguage, requests: languageReqs.length, hosts: hosts(languageReqs) };
+      if (!r.language_navigation.navigated || !r.language_navigation.hash_preserved) r.violations.push("a language selection did not navigate once to its exact localized route with the fact-receipt fragment intact");
     } else if (isHold) {
       const pageUrl = new URL(p, ORIGIN), marks = pageUrl.searchParams.getAll("t");
       const validMark = marks.length === 1 && marks[0] === HOLD_MARK;
@@ -653,6 +706,7 @@ async function main() {
       console.log(`  second read: ${r.second_read.requests} request(s); ${r.second_read.lines[0] || ""}`);
       console.log(`  result context: age ${JSON.stringify(r.result_context.age)}, share requests ${r.result_context.requests}, receipt requests ${r.receipt.requests}, fragment restored ${JSON.stringify(r.restored.ticker)}`);
       console.log(`  clear (results hidden: ${r.controls.results_hidden}), theme ${r.controls.theme_before} -> ${r.controls.theme_after}; ${r.controls.requests} request(s)`);
+      console.log(`  language: ${r.locale.body} -> ${r.language_navigation.to} at ${r.language_navigation.path}; fragment preserved ${r.language_navigation.hash_preserved}`);
     } else console.log(`  theme ${r.controls.theme_before} -> ${r.controls.theme_after}; ${r.controls.requests} request(s)`);
     console.log(`  storage after the run: localStorage ${JSON.stringify(r.storage.local)}, sessionStorage ${JSON.stringify(r.storage.session)}, cookie ${JSON.stringify(r.storage.cookie)}, databases ${JSON.stringify(r.storage.databases)}, caches ${JSON.stringify(r.storage.caches)}, service workers ${r.storage.service_workers}`);
     console.log(`  console errors: ${r.console_errors.length}`);
@@ -662,7 +716,7 @@ async function main() {
   await sleep(300); try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {}
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(report, null, 1) + "\n");
-  const allHosts = [...new Set(report.pages.flatMap(r => [...r.load.hosts, ...(r.first_read ? r.first_read.hosts : []), ...(r.second_read ? r.second_read.hosts : []), ...r.controls.hosts]))].sort();
+  const allHosts = [...new Set(report.pages.flatMap(r => [...r.load.hosts, ...(r.first_read ? r.first_read.hosts : []), ...(r.second_read ? r.second_read.hosts : []), ...r.controls.hosts, ...(r.language_navigation ? r.language_navigation.hosts : [])]))].sort();
   console.log(`browser run: ${report.pages.length} pages in ${version.Browser}; hosts contacted ${JSON.stringify(allHosts)}; ${failed.length ? "FAIL on " + failed.join(", ") : "every page within the rules"}; report ${path.relative(process.cwd(), OUT).split(path.sep).join("/")}`);
   process.exit(failed.length ? 1 : 0);
 }

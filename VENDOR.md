@@ -51,6 +51,8 @@ A path is added here in the same commit that creates the file.
 - `site/manifest.webmanifest`
 - `site/token.json`
 - `site/index.html`
+- `site/es/index.html`
+- `site/pt/index.html`
 - `site/chain.css`
 - `src/templates/shell.html`
 - `src/i18n-src/chain.en.json`

@@ -1,7 +1,7 @@
 // lintcha-chain build. Node standard library only, no dependency. Reads the templates, substitutes every figure from
 // site/launch-numbers.json and site/launch-index.json, inlines the i18n island, writes the page into site/ (the served
-// directory). The comparison and its 404 are generated; the owned live wall stays static. English only is emitted
-// while the i18n machinery stays whole.
+// directory). The comparison is emitted at /, /es/ and /pt/; its single English 404 is generated at the root, and
+// the owned live wall stays static.
 //   node tools/build.mjs [--origin https://your.host] [--token path/to/token.json] [--links path/to/links.json]
 //                        [--out dir] [--preview strings.json]
 // What it does, in order:
@@ -16,8 +16,9 @@
 //     (site/links.json), the token block in its three states and the launch band under the footer (site/token.json),
 //     the charts and the ornament (tools/build-viz.mjs), the method tables from the engine (tools/build-method.mjs)
 //   - refuses a digit in the text of a template or in an i18n string of this site (the gate, below)
-//   - writes site/index.html and site/404.html (the same shell around two approved strings, the wordmark and the nav
-//     pointing back at the comparison), and site/sitemap.xml with the public comparison, live wall and deployer history
+//   - writes site/index.html, site/es/index.html and site/pt/index.html; writes one root site/404.html (the same shell
+//     around two approved strings, the wordmark and the nav pointing back at the English comparison); and writes
+//     site/sitemap.xml with the three public comparisons, live wall and deployer history
 //   - the origin (canonical, og:url, the sitemap) is read from site/launch-site.json, beside the three lintcha
 //     addresses, so a later move is one file; --origin overrides it for a test
 import fs from "node:fs";
@@ -42,7 +43,8 @@ const LINKS_FILE = path.resolve(root, opt("links", path.join(SITE, "links.json")
 const REPO = "https://github.com/Mnilax/lintcha-chain";                 // GITHUB and Repository go to this repository (LINTCHA_CHAIN_05, section 2)
 const X_URL = "https://x.com/mnilax";                                   // the account lintcha's own footer links (vendored launch.html)
 const read = p => fs.readFileSync(p, "utf8");
-const EMIT = ["en"];   // languages emitted; the string tables carry all three
+const LOCALE_PATHS = Object.freeze({ en: "/", es: "/es/", pt: "/pt/" });
+const EMIT = Object.keys(LOCALE_PATHS);
 const abort = m => { console.error("build aborted: " + m); process.exit(1); };
 
 // ---------------------------------------------------------------- the sections: the owner's order and numbers (2026-09-09), fixed
@@ -243,8 +245,12 @@ function render(tplName, lang, extra) {
   const T = (key, v) => t(lang, key, v), TO = (key, v) => tOpt(lang, key, v);
   const nf = new Intl.NumberFormat(lang);
   const landed = k => !PENDING.includes(k);
+  const localePath = LOCALE_PATHS[lang];
+  if (!localePath) abort(`no public path for language ${lang}`);
   const tokens = Object.assign({
-    lang, root: "/", url: abs("/"), og_image: abs("/og.png"), theme_script: themeScript, main, fixed, nav: nav(""), cluster: cluster(),
+    lang, root: "/", url: abs(localePath), og_image: abs("/og.png"), theme_script: themeScript, main, fixed, nav: nav(""), cluster: cluster(),
+    alt_en: abs(LOCALE_PATHS.en), alt_es: abs(LOCALE_PATHS.es), alt_pt: abs(LOCALE_PATHS.pt),
+    rel_en: LOCALE_PATHS.en, rel_es: LOCALE_PATHS.es, rel_pt: LOCALE_PATHS.pt,
     contract_row: contractRow(), token_section: tokenSection(lang), launch_band: launchBand(), repo: REPO, anchor_method: "#s" + NUM.method,
     charts: landed("viz") ? charts(index, numbers, T, TO, lang) : "", ornament: landed("viz") ? ornament(T) : "",
     method_norm: landed("method") ? normalization(T, engine.L) : "", method_alias: landed("method") ? alias(T, engine.Links) : "",
@@ -261,13 +267,18 @@ function render(tplName, lang, extra) {
 
 fs.mkdirSync(OUT, { recursive: true });
 for (const lang of EMIT) {
-  fs.writeFileSync(path.join(OUT, "index.html"), render("shell.html", lang));
-  if (fs.existsSync(path.join(SRC, "templates", "404.html"))) fs.writeFileSync(path.join(OUT, "404.html"), render("404.html", lang, { url: abs("/404"), nav: nav("/"), anchor_method: "/#s" + NUM.method }));
+  const destination = lang === "en" ? OUT : path.join(OUT, lang);
+  fs.mkdirSync(destination, { recursive: true });
+  fs.writeFileSync(path.join(destination, "index.html"), render("shell.html", lang));
+}
+if (fs.existsSync(path.join(SRC, "templates", "404.html"))) {
+  fs.writeFileSync(path.join(OUT, "404.html"), render("404.html", "en", { url: abs("/404"), nav: nav("/"), anchor_method: "/#s" + NUM.method }));
 }
 // the sitemap: public pages, absolute, under the origin from launch-site.json; the 404 and holder signing page are
 // not listed. Owned static pages must exist in the output tree before they are advertised.
 if (ORIGIN) {
-  const urls = ["/"];
+  const urls = EMIT.filter(lang => fs.existsSync(lang === "en" ? path.join(OUT, "index.html") : path.join(OUT, lang, "index.html")))
+    .map(lang => LOCALE_PATHS[lang]);
   if (fs.existsSync(path.join(OUT, "live", "index.html"))) urls.push("/live/");
   if (fs.existsSync(path.join(OUT, "deployer", "index.html"))) urls.push("/deployer/");
   const entries = urls.map(url => `  <url><loc>${ORIGIN}${url}</loc></url>`).join("\n");
