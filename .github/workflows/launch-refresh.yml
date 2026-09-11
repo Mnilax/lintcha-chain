@@ -1,4 +1,4 @@
-# launch-refresh: manual-only until a strict full refresh is demonstrated against the configured endpoint.
+# launch-refresh: manual-only until a strict full refresh is demonstrated through the routed log and state endpoints.
 # When deliberately dispatched, rebuild the launch index and its numbers file from the most recent full day of
 # launches, rebuild the pages that print their figures and integrity manifest, and open a PR containing the seven files. This is the job that
 # writes a branch on its own, so every guardrail is hard and the job commits nothing rather than something
@@ -6,15 +6,18 @@
 # "chain:" below: the vendored code is guarded by verify-vendor instead of a hash of the frozen rule files (there are
 # none here); the page is rebuilt, because its figures and charts are baked in at build time; the membership test
 # allows the integrity manifest, the three localized comparison pages and the root 404 alongside the two source artifacts.
-#   - the collector runs over a day window ending at the latest finalised block; a repository RPC secret is passed
-#     only through the environment, and an absent secret preserves the collector's checked-in public fallback
+#   - the collector runs over a day window ending at the latest finalised block. The owned loopback-only split
+#     wrapper sends eth_getLogs to the checked-in public Robinhood endpoint and every state, transaction and header
+#     request to the protected launch-refresh environment's RPC secret; its child receives only the localhost URL, and an absent secret refuses
+#     the run before the collector starts
 #   - the owned publication guard refuses an empty/partial run, incomplete records, malformed or duplicate factory
 #     events, event hashes that disagree with finalized block headers, and strict ABI metadata/records that do not
 #     rebuild the collector's exact tables and summaries. It reproduces the collector's transaction-sample counters,
 #     fully proves exact direct factory/forwarder calls, and classifies other outer envelopes without interpreting
 #     them; it re-reads the same finalized range with two smaller, differently aligned page layouts and compares
 #     their complete canonical rows before anything is written. This catches page truncation/boundary omissions but
-#     deliberately is not called an independent-provider proof because the configured endpoint is the same
+#     deliberately is not called an independent-provider proof because both alternate log layouts use the same
+#     checked-in public log endpoint. Event hashes are separately bound to headers from the archive/state endpoint
 #   - the writer validates the index against its schema before writing; the index test and the engine test then run
 #     against the written files; a failure aborts before the commit
 #   - the vendored files are checked three times (tools/verify-vendor.mjs: every row matches its hash, every file
@@ -23,7 +26,7 @@
 #   - the only paths that may change are site/launch-index.json, site/launch-numbers.json, site/launch-manifest.json,
 #     site/index.html, site/es/index.html, site/pt/index.html and site/404.html; any
 #     other modified, deleted or untracked path aborts before the commit
-#   - GITHUB_TOKEN with contents, pull-requests and actions write; no personal token; the optional provider secret is
+#   - GITHUB_TOKEN with contents, pull-requests and actions write; no personal token; the protected environment's archive/state provider secret is
 #     exposed only to the two RPC-reading steps. Both actions are pinned by commit SHA. A unique draft PR is opened,
 #     then the full test and vendor workflows are explicitly dispatched and awaited before the PR is marked ready,
 #     because pushes made by GITHUB_TOKEN do not recursively trigger ordinary push workflows
@@ -40,6 +43,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    environment: launch-refresh
     # A local full-day collector took 26.03 minutes and its guard was still running at 66.7 minutes: the former
     # ninety-minute ceiling could terminate a healthy refresh before it reached the writer. 150 is that observed
     # 92.73-minute lower bound with a fifty-percent margin, rounded up to the next thirty-minute boundary.
@@ -52,21 +56,43 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Pin this run to the exact clean main revision
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "abort: launch-refresh must be dispatched from main"
+            exit 1
+          fi
+          head_sha=$(git rev-parse HEAD)
+          if [ "${head_sha}" != "${GITHUB_SHA}" ]; then
+            echo "abort: checkout HEAD does not match the dispatched revision"
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [ "${head_sha}" != "$(git rev-parse origin/main)" ]; then
+            echo "abort: main moved before launch-refresh began; dispatch again from the new main"
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
+            echo "abort: checkout is not clean before launch-refresh"
+            exit 1
+          fi
+
       - name: the vendored files match their table before anything runs   # chain: replaces lintcha's hash of the frozen rule files
         run: |
           node tools/verify-vendor.mjs
 
-      - name: collect the most recent full day from the configured RPC
+      - name: collect the most recent full day through the loopback split RPC
         env:
           LINTCHA_CHAIN_RPC_URL: ${{ secrets.LINTCHA_CHAIN_RPC_URL }}
         run: |
-          node tools/launch-collect.mjs --day --out "$RUNNER_TEMP/launch-day.json"
+          node tools/with-launch-rpc-split.mjs -- node tools/launch-collect.mjs --day --out "$RUNNER_TEMP/launch-day.json"
 
-      - name: guard the collection with alternate partitions and rebuild its facts from strict chain returns
+      - name: guard the collection through the loopback split RPC with alternate partitions and strict chain returns
         env:
           LINTCHA_CHAIN_RPC_URL: ${{ secrets.LINTCHA_CHAIN_RPC_URL }}
         run: |
-          node tools/collection-guard.mjs --in "$RUNNER_TEMP/launch-day.json" --published site/launch-numbers.json --audit-logs
+          node tools/with-launch-rpc-split.mjs -- node tools/collection-guard.mjs --in "$RUNNER_TEMP/launch-day.json" --published site/launch-numbers.json --audit-logs
 
       - name: rebuild the index and the numbers file (the writer validates the index against its schema first)
         run: |
