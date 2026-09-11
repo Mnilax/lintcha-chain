@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/avatar.png" width="128" height="128" alt=""></p>
 <p align="center"><img src="assets/banner.png" alt="lintcha-chain" width="100%"></p>
 <p align="center">
-<img alt="tests" src="https://img.shields.io/badge/tests-2233_passing-d4fc50?labelColor=08090a&style=flat-square">
+<img alt="tests" src="https://img.shields.io/badge/tests-2250_passing-d4fc50?labelColor=08090a&style=flat-square">
 <img alt="node" src="https://img.shields.io/badge/node-%3E%3D24-5e5a53?labelColor=08090a&style=flat-square">
 <img alt="runtime deps" src="https://img.shields.io/badge/runtime_deps-0-5e5a53?labelColor=08090a&style=flat-square">
 <img alt="chain" src="https://img.shields.io/badge/chain-4663-5e5a53?labelColor=08090a&style=flat-square">
@@ -25,8 +25,9 @@ implemented and testable in the repository; it does not assert that a deployment
 
 ## What is here
 
-- `site/` is the static output directory. `site/index.html`, `site/404.html`, `site/sitemap.xml` and
-  `site/launch-manifest.json` are written by the build; `site/live/` is the owned static live wall and
+- `site/` is the static output directory. The build writes the English comparison at `site/index.html`, Spanish and
+  Portuguese at `site/es/index.html` and `site/pt/index.html`, one English `site/404.html`, `site/sitemap.xml` and
+  `site/launch-manifest.json`; `site/live/` is the owned static live wall and
   `site/deployer/` is the owned retained-history page; `site/launch-index.json` and
   `site/launch-numbers.json` are written by the index writer and refreshed only by a deliberate guarded workflow run; everything else under `site/` is
   either a copy from lintcha or a file this repository owns (see VENDOR.md).
@@ -71,14 +72,14 @@ and bot suites, the i18n check, a deterministic build check and the browser cont
 Node 24, no dependency.
 
 ```
-npm run build     merge the strings; build the comparison, 404, sitemap and published manifest from the current index and numbers
+npm run build     merge the strings; build three localized comparisons, one root 404, sitemap and published manifest from the current index and numbers
 npm test          verify-vendor plus the config, manifest, token, wall, history, engine, index and identity contracts
 npm test --prefix bot     the Telegram, holder, feed, watcher, rules and all five API-route contracts
 npm run smoke:production  compare every public static byte, security/MIME header, HTTPS redirect and fail-closed API contract with this tree
-npm run i18n      merge the strings and run the vendored i18n check (three languages, en emitted)
+npm run i18n      merge the strings and run the vendored i18n check (three languages, all three emitted)
 npm run verify    refuse the current legacy snapshot before network; for a state-pinned replacement, audit its exact state/window, rebuild, print both hashes
 node tests/published_contract_test.mjs     verify the manifest against the exact index and numbers bytes
-node tests/chain_browser.mjs site --pages "/,/live/,/deployer/,/hold/,/hold/?t=0123456789abcdef0123456789abcdef"     all rendered-page and holder-flow contracts in a headless browser
+node tests/chain_browser.mjs site --pages "/,/es/,/pt/,/live/,/deployer/,/hold/,/hold/?t=0123456789abcdef0123456789abcdef"     all rendered-page and holder-flow contracts in a headless browser
 npm run identity -- doctor     run the public conformance fixture
 node tools/collection-guard.mjs --in <report.json> --published site/launch-numbers.json --diagnose-semantic     reconstruct identities at the report's exact recorded state; this skips event-header batches and sampled transactions and is not publication proof
 npm run identity -- help       print the offline JSON CLI contract
@@ -137,7 +138,7 @@ The badges above are static images from shields.io, which GitHub renders; nothin
 Each figure is read from the tree, not typed from memory:
 
 ```
-tests           npm test; npm test --prefix bot              801 root checks + 1432 bot checks = 2233 checks
+tests           npm test; npm test --prefix bot              818 root checks + 1432 bot checks = 2250 checks
 node            package.json, engines.node                  >=24
 runtime deps    package.json                                no "dependencies" key
 chain           site/launch-numbers.json, chain_id          4663
@@ -155,14 +156,14 @@ configured endpoint. Its unattended schedule stays removed. A new collection rec
 numeric state tag for identity reads. The legacy published numbers artifact has no such state and `npm run verify`
 therefore fails closed until a new guarded refresh replaces it; the verifier never invents a state for old bytes.
 When deliberately dispatched, the workflow collects the most recent full day, rebuilds the index, the numbers
-file, the integrity manifest and the page, then opens a unique PR containing only those four artifacts after the owned guard re-reads the
+file, the integrity manifest, all three comparison pages and the root 404, then opens a unique PR containing only those seven artifacts after the owned guard re-reads the
 exact finalized logs in two alternate page layouts, compares their complete canonical rows, binds each event hash to its block header, derives every UTC
 boundary, and rebuilds every table and summary. It also reproduces the collector's sampled-transaction counters;
 sampled direct factory/forwarder calls must match their exact verified outer ABI, destination and complete launch
 fields, while other outer envelopes remain explicitly uninterpreted. These reads deliberately use the same configured
 endpoint and are not described as an independent-provider proof. The job also requires a non-empty internally
 consistent window, a published-day sanity floor, the schema, engine and index tests,
-verify-vendor before, between and after, and a membership test that allows exactly those four paths to have changed.
+verify-vendor before, between and after, and a membership test that allows exactly those seven paths to have changed.
 It never pushes directly to `main`, and aborts if `main` moved during collection or while its checks ran rather than rebasing generated bytes.
 Because a push made by `GITHUB_TOKEN` does not recursively start ordinary push workflows, the refresh opens a draft
 PR, explicitly dispatches and waits for both `test.yml` and `vendor.yml` on its unique branch, rechecks `main`, and

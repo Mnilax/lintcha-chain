@@ -1,8 +1,8 @@
 // lintcha-chain, the token block's three states and the header cluster's links, built and checked without touching the
 // tree. site/token.json may carry either the explicit all-null dormant state or one exact active state; site/links.json
 // names only accounts that really exist (no placeholder, no zeroes, no empty slot in the tree); this test
-// writes a temporary token.json with an address made up at run time, builds into a temporary directory with --token and
-// --out, and checks what each state renders:
+// writes a temporary token.json with an address made up at run time, builds all three locale pages into a temporary
+// directory with --token and --out, and checks what each state renders:
 //   a. all null           no contract row, no buy button, no token section, no launch band, the cluster is GITHUB, X
 //                         on the default account and the configured TELEGRAM, the made-up address nowhere in the page
 //   b. address and pons   one filled BUY button in the header cluster, the contract row, section seventeen with the
@@ -58,6 +58,8 @@ const xAccount = "https://example.invalid/x/" + crypto.randomBytes(4).toString("
 const telegram = "https://example.invalid/telegram/" + crypto.randomBytes(4).toString("hex");
 const X_DEFAULT = "https://x.com/mnilax";   // the account the vendored footer links; the build falls back to it when links.json carries no x
 const TELEGRAM_DEFAULT = "https://t.me/lintcha";
+const ORIGIN = JSON.parse(fs.readFileSync(path.join(root, "site", "launch-site.json"), "utf8")).origin;
+const LOCALES = Object.freeze({ en: { file: "index.html", url: "/" }, es: { file: "es/index.html", url: "/es/" }, pt: { file: "pt/index.html", url: "/pt/" } });
 const shippedNumbers = JSON.parse(fs.readFileSync(path.join(root, "site", "launch-numbers.json"), "utf8"));
 const shippedIndexHash = crypto.createHash("sha256").update(fs.readFileSync(path.join(root, "site", "launch-index.json"))).digest("hex");
 function build(name, tokenJson, linksJson) {
@@ -75,6 +77,24 @@ function build(name, tokenJson, linksJson) {
 
 console.log("state a: all null");
 const a = build("a", { address: null, pons: null, uniswap: null });
+const localePages = Object.fromEntries(Object.entries(LOCALES).map(([lang, locale]) => [lang, fs.readFileSync(path.join(tmp, "a", locale.file), "utf8")]));
+for (const [lang, locale] of Object.entries(LOCALES)) {
+  const page = localePages[lang];
+  const sourceStrings = JSON.parse(fs.readFileSync(path.join(root, "src", "i18n-src", `chain.${lang}.json`), "utf8"));
+  ok(page.startsWith(`<!doctype html>\n<html lang="${lang}">`) && page.includes(`<body data-lang="${lang}" data-root="/" data-alt-en="/" data-alt-es="/es/" data-alt-pt="/pt/" data-page="chain">`), `${lang}: URL locale is the document and content locale`);
+  ok(count(page, new RegExp(`<link rel="canonical" href="${re(ORIGIN + locale.url)}">`, "g")) === 1 &&
+    count(page, new RegExp(`<link rel="alternate" hreflang="en" href="${re(ORIGIN + "/")}">`, "g")) === 1 &&
+    count(page, new RegExp(`<link rel="alternate" hreflang="es" href="${re(ORIGIN + "/es/")}">`, "g")) === 1 &&
+    count(page, new RegExp(`<link rel="alternate" hreflang="pt" href="${re(ORIGIN + "/pt/")}">`, "g")) === 1 &&
+    count(page, new RegExp(`<link rel="alternate" hreflang="x-default" href="${re(ORIGIN + "/")}">`, "g")) === 1,
+  `${lang}: canonical and the complete hreflang set name only emitted pages`);
+  ok(count(page, /data-lang-host/g) === 1 && page.includes(`<script id="i18n-data" type="application/json">{"lang":"${lang}",`), `${lang}: one language control is bound to the matching i18n island`);
+  ok(Array.from({ length: 8 }, (_, i) => attr(sourceStrings[`road.never.l${i + 1}`])).every(line => page.includes(`>${line}</li>`)), `${lang}: all eight never lines render from that locale without substitution`);
+}
+const sitemapA = fs.readFileSync(path.join(tmp, "a", "sitemap.xml"), "utf8");
+const sitemapUrls = [...sitemapA.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
+ok(JSON.stringify(sitemapUrls) === JSON.stringify(Object.values(LOCALES).map(locale => ORIGIN + locale.url)), "the sitemap advertises all and only emitted comparison locales in this isolated build");
+ok(fs.existsSync(path.join(tmp, "a", "404.html")) && !fs.existsSync(path.join(tmp, "a", "es", "404.html")) && !fs.existsSync(path.join(tmp, "a", "pt", "404.html")), "one English root 404 remains the whole not-found contract");
 ok(count(a, /class="contract"/g) === 0, "no contract row");
 ok(count(a, /class="buy"/g) === 0, "no buy button");
 ok(count(a, /token-sec/g) === 0, "no token section");
@@ -162,6 +182,10 @@ ok(count(b, /class="band"/g) === 1 && count(b, /class="band-copy"/g) === 1, "one
 ok(slot(b, "band-address") === address && slot(b, "band-address") === slot(b, "contract-address"), "the band carries the contract row's address");
 ok(b.indexOf('class="band"') > b.indexOf("</footer>"), "the band sits under the footer");
 ok(count(b, /class="out"/g) === 3 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: three items, X on the default account and Telegram on the configured room");
+for (const lang of ["es", "pt"]) {
+  const localized = fs.readFileSync(path.join(tmp, "b", lang, "index.html"), "utf8");
+  ok(count(localized, new RegExp(`data-token-address>${re(address)}<`, "g")) === 3 && count(localized, new RegExp(`href="${re(attr(pons))}"`, "g")) === 2 && !/token-btn-uni/.test(localized), `${lang}: the active page carries the exact same pons-only token state`);
+}
 
 console.log("state c: pons and uniswap");
 const c = build("c", { address, pons, uniswap });
@@ -185,6 +209,7 @@ ok(!!treeState, "site/token.json matches the shared dormant-or-active contract")
 const treeLinks = JSON.parse(fs.readFileSync(path.join(root, "site", "links.json"), "utf8"));
 ok(treeLinks.x === null && treeLinks.telegram === TELEGRAM_DEFAULT, "site/links.json leaves X on its default and names the confirmed Telegram room");
 const tree = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");
+const treeLocales = [tree, ...["es", "pt"].map(lang => fs.readFileSync(path.join(root, "site", lang, "index.html"), "utf8"))];
 if (treeState && treeState.address === null) {
   ok(treeState.pons === null && treeState.uniswap === null, "the dormant tree has no detached buy destination");
   ok(count(tree, /class="contract"|class="buy"|token-sec|class="band"/g) === 0, "the dormant page carries no token block and no band");
@@ -204,6 +229,7 @@ if (treeState && treeState.address === null) {
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
 ok(count(tree, /class="out"/g) === 3 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === TELEGRAM_DEFAULT && count(tree, /data-i18n="nav\.telegram"/g) === 1, "the tree's page links the default X account and the confirmed Telegram room");
+ok(treeLocales.every(page => treeState.address === null ? count(page, /data-token-address|data-copy-address|class="buy"|token-sec/g) === 0 : page.includes(`data-token-address>${treeState.address}<`)), "every tree locale agrees with the shared token document");
 
 // The eight never lines are the product boundary, not ordinary copy. Pin the ordered set in every source language so
 // a wording edit, a missing translation or a reordered line cannot pass merely because eight list items still exist.

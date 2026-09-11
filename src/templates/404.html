@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="{{root}}chain.css">
 <script id="i18n-data" type="application/json">{{i18n_json}}</script>
 </head>
-<body data-lang="{{lang}}" data-root="{{root}}" data-page="chain">
+<body data-lang="{{lang}}" data-root="{{root}}" data-alt-en="{{rel_en}}" data-alt-es="{{rel_es}}" data-alt-pt="{{rel_pt}}" data-page="chain">
 <div class="wash" aria-hidden="true"><div class="wash-l" data-wash></div><div class="wash-r" data-wash></div></div>
 <header class="topbar" data-topbar>
   <div class="bar-in">
@@ -25,6 +25,7 @@
     </a>
     <nav class="nav" data-i18n-attr="aria-label:nav.label">{{nav}}<span class="nav-bar" data-navbar aria-hidden="true"></span></nav>
     <div class="cluster">{{cluster}}</div>
+    <span data-lang-host></span>
     <button type="button" class="theme" data-theme-toggle data-i18n-attr="data-label-dark:theme.dark;data-label-light:theme.light" aria-pressed="false"><span data-theme-label>{{t:theme.light}}</span></button>
   </div>
 </header>

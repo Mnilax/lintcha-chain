@@ -30,6 +30,8 @@ const WATCHED = [
   "README.md",
   "site/token.json",
   "site/index.html",
+  "site/es/index.html",
+  "site/pt/index.html",
   "site/404.html",
   "site/sitemap.xml",
   "site/launch-manifest.json",
@@ -103,15 +105,19 @@ try {
   const result = await attempt(live, liveGate);
   const token = JSON.parse(fs.readFileSync(path.join(live, "site", "token.json"), "utf8"));
   const readme = fs.readFileSync(path.join(live, "README.md"), "utf8");
-  const index = fs.readFileSync(path.join(live, "site", "index.html"), "utf8");
+  const indexes = [
+    fs.readFileSync(path.join(live, "site", "index.html"), "utf8"),
+    fs.readFileSync(path.join(live, "site", "es", "index.html"), "utf8"),
+    fs.readFileSync(path.join(live, "site", "pt", "index.html"), "utf8")
+  ];
   const notFound = fs.readFileSync(path.join(live, "site", "404.html"), "utf8");
   ok(result.changed === true && result.address === ADDRESS && result.pons === PONS, "a valid proof returns the canonical public activation");
   ok(JSON.stringify(token) === JSON.stringify({ address: ADDRESS, pons: PONS, uniswap: null }), "only address, pons and the required null uniswap field are written");
   ok(readme.includes(`<p align="center"><b>$LINTCHA</b> · <code>${ADDRESS}</code></p>`) && !readme.includes("<code>0x...</code>"), "the one README placeholder becomes the exact canonical address");
-  ok(index.split("data-token-address>" + ADDRESS + "<").length - 1 === 3 && notFound.split("data-token-address>" + ADDRESS + "<").length - 1 === 1,
-    "the generated pages carry the exact configured address in their designed address slots");
-  ok((index.match(/hour-x&amp;view=buy/g) || []).length === 2 && (notFound.match(/hour-x&amp;view=buy/g) || []).length === 1, "the generated pages carry the exact escaped primary destination");
-  ok(!/token-btn-uni/.test(index + notFound), "the pons-only command cannot create a secondary venue button");
+  ok(indexes.every(index => index.split("data-token-address>" + ADDRESS + "<").length - 1 === 3) && notFound.split("data-token-address>" + ADDRESS + "<").length - 1 === 1,
+    "every generated comparison plus the root 404 carries the exact configured address in its designed slots");
+  ok(indexes.every(index => (index.match(/hour-x&amp;view=buy/g) || []).length === 2) && (notFound.match(/hour-x&amp;view=buy/g) || []).length === 1, "every generated comparison plus the root 404 carries the exact escaped primary destination");
+  ok(!/token-btn-uni/.test(indexes.join("") + notFound), "the pons-only command cannot create a secondary venue button");
   const proofReads = liveGate.rawAsked.filter(call => call.method === "eth_getCode" || call.method === "eth_call");
   ok(liveGate.rawAsked.filter(call => call.method === "eth_getBlockByNumber").length === 1 &&
     liveGate.rawAsked.some(call => call.method === "eth_getBlockByNumber" && JSON.stringify(call.params) === JSON.stringify(["finalized", false])) &&
@@ -194,6 +200,8 @@ try {
   const buildFile = path.join(failedRealBuild, "tools", "build.mjs");
   fs.writeFileSync(buildFile, `if (!path.basename(process.cwd()).startsWith("lintcha-hour-x-")) {
   fs.writeFileSync(path.join(process.cwd(), "site", "index.html"), "deliberately broken real build");
+  fs.writeFileSync(path.join(process.cwd(), "site", "es", "index.html"), "deliberately broken localized real build");
+  fs.rmSync(path.join(process.cwd(), "site", "pt", "index.html"));
   fs.writeFileSync(path.join(process.cwd(), "src", "i18n", "en.json"), "deliberately created real-build output");
   process.exit(86);
 }

@@ -23,6 +23,29 @@
   var timers = [];
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
 
+  // ui-controls.js is vendored: it owns the selector, persistence and event, but deliberately knows nothing about
+  // this site's public paths. An explicit page URL remains authoritative at load. Only a later selection follows the
+  // exact alternate path embedded by the build, preserving the local fact-receipt fragment across languages.
+  var localeNavigationReady = false;
+  doc.addEventListener("lintcha:lang", function (event) {
+    if (!localeNavigationReady) return;
+    var code = event && event.detail && event.detail.lang;
+    var alternate = code && doc.body.getAttribute("data-alt-" + code);
+    if (!alternate || code === doc.body.getAttribute("data-lang")) return;
+    var target;
+    try { target = new URL(alternate, location.href); } catch (e) { return; }
+    target.hash = location.hash;
+    location.assign(target.href);
+  });
+  function languageNavigation() {
+    var pageLang = doc.body.getAttribute("data-lang") || "en";
+    root.setAttribute("lang", pageLang);
+    root.setAttribute("dir", "ltr");
+    var select = one("[data-lang-select]");
+    if (select) select.value = pageLang;
+    localeNavigationReady = true;
+  }
+
   // launch-page.js is vendored and stays byte-for-byte intact. Its one lazy fetch is wrapped here so a
   // valid-but-partial JSON response cannot be read as a table full of unique values. Only the exact same-origin
   // index path is intercepted; its response bytes must match the build-injected SHA-256 before JSON parsing.
@@ -33,7 +56,8 @@
       var target;
       try { target = new URL(typeof input === "string" ? input : input.url, location.href); }
       catch (e) { return nativeFetch.apply(this, arguments); }
-      var expectedPath = new URL("launch-index.json", location.href).pathname;
+      var assetRoot = doc.body.getAttribute("data-root") || "";
+      var expectedPath = new URL(assetRoot + "launch-index.json", location.href).pathname;
       if (target.origin !== location.origin || target.pathname !== expectedPath || target.search) return nativeFetch.apply(this, arguments);
       var tools = one("[data-result-tools]"), expected = tools && tools.getAttribute("data-index-hash");
       if (!/^[0-9a-f]{64}$/.test(expected || "") || !window.crypto || !window.crypto.subtle) return Promise.reject(new Error("index integrity unavailable"));
@@ -440,6 +464,6 @@
     });
   }
 
-  function init() { topbar(); diagram(); sections(); charts(); caret(); restoreSharedFields(); results(); resultTools(); copyButtons(); }
+  function init() { languageNavigation(); topbar(); diagram(); sections(); charts(); caret(); restoreSharedFields(); results(); resultTools(); copyButtons(); }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();
 })();

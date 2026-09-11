@@ -7,6 +7,10 @@
 <title>{{t:site.meta.title}}</title>
 <meta name="description" content="{{t:launch.meta.description}}">
 <link rel="canonical" href="{{url}}">
+<link rel="alternate" hreflang="en" href="{{alt_en}}">
+<link rel="alternate" hreflang="es" href="{{alt_es}}">
+<link rel="alternate" hreflang="pt" href="{{alt_pt}}">
+<link rel="alternate" hreflang="x-default" href="{{alt_en}}">
 <meta property="og:type" content="website">
 <meta property="og:title" content="{{t:site.meta.title}}">
 <meta property="og:description" content="{{t:launch.meta.description}}">
@@ -24,7 +28,7 @@
 <link rel="stylesheet" href="{{root}}chain.css">
 <script id="i18n-data" type="application/json">{{i18n_json}}</script>
 </head>
-<body data-lang="{{lang}}" data-root="{{root}}" data-page="chain">
+<body data-lang="{{lang}}" data-root="{{root}}" data-alt-en="{{rel_en}}" data-alt-es="{{rel_es}}" data-alt-pt="{{rel_pt}}" data-page="chain">
 <div class="wash" aria-hidden="true"><div class="wash-l" data-wash></div><div class="wash-r" data-wash></div></div>
 <header class="topbar" data-topbar>
   <div class="bar-in">
@@ -34,6 +38,7 @@
     </a>
     <nav class="nav" data-i18n-attr="aria-label:nav.label">{{nav}}<span class="nav-bar" data-navbar aria-hidden="true"></span></nav>
     <div class="cluster">{{cluster}}</div>
+    <span data-lang-host></span>
     <svg class="sprite sprite-s" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g class="sprite-g"><rect x="7" y="2" width="2" height="2"></rect><rect x="6" y="4" width="2" height="2"></rect><rect x="4" y="8" width="2" height="2"></rect><rect x="3" y="10" width="2" height="2"></rect><rect x="2" y="12" width="2" height="1"></rect><rect x="8" y="4" width="2" height="2"></rect><rect x="9" y="6" width="2" height="2"></rect><rect x="11" y="10" width="2" height="2"></rect><rect x="12" y="12" width="2" height="1"></rect><rect class="cut" x="5" y="6" width="2" height="2"></rect><rect class="cut" x="10" y="8" width="2" height="2"></rect></g></svg>
     <button type="button" class="theme" data-theme-toggle data-i18n-attr="data-label-dark:theme.dark;data-label-light:theme.light" aria-pressed="false"><span data-theme-label>{{t:theme.light}}</span></button>
   </div>
@@ -353,15 +358,15 @@
           <li class="road-stop road-up"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.shipped.l1"></span></li>
           <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.shipped.l2"></span></li>
           <li class="road-stop road-up"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.shipped.l3"></span></li>
+          <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.shipped.l4"></span></li>
         </ol>
       </div>
       <div class="road-group" data-phase="next">
         <span class="road-sprite"><svg class="sprite sprite-m" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g class="sprite-g"><rect x="7" y="2" width="2" height="2"></rect><rect x="6" y="4" width="2" height="2"></rect><rect x="4" y="8" width="2" height="2"></rect><rect x="3" y="10" width="2" height="2"></rect><rect x="2" y="12" width="2" height="1"></rect><rect x="8" y="4" width="2" height="2"></rect><rect x="9" y="6" width="2" height="2"></rect><rect x="11" y="10" width="2" height="2"></rect><rect x="12" y="12" width="2" height="1"></rect><rect class="cut" x="5" y="6" width="2" height="2"></rect><rect class="cut" x="10" y="8" width="2" height="2"></rect></g></svg></span>
         <div class="road-ph" data-i18n="roadmap.next.t"></div>
         <ol class="road-stops">
-          <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.next.l1"></span></li>
-          <li class="road-stop road-up"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.next.l2"></span></li>
-          <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.next.l3"></span></li>
+          <li class="road-stop road-up"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.next.l1"></span></li>
+          <li class="road-stop road-down"><span class="road-tick" aria-hidden="true"></span><span class="road-label" data-i18n="roadmap.next.l2"></span></li>
         </ol>
       </div>
       <div class="road-group" data-phase="later">

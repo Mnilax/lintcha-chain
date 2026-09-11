@@ -30,6 +30,8 @@ const TOKEN_REL = path.join("site", "token.json");
 const README_REL = "README.md";
 const BUILD_OUTPUTS = [
   path.join("site", "index.html"),
+  path.join("site", "es", "index.html"),
+  path.join("site", "pt", "index.html"),
   path.join("site", "404.html"),
   path.join("site", "sitemap.xml"),
   path.join("site", "launch-manifest.json"),
@@ -134,16 +136,23 @@ function verifyRendered(root, config, readmeBytes) {
   const token = tokenConfigBytesOf(bytes(path.join(root, TOKEN_REL)));
   if (!token || JSON.stringify(token) !== JSON.stringify(config)) fail("the built token document does not equal the requested activation");
 
-  const index = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");
   const notFound = fs.readFileSync(path.join(root, "site", "404.html"), "utf8");
   const address = escapePattern(config.address);
   const href = escapePattern(escapeAttribute(config.pons));
-  if (count(index, new RegExp(`data-token-address>${address}<`, "g")) !== 3 ||
-      count(index, /data-copy-address/g) !== 2 ||
-      count(index, new RegExp(`class="buy" href="${href}"`, "g")) !== 1 ||
-      count(index, new RegExp(`class="token-btn token-btn-pons" href="${href}"`, "g")) !== 1 ||
-      /token-btn-uni/.test(index)) {
-    fail("the front page did not render the exact pons-only activation state");
+  const comparisonPages = [
+    path.join(root, "site", "index.html"),
+    path.join(root, "site", "es", "index.html"),
+    path.join(root, "site", "pt", "index.html")
+  ];
+  for (const file of comparisonPages) {
+    const page = fs.readFileSync(file, "utf8");
+    if (count(page, new RegExp(`data-token-address>${address}<`, "g")) !== 3 ||
+        count(page, /data-copy-address/g) !== 2 ||
+        count(page, new RegExp(`class="buy" href="${href}"`, "g")) !== 1 ||
+        count(page, new RegExp(`class="token-btn token-btn-pons" href="${href}"`, "g")) !== 1 ||
+        /token-btn-uni/.test(page)) {
+      fail("a comparison page did not render the exact pons-only activation state");
+    }
   }
   if (count(notFound, new RegExp(`data-token-address>${address}<`, "g")) !== 1 ||
       count(notFound, /data-copy-address/g) !== 1 ||

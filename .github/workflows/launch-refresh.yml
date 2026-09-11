@@ -1,11 +1,11 @@
 # launch-refresh: manual-only until a strict full refresh is demonstrated against the configured endpoint.
 # When deliberately dispatched, rebuild the launch index and its numbers file from the most recent full day of
-# launches, rebuild the page that prints their figures and integrity manifest, and open a PR containing the four files. This is the job that
+# launches, rebuild the pages that print their figures and integrity manifest, and open a PR containing the seven files. This is the job that
 # writes a branch on its own, so every guardrail is hard and the job commits nothing rather than something
 # wrong. Ported from lintcha's launch-refresh.yml (approved there 2026-09-08) with three differences, each marked
 # "chain:" below: the vendored code is guarded by verify-vendor instead of a hash of the frozen rule files (there are
 # none here); the page is rebuilt, because its figures and charts are baked in at build time; the membership test
-# allows site/index.html and site/launch-manifest.json as the third and fourth files.
+# allows the integrity manifest, the three localized comparison pages and the root 404 alongside the two source artifacts.
 #   - the collector runs over a day window ending at the latest finalised block; a repository RPC secret is passed
 #     only through the environment, and an absent secret preserves the collector's checked-in public fallback
 #   - the owned publication guard refuses an empty/partial run, incomplete records, malformed or duplicate factory
@@ -20,8 +20,8 @@
 #   - the vendored files are checked three times (tools/verify-vendor.mjs: every row matches its hash, every file
 #     under site/ src/ tests/ tools/ is a row or owned here): before the collector, right after the writer, after the
 #     build; any change aborts and names itself. build/ is a build output in .gitignore and is never cleaned by hand
-#   - the only paths that may change are site/launch-index.json, site/launch-numbers.json, site/launch-manifest.json
-#     and site/index.html; any
+#   - the only paths that may change are site/launch-index.json, site/launch-numbers.json, site/launch-manifest.json,
+#     site/index.html, site/es/index.html, site/pt/index.html and site/404.html; any
 #     other modified, deleted or untracked path aborts before the commit
 #   - GITHUB_TOKEN with contents, pull-requests and actions write; no personal token; the optional provider secret is
 #     exposed only to the two RPC-reading steps. Both actions are pinned by commit SHA. A unique draft PR is opened,
@@ -82,7 +82,7 @@ jobs:
           node tests/launch_index_test.mjs
           node tests/launch_test.js
 
-      - name: rebuild the page from the new figures   # chain: the window, the charts and the captions are baked into site/index.html
+      - name: rebuild the pages from the new figures   # chain: the window, charts and captions are baked into all comparison locales and the root 404
         run: |
           node tools/build.mjs
           node tests/chain_token_states.mjs
@@ -92,16 +92,16 @@ jobs:
         run: |
           node tools/verify-vendor.mjs
 
-      - name: only the four build artifacts may have changed
+      - name: only the seven publication artifacts may have changed
         run: |
-          # membership test: every status line must name one of the four allowed paths, as a modification. Zero lines is
+          # membership test: every status line must name one of the seven allowed paths, as a modification. Zero lines is
           # nothing to commit; lines naming only those paths commit; any other line aborts with the full status.
           git status --porcelain | tee "$RUNNER_TEMP/status.txt"
-          if [ "$(wc -l < "$RUNNER_TEMP/status.txt")" -eq 0 ]; then echo "nothing changed: the index, the numbers file, the manifest and the page are already this window"; echo "changed=0" >> "$GITHUB_ENV"; exit 0; fi
-          if grep -v -x -E ' M site/(launch-(index|numbers|manifest)\.json|index\.html)' "$RUNNER_TEMP/status.txt"; then echo "abort: a path other than the four build artifacts changed, or one of them is not a plain modification; full status:"; cat "$RUNNER_TEMP/status.txt"; exit 1; fi
+          if [ "$(wc -l < "$RUNNER_TEMP/status.txt")" -eq 0 ]; then echo "nothing changed: the source artifacts, manifest, localized comparisons and root 404 are already this window"; echo "changed=0" >> "$GITHUB_ENV"; exit 0; fi
+          if grep -v -x -E ' M site/(launch-(index|numbers|manifest)\.json|404\.html|(es/|pt/)?index\.html)' "$RUNNER_TEMP/status.txt"; then echo "abort: a path other than the seven publication artifacts changed, or one of them is not a plain modification; full status:"; cat "$RUNNER_TEMP/status.txt"; exit 1; fi
           echo "changed=1" >> "$GITHUB_ENV"
 
-      - name: commit the four build artifacts, open a PR and dispatch its full review workflows
+      - name: commit the seven publication artifacts, open a PR and dispatch its full review workflows
         if: env.changed == '1'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -115,13 +115,13 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/launch-index.json site/launch-numbers.json site/launch-manifest.json site/index.html
+          git add site/launch-index.json site/launch-numbers.json site/launch-manifest.json site/index.html site/es/index.html site/pt/index.html site/404.html
           summary=$(node -p 'const n=require("./site/launch-numbers.json"); n.window.from_date+" to "+n.window.to_date+", blocks "+n.window.from_block+" to "+n.window.to_block+", "+n.launches_scanned+" launches, collected "+n.collected')
           git commit -m "launch index: manual refresh, ${summary}"
           generated_sha=$(git rev-parse HEAD)
           branch="automation/launch-refresh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git push origin "HEAD:refs/heads/${branch}"
-          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "launch index: ${summary}" --body "Manual launch-refresh run ${GITHUB_RUN_ID}, guarded at one recorded finalized identity state. This PR contains only the four generated publication artifacts; merge only after the dispatched full test and vendor workflows plus repository review checks pass.")
+          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "launch index: ${summary}" --body "Manual launch-refresh run ${GITHUB_RUN_ID}, guarded at one recorded finalized identity state. This PR contains only the seven generated publication artifacts; merge only after the dispatched full test and vendor workflows plus repository review checks pass.")
           gh workflow run test.yml --ref "${branch}"
           gh workflow run vendor.yml --ref "${branch}"
           test_run=""
