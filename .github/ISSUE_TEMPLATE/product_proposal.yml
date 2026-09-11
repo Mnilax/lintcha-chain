@@ -1,0 +1,50 @@
+name: Product proposal
+description: Propose a source-first improvement that preserves the product boundary.
+title: "[proposal] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start with the user problem and the public source the repository can reproduce. The eight `road.never` statements are constraints, not optional styling.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What becomes clearer, faster or more useful for a reader?
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Verifiable source
+      description: Name the exact public input the repository would read. Do not include a credential-bearing URL.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Proposed output
+      description: Describe what the site or bot would say and what it would explicitly refuse to claim.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction and tests
+      description: Explain how a clean checkout can reproduce the result and how failure remains visible.
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Product-boundary review
+      description: Identify every `road.never` line the proposal touches, or state why it touches none.
+    validations:
+      required: true
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: This proposal does not add a score, recommendation, private index, hosted key or unprovable figure.
+          required: true

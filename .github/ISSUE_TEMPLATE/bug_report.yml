@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a reproducible problem in the site, tools, API worker or bot.
+title: "[bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for making the report reproducible. Do not include credentials, private RPC URLs, bot tokens, wallet secrets or signatures.
+        This is a public form. Do not use it for a suspected vulnerability or unpublished exploit details; no private reporting channel is currently published.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Static site
+        - Build or verification tools
+        - API worker or bot
+        - Published data
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened?
+      description: Include the exact public URL or command and the complete non-secret error text.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: List the smallest sequence that reproduces the problem from a clean checkout or public page.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revision or observation time
+      description: Give the commit hash you tested, or the UTC time if this was observed on the public deployment.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and version, or operating system and Node.js version, when relevant.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, private endpoints, wallet secrets, signatures and unpublished vulnerability details from this report.
+          required: true
