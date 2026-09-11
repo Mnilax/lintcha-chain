@@ -1,10 +1,10 @@
 // lintcha-chain, the token block's three states and the header cluster's links, built and checked without touching the
-// tree. site/token.json and site/links.json ship with every value null and stay that way until the token is really
-// deployed and the accounts really exist (no placeholder, no zeroes, no buy link, no empty slot in the tree); this test
+// tree. site/token.json ships with every value null and stays that way until the token is really deployed; site/links.json
+// names only accounts that really exist (no placeholder, no zeroes, no buy link, no empty slot in the tree); this test
 // writes a temporary token.json with an address made up at run time, builds into a temporary directory with --token and
 // --out, and checks what each state renders:
-//   a. all null           no contract row, no buy button, no token section, no launch band, the cluster is GITHUB and
-//                         X only, X on the default account, the made-up address nowhere in the page
+//   a. all null           no contract row, no buy button, no token section, no launch band, the cluster is GITHUB, X
+//                         on the default account and the configured TELEGRAM, the made-up address nowhere in the page
 //   b. address and pons   one filled BUY button in the header cluster, the contract row, section seventeen with the
 //                         pons button only, two live tiles showing a dash, the launch band under the footer
 //   c. pons and uniswap   both buttons, the uniswap one an outline
@@ -24,8 +24,8 @@
 // section as three cards and one wide, the sprite in its three places, and the roadmap line against the three
 // phase lists it was folded out of.
 //
-// Then it checks the tree's own site/token.json is all null, site/links.json is both null, and the tree's
-// site/index.html carries none of it.
+// Then it checks the tree's own site/token.json is all null, site/links.json carries only the confirmed Telegram
+// account, and the tree's site/index.html carries exactly that account and no token state.
 //   node tests/chain_token_states.mjs
 import fs from "node:fs";
 import os from "node:os";
@@ -54,6 +54,7 @@ const uniswap = "https://example.invalid/uniswap/" + crypto.randomBytes(4).toStr
 const xAccount = "https://example.invalid/x/" + crypto.randomBytes(4).toString("hex");
 const telegram = "https://example.invalid/telegram/" + crypto.randomBytes(4).toString("hex");
 const X_DEFAULT = "https://x.com/mnilax";   // the account the vendored footer links; the build falls back to it when links.json carries no x
+const TELEGRAM_DEFAULT = "https://t.me/lintcha";
 const shippedNumbers = JSON.parse(fs.readFileSync(path.join(root, "site", "launch-numbers.json"), "utf8"));
 const shippedIndexHash = crypto.createHash("sha256").update(fs.readFileSync(path.join(root, "site", "launch-index.json"))).digest("hex");
 function build(name, tokenJson, linksJson) {
@@ -76,9 +77,9 @@ ok(count(a, /class="buy"/g) === 0, "no buy button");
 ok(count(a, /token-sec/g) === 0, "no token section");
 ok(count(a, /class="band"/g) === 0 && count(a, /band-address|band-copy/g) === 0, "no launch band, not even an empty one");
 ok(count(a, /data-token-address/g) === 0 && count(a, /data-copy-address/g) === 0, "no address slot and no copy button for one");
-ok(count(a, /class="out"/g) === 2, "cluster is two outbound items");
-ok(count(a, /data-i18n="nav\.telegram"/g) === 0 && count(a, /class="out"/g) === 2, "no telegram item, no stub and no empty slot");
-ok(outHrefs(a).length === 2 && outHrefs(a)[1] === X_DEFAULT, "X points at the default account");
+ok(count(a, /class="out"/g) === 3, "cluster is three outbound items");
+ok(count(a, /data-i18n="nav\.telegram"/g) === 1, "the configured telegram item is present once");
+ok(outHrefs(a).length === 3 && outHrefs(a)[1] === X_DEFAULT && outHrefs(a)[2] === TELEGRAM_DEFAULT, "X points at the default account and Telegram at the configured room");
 ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are nowhere");
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
 ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 3, "the hero has one three-action start path");
@@ -157,7 +158,7 @@ ok(count(b, /data-copy-address/g) === 2, "two copy buttons: the contract row's a
 ok(count(b, /class="band"/g) === 1 && count(b, /class="band-copy"/g) === 1, "one launch band, with one copy button");
 ok(slot(b, "band-address") === address && slot(b, "band-address") === slot(b, "contract-address"), "the band carries the contract row's address");
 ok(b.indexOf('class="band"') > b.indexOf("</footer>"), "the band sits under the footer");
-ok(count(b, /class="out"/g) === 2 && outHrefs(b)[1] === X_DEFAULT, "the cluster is unchanged by the token: two items, X on the default account");
+ok(count(b, /class="out"/g) === 3 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: three items, X on the default account and Telegram on the configured room");
 
 console.log("state c: pons and uniswap");
 const c = build("c", { address, pons, uniswap });
@@ -178,12 +179,12 @@ console.log("the tree");
 const treeToken = JSON.parse(fs.readFileSync(path.join(root, "site", "token.json"), "utf8"));
 ok(treeToken.address === null && treeToken.pons === null && treeToken.uniswap === null, "site/token.json is all null");
 const treeLinks = JSON.parse(fs.readFileSync(path.join(root, "site", "links.json"), "utf8"));
-ok(treeLinks.x === null && treeLinks.telegram === null, "site/links.json is both null");
+ok(treeLinks.x === null && treeLinks.telegram === TELEGRAM_DEFAULT, "site/links.json leaves X on its default and names the confirmed Telegram room");
 const tree = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");
 ok(count(tree, /class="contract"|class="buy"|token-sec|class="band"/g) === 0, "site/index.html carries no token block and no band");
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
-ok(count(tree, /class="out"/g) === 2 && outHrefs(tree)[1] === X_DEFAULT, "the tree's page links the default X account and carries no telegram item");
+ok(count(tree, /class="out"/g) === 3 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === TELEGRAM_DEFAULT && count(tree, /data-i18n="nav\.telegram"/g) === 1, "the tree's page links the default X account and the confirmed Telegram room");
 
 // The eight never lines are the product boundary, not ordinary copy. Pin the ordered set in every source language so
 // a wording edit, a missing translation or a reordered line cannot pass merely because eight list items still exist.
