@@ -38,6 +38,7 @@ tools/launch/schema.mjs                the schema checker
 tools/launch/MANIFEST.md               this file
 tests/launch_test.js                   engine, tables row by row, criteria 4 to 6
 tests/launch_abi_test.mjs
+tests/launch_collector_state_test.mjs  fixed finalized identity-state capture, reuse and recheck
 tests/launch_gate_test.mjs
 tests/launch_index_test.mjs
 tests/launch_browser.mjs               criteria 1 and 2, headless Chrome over the DevTools protocol

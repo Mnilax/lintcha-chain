@@ -25,16 +25,17 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `tests/launch_acceptance.sh` | not in lintcha, from working tree | `8abf1bc70044436dda27638c44aff2aae1ae37925304a9f95e99363433fa02dd` | not in lintcha, from working tree |
 | `tests/launch_browser.mjs` | not in lintcha, from working tree | `bc1e1ae157622a25b2d994b4ab92c0eb020df006ee16f5a6435785547775971c` | not in lintcha, from working tree |
 | `tests/launch_extraction.mjs` | not in lintcha, from working tree | `a364f11afe80298b4f018f55e61caf422ddeadac5413b142659cb6fa3025a0b2` | not in lintcha, from working tree |
-| `tests/launch_gate_test.mjs` | not in lintcha, from working tree | `3f23b85a57177385fe1beb8aaa2b89a8aee6510c9ab0e19d335a313283169e46` | not in lintcha, from working tree |
-| `tests/launch_index_test.mjs` | not in lintcha, from working tree | `6bdd3e3123064b4647298d2965c39027a167a07b90d6bcaadea0f0c447c36a8a` | not in lintcha, from working tree |
+| `tests/launch_collector_state_test.mjs` | `tests/launch_collector_state_test.mjs` | `7842d4f5929a74478824a079795220de16a0e0d97d84460eefbe022c548ad42e` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
+| `tests/launch_gate_test.mjs` | `tests/launch_gate_test.mjs` | `9c8a479e1d772273ccc3b156561fe66492e09c7121ac63cc1984465cf2e5803b` | `77b27a7dbfad69afaa76a80a9ede505900b79234` |
+| `tests/launch_index_test.mjs` | `tests/launch_index_test.mjs` | `685bfc7fbcbb4485e55f19b02477936272fee08bb2b12da810466ca780adf380` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
 | `tests/launch_test.js` | not in lintcha, from working tree | `68514d7293582bab1ddecf1428d35be55d3cb9b06b9b56fb684bf7692602e4ad` | not in lintcha, from working tree |
-| `tools/launch-collect.mjs` | not in lintcha, from working tree | `b80ead21d3d181e2ff30071c69ecbee99af670651ab9432371b78793ce6f4d87` | not in lintcha, from working tree |
+| `tools/launch-collect.mjs` | `tools/launch-collect.mjs` | `e095873dd55b3f00f26df13bfa1e3e3a1f9c3dcbef1509bf0f19807d79958e87` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
 | `tools/launch-index-schema.json` | not in lintcha, from working tree | `c0b1b2bba26ebd7e6e4c4b86bac3346804f24471c33c3f969c889e551e88ea03` | not in lintcha, from working tree |
-| `tools/launch-index.mjs` | not in lintcha, from working tree | `c8aad8ecf2d70dac69e76d8d4a9b8529a9cdfdde29e30de5bacb62b4975cb710` | not in lintcha, from working tree |
-| `tools/launch/MANIFEST.md` | not in lintcha, from working tree | `8c3871714785a9c152e88b77ae34573365dbbe4f802e0b24a8ec90fd78c92bf9` | not in lintcha, from working tree |
+| `tools/launch-index.mjs` | `tools/launch-index.mjs` | `fe14373fd74bf417afa250ff81feeb44110b78373ead2054516a57d90e4629ef` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
+| `tools/launch/MANIFEST.md` | not in lintcha, from working tree | `51b8122e1fb88953440565aefa0f95142d8621204be77fea95a10106f1168d3e` | not in lintcha, from working tree |
 | `tools/launch/abi.mjs` | not in lintcha, from working tree | `c81920315d4a5c99a891f0bd2d093b4914a0722a2ec422b306a90ea45e4601ba` | not in lintcha, from working tree |
 | `tools/launch/keccak.mjs` | not in lintcha, from working tree | `bef0295971781ce2e8afdf4f22e3f85ca639c13f6e460bbe4faf957dfaa8de5d` | not in lintcha, from working tree |
-| `tools/launch/rpc.mjs` | not in lintcha, from working tree | `d916e49c10f6fff56f43255fb799a54986e0fe719d03df231e1344e837f2152a` | not in lintcha, from working tree |
+| `tools/launch/rpc.mjs` | `tools/launch/rpc.mjs` | `53c3e6ce390bb6981c172c02547289d9b7ff71ec92c46a12c0a0ca7364201913` | `77b27a7dbfad69afaa76a80a9ede505900b79234` |
 | `tools/launch/schema.mjs` | not in lintcha, from working tree | `6d0b3c53f336996a9c3dcb11d0b13c66e90ed8191ae3301e016d6d2b50edb8f1` | not in lintcha, from working tree |
 
 ## owned here

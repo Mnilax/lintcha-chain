@@ -1,58 +1,124 @@
-// The collector's limiter (tools/launch/rpc.mjs) against a fake endpoint: spacing between request starts, the
-// in-flight cap, a 429 answered with a wait and a retry (never a failure), a non-429 error rejected, and the counts.
+// The collector RPC gate against an injected endpoint: scheduling/retry counters remain exact, while request time,
+// response bytes and JSON-RPC correlation are all bounded and cancellation can never stall the queue.
 //   node tests/launch_gate_test.mjs
 import { Gate } from "../tools/launch/rpc.mjs";
-let checks = 0, failures = 0;
-const fail = m => { failures++; console.error("FAIL " + m); };
-const ok = (cond, what) => { checks++; if (!cond) fail(what); };
 
-const starts = []; let active = 0, peak = 0, script = [];
-globalThis.fetch = async (url, init) => {
-  const req = JSON.parse(init.body); starts.push({ t: Date.now(), method: req.method }); active++; peak = Math.max(peak, active);
-  const step = script.shift() || { status: 200, body: { jsonrpc: "2.0", id: req.id, result: "ok:" + req.method } };
-  await new Promise(r => setTimeout(r, step.delay || 20)); active--;
-  return { status: step.status, text: async () => typeof step.body === "string" ? step.body : JSON.stringify(step.body) };
+let checks = 0, failures = 0;
+const ok = (condition, label) => { checks++; if (!condition) { failures++; console.error("FAIL " + label); } };
+const rejected = async promise => { try { await promise; return ""; } catch (error) { return error.message; } };
+const base = { url: "https://rpc.example.invalid", inFlight: 1, spacingMs: 1, logsSpacingMs: 1, cooldownMs: 1, maxCooldownMs: 2, requestTimeoutMs: 50, maxResponseBytes: 1024, log: () => {} };
+const replies = [];
+
+globalThis.fetch = async (_url, init) => {
+  const request = JSON.parse(init.body), next = replies.shift();
+  if (typeof next === "function") return await next(request, init);
+  const spec = next || { status: 200, result: "ok" };
+  const body = Object.prototype.hasOwnProperty.call(spec, "body") ? spec.body : Object.prototype.hasOwnProperty.call(spec, "error")
+    ? { jsonrpc: "2.0", id: request.id, error: spec.error }
+    : { jsonrpc: "2.0", id: request.id, result: spec.result };
+  return { status: spec.status ?? 200, headers: spec.headers, body: spec.stream, text: async () => typeof body === "string" ? body : JSON.stringify(body) };
 };
 
-(async () => {
-  // spacing and the in-flight cap
-  let g = new Gate({ url: "fake", inFlight: 2, spacingMs: 60, logsSpacingMs: 150, cooldownMs: 100 });
-  script = new Array(6).fill({ status: 200, body: { result: 1 }, delay: 200 });
-  const t0 = Date.now();
-  const r = await Promise.all(["a", "b", "c", "d", "eth_getLogs", "f"].map(m => g.call(m, [])));
-  ok(r.length === 6 && r.every(x => x === 1), "six calls resolve");
-  ok(peak <= 2, "never more than two in flight, peak " + peak);
-  for (let i = 1; i < starts.length; i++) ok(starts[i].t - starts[i - 1].t >= 55, `starts spaced by the minimum (${starts[i].t - starts[i - 1].t} ms before ${starts[i].method})`);
-  const afterLogs = starts.findIndex(s => s.method === "eth_getLogs");
-  ok(afterLogs >= 0 && starts[afterLogs + 1].t - starts[afterLogs].t >= 145, "the wider spacing after eth_getLogs");
-  ok(g.stats.calls === 6 && g.stats.http429 === 0 && g.stats.retries === 0, "counts: six calls, no 429, no retry");
-  ok(Date.now() - t0 >= 5 * 60, "the run took at least five spacings");
+// A normal result is accepted only through its exact JSON-RPC envelope.
+let gate = new Gate(base);
+replies.push({ result: 7 });
+ok(await gate.call("eth_blockNumber", []) === 7, "accepts an exact JSON-RPC 2.0 result");
+ok(gate.stats.calls === 1 && gate.stats.retries === 0 && gate.stats.otherErrors === 0, "a valid result preserves success accounting");
 
-  // a 429 is a wait and a retry, not a failure; the wait doubles, and a success resets it
-  g = new Gate({ url: "fake", inFlight: 1, spacingMs: 10, cooldownMs: 100, maxCooldownMs: 1000, log: () => {} });
-  starts.length = 0;
-  script = [{ status: 429, body: "Too Many Requests" }, { status: 200, body: { error: { code: 429, message: "Too Many Requests" } } }, { status: 200, body: { result: "fine" } }];
-  const t1 = Date.now(); const v = await g.call("x", []);
-  ok(v === "fine", "resolves after two 429s");
-  ok(g.stats.http429 === 1 && g.stats.rpc429 === 1 && g.stats.retries === 2 && g.stats.calls === 3, "counts one http 429, one rpc 429, two retries, three calls: " + JSON.stringify(g.stats));
-  ok(Date.now() - t1 >= 100 + 200 - 5, "waited the first cooldown and its double");
-  ok(g.backoff === 100, "a success resets the backoff");
+let redirectPolicy = null;
+gate = new Gate(base);
+replies.push((_request, init) => { redirectPolicy = init.redirect; return { status: 200, text: async () => JSON.stringify({ jsonrpc: "2.0", id: 1, result: "ok" }) }; });
+ok(await gate.call("eth_blockNumber", []) === "ok" && redirectPolicy === "error", "refuses to follow redirects for an endpoint that may carry a path credential");
 
-  // a non-429 http error is retried after a cooldown; a json-rpc error other than 429 is rejected at once
-  g = new Gate({ url: "fake", inFlight: 1, spacingMs: 10, cooldownMs: 50, log: () => {} });
-  script = [{ status: 520, body: "<html>edge</html>" }, { status: 200, body: { result: 7 } }];
-  ok(await g.call("y", []) === 7, "a 520 is retried");
-  ok(g.stats.otherErrors === 1, "the 520 is counted as another error");
-  script = [{ status: 200, body: { error: { code: -32000, message: "block range too wide" } } }];
-  let rejected = null; try { await g.call("eth_getLogs", []); } catch (e) { rejected = e.message; }
-  ok(rejected && rejected.includes("block range too wide"), "an rpc error is rejected with its message: " + rejected);
+gate = new Gate({ ...base, spacingMs: 0, logsSpacingMs: 0 });
+replies.push({ result: "zero-spacing" });
+ok(await gate.call("eth_blockNumber", []) === "zero-spacing", "accepts an intentional zero spacing while every request remains concurrency-bound");
 
-  // gives up after maxRetries, with the reason
-  g = new Gate({ url: "fake", inFlight: 1, spacingMs: 1, cooldownMs: 1, maxCooldownMs: 2, maxRetries: 2, log: () => {} });
-  script = new Array(5).fill({ status: 429, body: "no" });
-  rejected = null; try { await g.call("z", []); } catch (e) { rejected = e.message; }
-  ok(rejected && rejected.includes("gave up after 3 tries"), "gives up after the retry budget: " + rejected);
+for (const [label, body] of [
+  ["wrong version", { jsonrpc: "1.0", id: 1, result: 7 }],
+  ["wrong id", { jsonrpc: "2.0", id: 2, result: 7 }],
+  ["extra envelope field", { jsonrpc: "2.0", id: 1, result: 7, extra: true }],
+  ["invalid JSON", "{"],
+  ["array envelope", [{ jsonrpc: "2.0", id: 1, result: 7 }]]
+]) {
+  gate = new Gate({ ...base, maxRetries: 0 });
+  replies.push({ body });
+  const message = await rejected(gate.call("eth_blockNumber", []));
+  ok(message.includes("gave up after 1 tries") && gate.stats.otherErrors === 1, "refuses " + label + " and counts the invalid response");
+}
 
-  console.log(`launch gate test: ${checks} checks, ${failures} failure(s)`);
-  process.exit(failures ? 1 : 0);
-})();
+// A provider RPC error is rejected immediately; a JSON-RPC 429 still follows the old retry path.
+gate = new Gate({ ...base, maxRetries: 1 });
+replies.push({ error: { code: -32000, message: "range too wide" } });
+ok((await rejected(gate.call("eth_getLogs", []))).includes("range too wide") && gate.stats.retries === 0, "rejects a non-429 RPC error without retrying");
+gate = new Gate({ ...base, maxRetries: 1 });
+replies.push({ status: 400, error: { code: -32602, message: "invalid params" } });
+ok((await rejected(gate.call("eth_call", []))).includes("invalid params") && gate.stats.calls === 1 && gate.stats.retries === 0, "preserves immediate non-429 RPC errors carried by a non-200 HTTP reply");
+gate = new Gate({ ...base, maxRetries: 1 });
+replies.push({ error: { code: 429, message: "limited" } }, { result: "fine" });
+ok(await gate.call("eth_call", []) === "fine", "retries a strict JSON-RPC 429");
+ok(gate.stats.rpc429 === 1 && gate.stats.retries === 1 && gate.stats.calls === 2, "preserves JSON-RPC 429 accounting");
+
+// An HTTP 429 body can expose a cancellation that never settles; the retry must still run.
+let cancelled = 0;
+gate = new Gate({ ...base, maxRetries: 1 });
+replies.push(
+  () => ({ status: 429, body: { cancel: () => { cancelled++; return new Promise(() => {}); } } }),
+  { result: "after-http-429" }
+);
+ok(await gate.call("eth_call", []) === "after-http-429" && cancelled === 1, "nonblocking cancellation cannot stall an HTTP 429 retry");
+ok(gate.stats.http429 === 1 && gate.stats.retries === 1 && gate.stats.calls === 2, "preserves HTTP 429 accounting");
+
+// Both a declared oversized body and a streamed oversized body fail inside the byte bound.
+cancelled = 0;
+gate = new Gate({ ...base, maxRetries: 0, maxResponseBytes: 8 });
+replies.push(() => ({ status: 200, headers: { get: () => "9" }, body: { cancel: () => { cancelled++; return new Promise(() => {}); } }, text: async () => "ignored" }));
+let message = await rejected(gate.call("eth_call", []));
+ok(message.includes("content-length exceeds") && cancelled === 1, "refuses an oversized declared response without awaiting cancellation");
+
+cancelled = 0;
+gate = new Gate({ ...base, maxRetries: 0, maxResponseBytes: 8 });
+replies.push(() => new Response(new ReadableStream({
+  start(controller) { controller.enqueue(new Uint8Array(9)); },
+  cancel() { cancelled++; return new Promise(() => {}); }
+}), { status: 200 }));
+message = await rejected(gate.call("eth_call", []));
+ok(message.includes("response body exceeds") && cancelled === 1, "refuses an oversized stream without awaiting cancellation");
+
+// The same deadline bounds a fetch that never returns and a body that never finishes.
+gate = new Gate({ ...base, maxRetries: 0, requestTimeoutMs: 5 });
+replies.push(() => new Promise(() => {}));
+message = await rejected(gate.call("eth_call", []));
+ok(message.includes("request deadline exceeded"), "bounds a fetch that ignores abort");
+gate = new Gate({ ...base, maxRetries: 0, requestTimeoutMs: 5 });
+replies.push(() => ({ status: 200, text: () => new Promise(() => {}) }));
+message = await rejected(gate.call("eth_call", []));
+ok(message.includes("request deadline exceeded"), "bounds a response body that never settles");
+
+const endpointSecret = "endpoint-secret-sentinel";
+gate = new Gate({ ...base, url: "https://rpc.example.invalid/" + endpointSecret, maxRetries: 0 });
+replies.push(() => { throw new Error("transport refused https://rpc.example.invalid/" + endpointSecret); });
+message = await rejected(gate.call("eth_call", []));
+ok(message.includes("request failed") && !message.includes(endpointSecret), "never echoes a credential-bearing endpoint from a transport exception");
+gate = new Gate({ ...base, url: "https://rpc.example.invalid/" + endpointSecret, maxRetries: 0 });
+replies.push({ error: { code: -32000, message: "provider rejected /" + endpointSecret } });
+message = await rejected(gate.call("eth_call", []));
+ok(message.includes("rpc error -32000") && !message.includes(endpointSecret), "redacts an endpoint path credential reflected by a provider RPC error");
+gate = new Gate({ ...base, url: "https://rpc.example.invalid/ab/cd", maxRetries: 0 });
+replies.push({ error: { code: -32000, message: "provider rejected /ab/cd" } });
+message = await rejected(gate.call("eth_call", []));
+ok(message.includes("rpc error -32000") && !message.includes("/ab/cd"), "redacts a complete credential path even when every segment is short");
+gate = new Gate({ ...base, url: "https://endpoint-secret-sentinel.example.invalid/", maxRetries: 0 });
+replies.push({ error: { code: -32000, message: "provider rejected endpoint-secret-sentinel.example.invalid" } });
+message = await rejected(gate.call("eth_call", []));
+ok(message.includes("rpc error -32000") && !message.includes("endpoint-secret-sentinel"), "redacts a credential-bearing endpoint hostname reflected by a provider RPC error");
+
+let badConfig = false;
+try { new Gate({ ...base, requestTimeoutMs: 0 }); } catch (error) { badConfig = error.message.includes("configuration"); }
+ok(badConfig, "refuses an unbounded request deadline");
+badConfig = false;
+try { new Gate({ ...base, spacingMs: -1 }); } catch (error) { badConfig = error.message.includes("configuration"); }
+ok(badConfig, "refuses a negative request spacing");
+
+console.log(`launch gate test: ${checks} checks, ${failures} failure(s)`);
+process.exit(failures ? 1 : 0);

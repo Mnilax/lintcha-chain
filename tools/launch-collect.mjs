@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // lintcha launch collector (LINTCHA_12 section 6). Offline from the site's point of view: run by whoever has network,
 // never part of the site build. Reads the launch log of the pons v2 factory on Robinhood Chain over a block window,
-// then name(), symbol() and getTokenInfo() per token (through Multicall3 when it has code, else one call each), the
+// captures one exact finalized identity-state block and hash, then reads name(), symbol() and getTokenInfo() per
+// token at that numeric block (through Multicall3 when it has code there, else one call each), the
 // creator fee recipient from each launch transaction's TokenParams, and the block dates; normalizes every field with
 // the site's own engine (site/launch.js, imported, never copied), hashes it, counts it per namespace with the first
 // date and the number of distinct deployers, and prints the six-line report. Addresses and raw strings live in this
@@ -13,6 +14,10 @@
 //   node tools/launch-collect.mjs --from N --to M         an explicit window
 //   options: --chunk N (blocks per eth_getLogs, default 50000)  --spacing MS  --logs-spacing MS  --in-flight N
 //            --rpc URL  --out FILE (default build/launch-collect.json)  --no-multicall
+//            --identity-state-number N --identity-state-hash 0x... (explicit windows only; both required)
+//   Credential-bearing endpoints belong in LINTCHA_CHAIN_RPC_URL. An explicit --rpc remains available for a
+//   deliberate local override, but command-line arguments can be visible to other processes and the URL is never
+//   printed by this program.
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -40,7 +45,27 @@ const hex32 = bytes => Array.from(bytes, b => b.toString(16).padStart(2, "0")).j
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => { const i = argv.indexOf("--" + name); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") ? argv[i + 1] : dflt; };
 const flag = name => argv.includes("--" + name);
-const RPC = opt("rpc", "https://rpc.mainnet.chain.robinhood.com");
+const DEFAULT_RPC = "https://rpc.mainnet.chain.robinhood.com";
+const RPC_ENV = "LINTCHA_CHAIN_RPC_URL";
+const cliRpc = opt("rpc"), envRpc = process.env[RPC_ENV];
+if (cliRpc && envRpc) throw new Error("choose either --rpc or " + RPC_ENV + ", not both");
+const RPC = cliRpc || envRpc || DEFAULT_RPC;
+const rpcUrlAllowed = value => {
+  let url;
+  try { url = new URL(value); } catch { return false; }
+  if (url.username || url.password || url.search || url.hash) return false;
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
+};
+if (!rpcUrlAllowed(RPC)) throw new Error("RPC URL must be HTTPS with no userinfo, query or fragment (plain HTTP is accepted only on loopback)");
+if (cliRpc) console.error("warning: --rpc is visible in the process argument list; use " + RPC_ENV + " for a credential-bearing endpoint");
+const hasIdentityStateNumber = argv.includes("--identity-state-number");
+const hasIdentityStateHash = argv.includes("--identity-state-hash");
+const identityStateNumberText = opt("identity-state-number");
+const identityStateHash = opt("identity-state-hash");
+if (hasIdentityStateNumber !== hasIdentityStateHash || (hasIdentityStateNumber && (!identityStateNumberText || !identityStateHash))) {
+  throw new Error("--identity-state-number and --identity-state-hash must be supplied together with values");
+}
 const CHUNK = Number(opt("chunk", 50000));
 const SAMPLE = Number(opt("sample", flag("smoke") ? 1 : 50));   // every Nth launch also has its transaction read, to check the factory record against the calldata
 const OUT = opt("out", path.join("build", "launch-collect.json"));
@@ -50,15 +75,38 @@ const hexN = n => "0x" + BigInt(n).toString(16);
 const num = h => Number(BigInt(h));
 const dateOf = ts => new Date(Number(ts) * 1000).toISOString().slice(0, 10);
 const lower = a => String(a).toLowerCase();
+const canonicalHash = value => typeof value === "string" && /^0x[0-9a-f]{64}$/.test(value) && !/^0x0{64}$/.test(value);
+const pinnedIdentityNumber = hasIdentityStateNumber && /^(?:0|[1-9][0-9]*)$/.test(identityStateNumberText) ? Number(identityStateNumberText) : null;
+if (hasIdentityStateNumber && (!Number.isSafeInteger(pinnedIdentityNumber) || pinnedIdentityNumber < 0 || !canonicalHash(identityStateHash))) {
+  throw new Error("explicit identity state needs a safe nonnegative decimal block number and canonical nonzero lowercase block hash");
+}
+if (hasIdentityStateNumber && (!opt("from") || !opt("to") || flag("day") || flag("smoke"))) {
+  throw new Error("an explicit identity state is accepted only with --from N --to M");
+}
 
 // ---------------------------------------------------------------- the window
-async function blockAt(n) { const b = await rpc("eth_getBlockByNumber", [typeof n === "string" ? n : hexN(n), false]); return { number: num(b.number), timestamp: num(b.timestamp) }; }
+async function blockAt(n) {
+  const tag = typeof n === "string" ? n : hexN(n), b = await rpc("eth_getBlockByNumber", [tag, false]);
+  if (!b || typeof b !== "object" || Array.isArray(b)) throw new Error("block " + tag + " is not an object");
+  const number = num(b.number), timestamp = num(b.timestamp);
+  if (!Number.isSafeInteger(number) || number < 0 || !Number.isSafeInteger(timestamp) || timestamp < 0 || (typeof n !== "string" && number !== n)) throw new Error("block " + tag + " has an invalid number or timestamp");
+  return { number, timestamp, hash: b.hash };
+}
+async function captureIdentityState() {
+  const currentFinalized = await blockAt("finalized");
+  if (!canonicalHash(currentFinalized.hash)) throw new Error("current finalized block has no canonical nonzero hash");
+  if (!hasIdentityStateNumber) return currentFinalized;
+  if (currentFinalized.number < pinnedIdentityNumber) throw new Error("explicit identity-state block is above the current finalized head");
+  if (currentFinalized.number === pinnedIdentityNumber && currentFinalized.hash !== identityStateHash) throw new Error("current finalized head contradicts the explicit identity-state hash at the same height");
+  const pinned = await blockAt(pinnedIdentityNumber);
+  if (!canonicalHash(pinned.hash) || pinned.hash !== identityStateHash) throw new Error("explicit identity-state block is not canonical at the supplied hash");
+  return pinned;
+}
 async function firstBlockAtOrAfter(ts, lo, hi) {   // bisection on timestamps, blocks are monotone
   while (lo < hi) { const mid = Math.floor((lo + hi) / 2); const b = await blockAt(mid); if (b.timestamp < ts) lo = mid + 1; else hi = mid; }
   return lo;
 }
-async function resolveWindow() {
-  const fin = await blockAt("finalized");
+async function resolveWindow(fin) {
   if (flag("smoke")) return { from: fin.number - 999, to: fin.number, finalized: fin, kind: "smoke" };
   if (opt("from") && opt("to")) return { from: Number(opt("from")), to: Number(opt("to")), finalized: fin, kind: "explicit" };
   if (flag("day")) {
@@ -96,21 +144,21 @@ const decodeToken = (name, symbol, info, launched) => {
 };
 // four reads per token: name(), symbol(), getTokenInfo() on the token, getLaunchedToken(token) on the factory
 const readsOf = t => [[t.token, true, SEL.name], [t.token, true, SEL.symbol], [t.token, true, SEL.info], [FACTORY, true, launchedCall(t.token)]];
-async function readTokens(list, useMulticall) {
+async function readTokens(list, useMulticall, stateTag) {
   const out = new Map();
   if (useMulticall) {
     const per = 15;   // tokens per aggregate3: sixty view calls
     for (let i = 0; i < list.length; i += per) {
       const batch = list.slice(i, i + per);
       const data = calldata(SEL.aggregate3, [T.array(AGGREGATE3_CALL)], [batch.flatMap(readsOf)]);
-      const raw = await rpc("eth_call", [{ to: MULTICALL3, data }, "latest"]);
+      const raw = await rpc("eth_call", [{ to: MULTICALL3, data }, stateTag]);
       const res = decodeParams([AGGREGATE3_RESULT], raw)[0];
       batch.forEach((t, k) => { const r = res.slice(4 * k, 4 * k + 4); out.set(t.token, r.every(x => x[0]) ? decodeToken(r[0][1], r[1][1], r[2][1], r[3][1]) : { readable: false }); });
       if ((i / per) % 20 === 0) console.error(`  tokens ${i + batch.length}/${list.length}`);
     }
   } else {
     for (const t of list) {
-      const one = ([to, , data]) => rpc("eth_call", [{ to, data }, "latest"]).catch(() => null);
+      const one = ([to, , data]) => rpc("eth_call", [{ to, data }, stateTag]).catch(() => null);
       const r = await Promise.all(readsOf(t).map(one));
       out.set(t.token, r.every(Boolean) ? decodeToken(...r) : { readable: false });
     }
@@ -152,15 +200,20 @@ class Counter {
   const t0 = Date.now();
   const chainId = BigInt(await rpc("eth_chainId", []));
   if (chainId !== CHAIN_ID) throw new Error("chain id " + chainId + ", expected " + CHAIN_ID);
-  const code = await rpc("eth_getCode", [MULTICALL3, "latest"]);
+  const identityState = await captureIdentityState();
+  const identityTag = hexN(identityState.number);
+  const code = await rpc("eth_getCode", [MULTICALL3, identityTag]);
   const useMulticall = code && code.length > 2 && !flag("no-multicall");
-  const w = await resolveWindow();
+  const w = await resolveWindow(identityState);
+  if (w.to > identityState.number) throw new Error("window ends after the captured finalized identity state");
   const toBlock = await blockAt(w.to), fromBlock = await blockAt(w.from);
   console.error(`window ${w.kind}: blocks ${w.from}..${w.to} (${w.to - w.from + 1} blocks), ${new Date(fromBlock.timestamp * 1000).toISOString()} .. ${new Date(toBlock.timestamp * 1000).toISOString()}; finalized ${w.finalized.number}; multicall3 code: ${useMulticall ? "yes" : "no"}`);
 
   const list = await launches(w.from, w.to);
-  const tokens = await readTokens(list, useMulticall);
+  const tokens = await readTokens(list, useMulticall, identityTag);
   const params = await readParams(list);
+  const identityAfter = await blockAt(identityState.number);
+  if (identityAfter.hash !== identityState.hash) throw new Error("finalized identity-state block hash changed during identity reads");
   // Dates without a call per block: blocks are monotone in time, so the utc date changes at one block per midnight;
   // each boundary is found by bisection on real timestamps, and a block's date follows from which side it is on.
   const midnights = []; for (let m = Math.ceil(fromBlock.timestamp / 86400) * 86400; m <= toBlock.timestamp; m += 86400) midnights.push(m);
@@ -211,6 +264,7 @@ class Counter {
   const rawMulti = [...raw.values()].filter(e => e.deployers.size > 1).length;
 
   const report = {
+    identity_state: { number: identityState.number, hash: identityState.hash },
     window: { kind: w.kind, from: w.from, to: w.to, blocks: w.to - w.from + 1, from_time: new Date(fromBlock.timestamp * 1000).toISOString(), to_time: new Date(toBlock.timestamp * 1000).toISOString(), finalized: w.finalized.number, chain_id: Number(chainId) },
     six: {
       launches_scanned: v.readable,

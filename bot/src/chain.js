@@ -34,6 +34,12 @@ export const DEFAULT_RPC_SPACING_MS = 600;
 export const DEFAULT_RPC_LOGS_SPACING_MS = 1500;
 /** Durable rounds own retries; one logical RPC call spends at most one external subrequest. */
 export const BOT_RPC_MAX_RETRIES = 0;
+/**
+ * chain_test sizes a standard maximum-count Transfer page. This is the next power of two above twice that body:
+ * enough room for provider-added fields without letting two in-flight replies approach the Worker's isolate
+ * memory ceiling while the vendored reader, decoded string and parsed JSON coexist.
+ */
+export const BOT_RPC_RESPONSE_BODY_LIMIT = 4 * 1024 * 1024;
 /** The static build and this network reader share one exact authored activation-document ceiling. */
 export const TOKEN_JSON_BODY_LIMIT = TOKEN_CONFIG_BODY_LIMIT;
 /** A site activation read never occupies more than the existing five-second public-cache window. */
@@ -230,6 +236,7 @@ export function rpcGate(env = {}) {
       spacingMs: integerSetting(env.RPC_SPACING_MS, DEFAULT_RPC_SPACING_MS, { min: 0, max: MAX_RPC_SPACING_MS }),
       logsSpacingMs: integerSetting(env.RPC_LOGS_SPACING_MS, DEFAULT_RPC_LOGS_SPACING_MS, { min: 0, max: MAX_RPC_SPACING_MS }),
       maxRetries: BOT_RPC_MAX_RETRIES,
+      maxResponseBytes: BOT_RPC_RESPONSE_BODY_LIMIT,
       log: () => {}
     });
     gateUrl = url;

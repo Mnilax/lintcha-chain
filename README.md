@@ -36,8 +36,11 @@ implemented and testable in the repository; it does not assert that a deployment
 - `tools/build.mjs` builds the comparison, sitemap and published integrity manifest; `tools/build-viz.mjs` the three charts and the ornament from the index;
   `tools/build-method.mjs` the method section's tables from the engine's own files; `tools/verify-vendor.mjs` checks
   the vendored files against VENDOR.md; `tools/verify-index.mjs` is `npm run verify`.
-- `tools/launch-collect.mjs` and `tools/launch-index.mjs` (vendored) read one day of launches from the public RPC and
-  write the index and the numbers file. The owned `tools/collection-guard.mjs` re-reads the exact finalized range with
+- `tools/launch-collect.mjs` and `tools/launch-index.mjs` (vendored) read one day of launches and write the index and
+  numbers file. The source-first refresh contract requires one exact finalized identity-state block number/hash, with
+  every token, factory and Multicall identity read on its numeric tag and that state carried into the numbers file.
+  The owned guard now fails closed when the state is absent, verifies its canonical header before and after repeating
+  those identity reads, and re-reads the exact finalized range with
   aligned and shifted page layouts that differ from the collector, compares their canonical raw rows, binds every
   event block hash to a finalized header and refuses publication unless its strict
   event, identity and record reconstruction agrees with the collector. For the transaction sample it reproduces the
@@ -72,11 +75,11 @@ npm run build     merge the strings; build the comparison, 404, sitemap and publ
 npm test          verify-vendor plus the config, manifest, token, wall, history, engine, index and identity contracts
 npm test --prefix bot     the Telegram, holder, feed, watcher, rules and all five API-route contracts
 npm run i18n      merge the strings and run the vendored i18n check (three languages, en emitted)
-npm run verify    re-run and strictly audit the recorded window, rebuild the index, print both hashes
+npm run verify    refuse the current legacy snapshot before network; for a state-pinned replacement, audit its exact state/window, rebuild, print both hashes
 node tests/published_contract_test.mjs     verify the manifest against the exact index and numbers bytes
 node tests/chain_browser.mjs site --pages "/,/live/,/deployer/,/hold/,/hold/?t=0123456789abcdef0123456789abcdef"     all rendered-page and holder-flow contracts in a headless browser
 npm run identity -- doctor     run the public conformance fixture
-node tools/collection-guard.mjs --in <report.json> --published site/launch-numbers.json --diagnose-semantic     compare a separately sampled fixed identity snapshot without treating it as publication proof; explicitly allowed moving-latest reads are unbound and diagnostic only
+node tools/collection-guard.mjs --in <report.json> --published site/launch-numbers.json --diagnose-semantic     reconstruct identities at the report's exact recorded state; this skips event-header batches and sampled transactions and is not publication proof
 npm run identity -- help       print the offline JSON CLI contract
 npm run identity -- read --input <input.json>     read JSON with the shipped index and its matching manifest
 bash tests/console_check.sh site      console-error checks for every published HTML page
@@ -127,7 +130,7 @@ The badges above are static images from shields.io, which GitHub renders; nothin
 Each figure is read from the tree, not typed from memory:
 
 ```
-tests           npm test; npm test --prefix bot              680 root checks + 1371 bot checks = 2051 checks
+tests           npm test; npm test --prefix bot              745 root checks + 1418 bot checks = 2163 checks
 node            package.json, engines.node                  >=24
 runtime deps    package.json                                no "dependencies" key
 chain           site/launch-numbers.json, chain_id          4663
@@ -140,10 +143,12 @@ When a refresh lands a new index, the index badge is a line to edit here; nothin
 
 ## The refresh workflow
 
-`.github/workflows/launch-refresh.yml` is intentionally manual-only while identity reads remain unpinned `latest`.
-Its unattended schedule stays removed until the collector records one exact identity-state block and hash and both the
-collector and guard reuse that block. When deliberately dispatched, it collects the most recent full day, rebuilds the index, the numbers
-file, the integrity manifest and the page, and commits those four artifacts only after the owned guard re-reads the
+`.github/workflows/launch-refresh.yml` is intentionally manual-only until a strict full refresh passes against the
+no-key public endpoint. Its unattended schedule stays removed. A new collection records one exact finalized block number/hash, and the collector and guard use only that
+numeric state tag for identity reads. The legacy published numbers artifact has no such state and `npm run verify`
+therefore fails closed until a new guarded refresh replaces it; the verifier never invents a state for old bytes.
+When deliberately dispatched, the workflow collects the most recent full day, rebuilds the index, the numbers
+file, the integrity manifest and the page, then opens a unique PR containing only those four artifacts after the owned guard re-reads the
 exact finalized logs in two alternate page layouts, compares their complete canonical rows, binds each event hash to its block header, derives every UTC
 boundary, and rebuilds every table and summary. It also reproduces the collector's sampled-transaction counters;
 sampled direct factory/forwarder calls must match their exact verified outer ABI, destination and complete launch
@@ -151,13 +156,21 @@ fields, while other outer envelopes remain explicitly uninterpreted. These reads
 endpoint and are not described as an independent-provider proof. The job also requires a non-empty internally
 consistent window, a published-day sanity floor, the schema, engine and index tests,
 verify-vendor before, between and after, and a membership test that allows exactly those four paths to have changed.
+It never pushes directly to `main`, and aborts if `main` moved during collection or while its checks ran rather than rebasing generated bytes.
+Because a push made by `GITHUB_TOKEN` does not recursively start ordinary push workflows, the refresh opens a draft
+PR, explicitly dispatches and waits for both `test.yml` and `vendor.yml` on its unique branch, rechecks `main`, and
+marks the PR ready only after both runs pass for the exact generated commit and both the remote branch and PR head
+still name that commit. The PR remains the repository-review and merge boundary. GitHub Actions must be allowed to
+create pull requests in the repository settings; with that permission disabled, the job stops after pushing its
+isolated branch and cannot place generated bytes on `main`.
 
-The strict direct-call check re-reads the factory record at the launch block. The guard now proves that historical
-factory state is available before starting the expensive scan. The currently verified public endpoint serves old
-block headers but refused old state with `metadata is not found`, so unattended refresh is intentionally disabled
-until two source-first decisions are made: pin and record one exact identity-state block in the collector, and use an
-archive-capable audit endpoint that can read it. Do not weaken the guard to turn that infrastructure gap into a green
-publication.
+The strict direct-call check re-reads the factory record at the launch block. Before starting the expensive scan, the
+guard proves that both the recorded identity state and the historical launch-window state are available. Set a
+credential-bearing archive endpoint in `LINTCHA_CHAIN_RPC_URL`; `--rpc` remains a deliberate override but is visible
+in the process argument list, and neither command prints its URL. An endpoint that cannot read either fixed state is a
+hard failure. That environment path is for a local operator run: the hosted workflow deliberately receives no RPC
+secret and can use only its checked-in public endpoint. Do not weaken the guard or host a key merely to turn that
+infrastructure gap into a green publication.
 
 ## The token
 

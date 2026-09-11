@@ -2,10 +2,22 @@
 // the site, is cached in memory for no longer than a minute, and an unreadable site is not an absent token.
 //
 //   node test/chain_test.mjs
-import { readToken, forgetToken, forgetDecimals, hasToken, setGate, rpcGate, balanceOf, decimalsOf, totalSupply, unitsNumber, launchRecord, venueOf, transfersAround, priceInPair, SEL, TOPIC_TRANSFER, CHAIN_ID, FACTORY, chainIsOurs, blockNumber, DEFAULT_RPC_IN_FLIGHT, DEFAULT_RPC_SPACING_MS, DEFAULT_RPC_LOGS_SPACING_MS, BOT_RPC_MAX_RETRIES, MAX_RPC_SPACING_MS, DEFAULT_MAX_TRANSFER_LOGS, MAX_TRANSFER_HEADER_BLOCKS, TRANSFER_LOGS_OVERFLOW, TOKEN_JSON_BODY_LIMIT, TOKEN_JSON_TIMEOUT_MS } from "../src/chain.js";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { readToken, forgetToken, forgetDecimals, hasToken, setGate, rpcGate, balanceOf, decimalsOf, totalSupply, unitsNumber, launchRecord, venueOf, transfersAround, priceInPair, SEL, TOPIC_TRANSFER, CHAIN_ID, FACTORY, chainIsOurs, blockNumber, DEFAULT_RPC_IN_FLIGHT, DEFAULT_RPC_SPACING_MS, DEFAULT_RPC_LOGS_SPACING_MS, BOT_RPC_MAX_RETRIES, BOT_RPC_RESPONSE_BODY_LIMIT, MAX_RPC_SPACING_MS, DEFAULT_MAX_TRANSFER_LOGS, MAX_TRANSFER_HEADER_BLOCKS, TRANSFER_LOGS_OVERFLOW, TOKEN_JSON_BODY_LIMIT, TOKEN_JSON_TIMEOUT_MS } from "../src/chain.js";
 import { harness, fakeGate, fakeGateFn, fakeNetwork, wordHex, topicAddr, launchRecordHex, TOKEN_ADDRESS, VENUE_ADDRESS, WALLET_ADDRESS, FIXTURE } from "./fakes.mjs";
 
 const t = harness("chain");
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repository = path.resolve(here, "..", "..");
+const botRpcBytes = fs.readFileSync(path.join(repository, "bot", "src", "rpc.js"));
+const sourceRpcBytes = fs.readFileSync(path.join(repository, "tools", "launch", "rpc.mjs"));
+const vendorText = fs.readFileSync(path.join(repository, "VENDOR.md"), "utf8");
+const vendorRpc = /^\| `tools\/launch\/rpc\.mjs` \| [^|]+ \| `([0-9a-f]{64})` \|/m.exec(vendorText);
+t.ok(botRpcBytes.equals(sourceRpcBytes), "the worker RPC gate is byte-identical to its checked-in source copy");
+t.ok(vendorRpc && vendorRpc[1] === crypto.createHash("sha256").update(sourceRpcBytes).digest("hex"), "the shared RPC gate bytes match their exact VENDOR digest");
 const net = fakeNetwork();
 const OUR_CHAIN = "0x" + CHAIN_ID.toString(16);
 const onOurs = table => fakeGate({ eth_chainId: OUR_CHAIN, ...table });
@@ -253,6 +265,20 @@ setGate(null);
 let configuredGate = rpcGate({ RPC_IN_FLIGHT: "2", RPC_SPACING_MS: "600", RPC_LOGS_SPACING_MS: "1500" });
 t.ok(configuredGate.inFlight === DEFAULT_RPC_IN_FLIGHT && configuredGate.spacingMs === DEFAULT_RPC_SPACING_MS && configuredGate.logsSpacingMs === DEFAULT_RPC_LOGS_SPACING_MS,
   "the collector's exact limiter settings survive strict parsing");
+const sizingHash = "f".repeat(64), sizingQuantity = "0x" + "f".repeat(16);
+const standardTransferLog = {
+  address: "0x" + "f".repeat(40), blockHash: "0x" + sizingHash, blockNumber: sizingQuantity,
+  data: "0x" + sizingHash, logIndex: sizingQuantity, removed: false,
+  topics: ["0x" + sizingHash, "0x" + sizingHash, "0x" + sizingHash],
+  transactionHash: "0x" + sizingHash, transactionIndex: sizingQuantity
+};
+const standardMaxPageBytes = new TextEncoder().encode(JSON.stringify({
+  jsonrpc: "2.0", id: 1, result: Array.from({ length: DEFAULT_MAX_TRANSFER_LOGS }, () => standardTransferLog)
+})).length;
+t.ok(configuredGate.maxResponseBytes === BOT_RPC_RESPONSE_BODY_LIMIT &&
+  (BOT_RPC_RESPONSE_BODY_LIMIT & (BOT_RPC_RESPONSE_BODY_LIMIT - 1)) === 0 &&
+  standardMaxPageBytes * 2 <= BOT_RPC_RESPONSE_BODY_LIMIT && standardMaxPageBytes * 4 > BOT_RPC_RESPONSE_BODY_LIMIT,
+  "the Worker gives the vendored reader the first power-of-two ceiling above twice one standard maximum-count Transfer page");
 setGate(null);
 configuredGate = rpcGate({ RPC_IN_FLIGHT: "Infinity", RPC_SPACING_MS: "NaN", RPC_LOGS_SPACING_MS: "-1" });
 t.ok(configuredGate.inFlight === 1, "invalid explicit concurrency tightens to one request");

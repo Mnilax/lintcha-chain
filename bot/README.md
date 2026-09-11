@@ -42,7 +42,7 @@ it must not be: the endpoint's edge refuses anonymous library signatures, and th
 already found the settings that work.
 
     source     tools/launch/rpc.mjs
-    sha256     d916e49c10f6fff56f43255fb799a54986e0fe719d03df231e1344e837f2152a
+    sha256     53c3e6ce390bb6981c172c02547289d9b7ff71ec92c46a12c0a0ca7364201913
     identical  yes, byte for byte, and that hash is the one VENDOR.md records for the source
 
 There is one RPC client in this repository and this is a copy of it. A second one is not
@@ -100,6 +100,17 @@ when what actually happened was a network fault.
 3. **The room's chat id** in `ROOM_CHAT_ID`. Until it is set the feed still records buys
    and posts nothing, which is the right way round: no chat id must never mean no records.
 
+   Add `@lintchabot` to the public [lintcha room](https://t.me/lintcha) as an ordinary member,
+   then discover its numeric id without putting the bot token in argv, an environment variable,
+   a file or shell history:
+
+        npm run telegram:discover
+
+   The helper accepts credentials only from a masked interactive terminal, first verifies
+   `lintchabot` with `getMe`, then resolves the fixed public username `@lintcha` with `getChat`.
+   Copy only the returned numeric `chat.id` into `ROOM_CHAT_ID`. It refuses redirected bot or
+   room identities and never prints a token or a remote Telegram error body.
+
    Put the exact BotFather username in `BOT_USERNAME`, without `@`. Telegram usernames are
    case-insensitive, contain only Latin letters, digits and underscores, are five to thirty-two
    characters long, and a bot username ends in `bot`. The worker accepts `/command@username`
@@ -116,17 +127,42 @@ when what actually happened was a network fault.
         npm run deploy
 
    `npm run deploy` is the only supported production entrypoint: npm runs `predeploy` first, which
-   checks the local binding, runs every suite and builds the pinned strict bundle. Do not bypass it
-   with a direct `wrangler deploy`; Wrangler's own dry run accepts a placeholder namespace id.
+   refuses an empty or malformed `ROOM_CHAT_ID`, checks the local binding, runs every suite and
+   builds the pinned strict bundle. `npm run check-config` remains the non-production source-tree
+   check, so tests and dry runs can stay green before Telegram discovery. Do not bypass the
+   production gate with a direct `wrangler deploy`; Wrangler's own dry run accepts incomplete local
+   configuration.
 
 5. **Set the webhook** to `https://chain.lintcha.com/api/telegram`, with the same secret in
-   `secret_token`. That command carries the bot token, so it is not written in this file,
-   not in the report and not anywhere in this repository.
+   `secret_token`. The owned helper fixes that URL, requests only `message` and `edited_message`,
+   and explicitly keeps pending updates. It accepts both credentials only through masked TTY
+   prompts; do not put either one in argv, environment variables or files.
+
+        npm run telegram:set-webhook
+        npm run telegram:webhook-info
+
+   The second command reports only safe status fields and whether Telegram's configured URL is
+   exactly the production URL; it does not repeat a mismatched URL or `last_error_message`.
+   To roll the webhook back while preserving queued updates:
+
+        npm run telegram:delete-webhook
+
+   The delete mode asks for an additional interactive `DELETE` confirmation, reads the current
+   webhook first, and deletes only when its URL is exactly the production URL. No configured
+   webhook is a safe no-op; a foreign URL fails closed and remains untouched.
+
+   These commands call the [official Bot API webhook methods](https://core.telegram.org/bots/api#getting-updates)
+   with bounded responses and deadlines and refuse redirects. They do not store credentials; the
+   Bot API necessarily uses the token in its HTTPS request path only inside the running process.
 
    BotFather checklist before that manual step:
 
-   - copy the bot's exact username into `BOT_USERNAME` without `@`;
-   - confirm the username in BotFather is the one intended for this Worker;
+   - keep adding the bot to groups enabled; `@lintchabot` must be a member of `@lintcha` before
+     `telegram:discover` can resolve the room;
+   - leave [privacy mode](https://core.telegram.org/bots/features#privacy-mode) enabled. The current
+     room path needs addressed commands and the bot's own join service message, both delivered in
+     privacy mode; it neither needs every human message nor administrator status;
+   - confirm `lintchabot` in BotFather is the username intended for this Worker;
    - keep the token only in the `TELEGRAM_BOT_TOKEN` secret and the webhook secret only in
      `TELEGRAM_WEBHOOK_SECRET`, never in `wrangler.toml`;
    - after setting the webhook, test one unsuffixed direct command, this bot's suffixed command
@@ -341,7 +377,7 @@ is decoration. A live database whose range keeps moving cannot be rebuilt and co
 snapshot with one would quietly break both.
 
 The watcher reads `launch-manifest.json` before the index or numbers file. It accepts those two files only when
-their exact bytes match the manifest's digests, so a weekly refresh cannot silently pair generations while files
+their exact bytes match the manifest's digests, so a snapshot refresh cannot silently pair generations while files
 or isolate caches are changing. Each response is streamed into one preallocated buffer and refused above the
 authored four-megabyte runtime ceiling; the manifest itself has the smaller fixed contract ceiling.
 
@@ -372,7 +408,7 @@ ordered list; `page_commitment` commits it together with the counted-table hash,
 page commitment. That is the rule
 `tools/launch-index.mjs` enforces on the file the page reads, and `bot/test/tail_test.mjs` checks the tail's
 whole answer with that file's own pattern. Pruning also selects and deletes only one bounded batch per beat;
-it never loads every covered token merely because the weekly snapshot moved.
+it never loads every covered token merely because the published snapshot moved.
 
 `depth_days` is the configured pruning age floor. The object may keep an older row when the published snapshot
 has not yet covered its block; retaining a duplicate candidate is safer than deleting part of the live suffix.
@@ -522,6 +558,9 @@ Telegram, KV and both Durable Object contexts are local fakes from `test/fakes.m
     webhook_test   bounded webhook parsing, fail-closed durable update claims, concurrent/render/send
                    leases, response-store recovery, idempotent rule and nonce effects, room greeting,
                    method refusals, and /api/hold failures through the same atomic nonce path
+    telegram_bootstrap_test   offline getMe/getChat identity binding, masked and bounded TTY input,
+                   redirect refusal, strict bounded Bot API responses, exact webhook payloads,
+                   guarded deletion, safe output and checked-in BOT_USERNAME agreement
     chain_test     the site's file, the minute long cache, zero within-call RPC retries, exact
                    scalar/record/log reads, token-bound factory records, header-bound transfers,
                    chain-proved pool sides and decimals, and failures that are null rather than invented
@@ -531,8 +570,8 @@ Telegram, KV and both Durable Object contexts are local fakes from `test/fakes.m
                    origin, mark and sentence identical in bot/src/texts.js and site/hold/hold.js,
                    and no retry button after a one-time mark was spent
     predeploy_test the local deployment gate refuses the placeholder, missing or empty SESSIONS id,
-                   and invalid BotFather username, then accepts filled local values without claiming
-                   to verify live resources
+                   and invalid BotFather username; production mode also refuses an empty or malformed
+                   Telegram room id without claiming to verify live resources
     engine_test    the round's main test: site/launch.js hashed against VENDOR.md's own row,
                    loaded a second time the way the page loads it, and one fixture set through
                    both engines compared value for value, hash for hash, entry for entry, and

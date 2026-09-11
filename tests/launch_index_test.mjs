@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { validate } from "../tools/launch/schema.mjs";
-import { buildIndex, buildNumbers } from "../tools/launch-index.mjs";
+import { buildIndex, buildNumbers, identityStateOf } from "../tools/launch-index.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const L = require(path.join(root, "site", "launch.js"));
@@ -70,7 +70,7 @@ let threw = false; try { validate({ type: "object", oneOf: [] }, {}); } catch { 
 ok(threw, "the checker refuses a keyword it does not implement, so nothing in the schema is silently ignored");
 
 // ---------------------------------------------------------------- the writer: floor, recipient rule, determinism
-const collected = { tables: {}, window: { from: 1, to: 2, blocks: 2, from_time: "2026-09-07T10:36:34.000Z", to_time: "2026-09-08T10:36:34.000Z", chain_id: 4663 },
+const collected = { tables: {}, identity_state: { number: 2, hash: "0x" + "7".repeat(64) }, window: { from: 1, to: 2, blocks: 2, from_time: "2026-09-07T10:36:34.000Z", to_time: "2026-09-08T10:36:34.000Z", finalized: 2, chain_id: 4663 },
   six: { launches_scanned: 3, launches_with_a_link: { count: 2, share: 66.7 }, distinct_link_values: { folded: 2, raw: 3 }, link_values_by_more_than_one_deployer: { folded: 1, raw: 1 }, tickers_by_more_than_one_deployer: 1, lookalike_ticker_pairs: { pairs: 0, skeleton_groups: 0 } },
   also: { names_by_more_than_one_deployer: 0, logos_by_more_than_one_deployer: 0, recipients_by_more_than_one_deployer: 1, descriptions_compared: 0, descriptions_by_more_than_one_deployer: 0, lookalike_ticker_groups_v: 1, lookalike_name_groups: 0 },
   verified: { launches_in_log: 3, tokens_readable: 3 }, limiter: { calls: 9, http429: 0, rpc429: 0, retries: 0, otherErrors: 0, seconds: 4, lastAt: Date.parse("2026-09-08T10:40:00Z") } };
@@ -91,6 +91,19 @@ ok(JSON.stringify(buildIndex(collected)) === JSON.stringify(built), "determinist
 const nums = buildNumbers(collected, built, 10);
 ok(nums.collected === "2026-09-08" && nums.window.hours === 24 && nums.window.from_date === "2026-09-07", "numbers: collection date and window");
 ok(nums.links.distinct_raw === 3 && nums.links.distinct_folded === 2, "numbers: raw and folded side by side");
+ok(JSON.stringify(nums.identity_state) === JSON.stringify(collected.identity_state), "numbers: publishes the exact finalized identity state used by the collector");
+for (const [what, change] of [
+  ["missing", value => { delete value.identity_state; }],
+  ["zero hash", value => { value.identity_state.hash = "0x" + "0".repeat(64); }],
+  ["state behind window", value => { value.identity_state.number = 1; value.window.finalized = 1; }],
+  ["state/finality mismatch", value => { value.window.finalized = 3; }],
+  ["extra state field", value => { value.identity_state.extra = true; }]
+]) {
+  const value = clone(collected); change(value);
+  let refused = false;
+  try { identityStateOf(value); } catch (error) { refused = error.message.includes("new guarded collection"); }
+  ok(refused, "writer fails closed on " + what + " identity_state");
+}
 
 // ---------------------------------------------------------------- the shipped numbers agree with the engine and the index
 ok(numbers.description_min_words === L.MIN_WORDS, "numbers: the word floor is the engine's");

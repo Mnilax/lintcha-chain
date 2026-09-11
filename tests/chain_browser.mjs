@@ -5,7 +5,7 @@
 // launch-index.json was fetched at load, the full run on the tool page (paste every field, read, read again, clear,
 // toggle theme), the index fetched once on the first read and not on the second, the storage keys after the run,
 // the hosts contacted, and every console error.
-//   node tests/chain_browser.mjs [served-dir] [--pages /,/live/,/deployer/,/hold/?t=MARK] [--viewport 390x844] [--port PORT] [--cdp-port PORT] [--out build/chain-browser.json]
+//   node tests/chain_browser.mjs [served-dir] [--pages /,/live/,/deployer/,/hold/?t=MARK] [--viewport 390x844] [--port PORT] [--cdp-port PORT] [--browser PATH] [--out build/chain-browser.json]
 // Exit 1 on: a host other than the served origin, the index fetched at load, the first read fetching it other than
 // once, the second read fetching anything, a storage key outside lintcha:theme and lintcha:lang, a session key, a
 // cookie, a database, a cache, a service worker, or a console error. The pasted values are made up and name nobody.
@@ -26,6 +26,7 @@ const OUT = path.resolve(opt("out", path.join(HERE, "..", "build", "chain-browse
 // (MSYS path conversion), so the acceptance script leaves the default alone; pass --pages only for a list
 const PAGES = opt("pages", "/").split(",").map(s => s.trim()).filter(Boolean);
 const VIEWPORT_ARG = opt("viewport", "");
+const BROWSER_ARG = opt("browser", "");
 const viewportMatch = /^(\d+)x(\d+)$/.exec(VIEWPORT_ARG);
 if (VIEWPORT_ARG && !viewportMatch) { console.error("viewport must be WIDTHxHEIGHT"); process.exit(2); }
 const VIEWPORT = viewportMatch ? { width: Number(viewportMatch[1]), height: Number(viewportMatch[2]) } : null;
@@ -153,6 +154,10 @@ function serve() {
   });
 }
 function findBrowser() {
+  if (BROWSER_ARG) {
+    const requested = path.resolve(BROWSER_ARG);
+    return fs.existsSync(requested) ? requested : null;
+  }
   return ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files/Microsoft/Edge/Application/msedge.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "/usr/bin/google-chrome", "/usr/bin/chromium", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"].find(f => fs.existsSync(f));
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
