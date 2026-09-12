@@ -172,27 +172,35 @@ when what actually happened was a network fault.
    reconciliation fails, do not set the webhook; review the live state and repeat the supported
    deploy after correcting the cause.
 
-6. **Read back the deployed state, then set the webhook.** Confirm the deployed version, both secret
+6. **Read back the deployed state, then set the webhook in the mode the public token document proves.** Confirm the deployed version, both secret
    names, the `SESSIONS`, `TAPE` and `WATCH` bindings, both applied migration tags, the exact API
    route, the cron trigger, and that the API Worker's `workers.dev` endpoint and preview URLs are
    disabled. From the repository root, exercise `npm run smoke:production` before connecting Telegram.
 
-   If `site/token.json` still has a null address, stop here and leave the Worker deployed but its Telegram webhook
-   disconnected. The public page promises that the bot stays off until a verified token address exists. Activate it
-   only after that non-null address has been independently verified, published, and reproduced by the production
-   smoke.
+   When `site/token.json` is the complete three-null document, connect the bot only with the explicit pre-token
+   command below. `/start` and `/site` answer; `/ca`, `/price`, `/stats` and token-dependent holder commands state
+   that the token does not exist yet, and the feed starts no alarm and sends nothing. `/forget` remains available
+   because removing stored state must not depend on token activation. This is a live information bot, not a token
+   activation or a placeholder launch.
 
-   Only then set the webhook to `https://chain.lintcha.com/api/telegram`, with the same secret in
-   `secret_token`. Before contacting Telegram, the owned helper independently reads the fixed production
-   `https://chain.lintcha.com/token.json` with a hard deadline, byte ceiling, no redirects and no cache;
-   a null, malformed or unavailable activation document is a hard stop. The helper fixes the webhook URL,
-   requests only `message` and `edited_message`, and explicitly keeps pending updates. It accepts both
-   credentials only through masked TTY prompts; do not put either one in argv, environment variables or files.
+        npm run telegram:set-webhook-pretoken
+        npm run telegram:webhook-info
+
+   After Hour X has independently verified, published and reproduced a non-null address, use the ordinary active
+   command instead:
 
         npm run telegram:set-webhook
         npm run telegram:webhook-info
 
-   The second command reports only safe status fields and whether Telegram's configured URL is
+   Both modes set the webhook to `https://chain.lintcha.com/api/telegram`, with the same secret in `secret_token`.
+   Before contacting Telegram, the owned helper independently reads the fixed production
+   `https://chain.lintcha.com/token.json` with a hard deadline, byte ceiling, no redirects and no cache. Pre-token
+   mode requires the complete three-null document and refuses an active one; active mode requires a valid non-null
+   address and refuses the dormant document. A malformed or unavailable document is a hard stop in either mode.
+   The helper fixes the webhook URL, requests only `message` and `edited_message`, and explicitly keeps pending updates. It accepts both
+   credentials only through masked TTY prompts; do not put either one in argv, environment variables or files.
+
+   The info command reports only safe status fields and whether Telegram's configured URL is
    exactly the production URL; it does not repeat a mismatched URL or `last_error_message`.
    To roll the webhook back while preserving queued updates:
 
@@ -227,10 +235,10 @@ when what actually happened was a network fault.
    bindings, the KV id, secrets, routes and applied migrations. The local predeploy check cannot see
    any of those live facts.
 
-The on-chain project token address may remain null while the Worker is prepared and deployed. The handlers remain
-covered against a `token.json` of three nulls and the feed sleeps, but the Telegram webhook stays disconnected to keep
-the public launch promise. That dormant state is distinct from the two Telegram credentials, which are required before
-the Worker deployment.
+The on-chain project token address may remain null while the Worker and Telegram webhook run in explicit pre-token
+mode. The handlers remain covered against a `token.json` of three nulls, the feed sleeps, and token-dependent commands
+publish no address or figure. That dormant token state is distinct from the two Telegram credentials, which are
+required before the Worker deployment.
 
 ## The six routes
 

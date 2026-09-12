@@ -1,4 +1,5 @@
-// Production Telegram bootstrap without credentials in argv, environment variables or files.
+// Production Telegram bootstrap without credentials in argv, environment variables or files. The active and
+// explicit pre-token webhook modes are separate commands and each proves the matching public token.json state.
 //
 // The CLI accepts one mode and reads every credential from a masked interactive TTY prompt. The exported
 // operations take injected fetch/timer functions so their complete HTTP contract is exercised offline.
@@ -154,8 +155,8 @@ export async function botApiRequest(method, params, options = {}) {
   }
 }
 
-/** Fail closed unless the fixed public activation document currently carries one valid nonzero token address. */
-export async function requireProductionToken(options = {}) {
+/** Read the fixed public activation document and return only whether its complete contract is active. */
+export async function productionTokenState(options = {}) {
   const fetchImpl = options.tokenFetchImpl || options.fetchImpl || globalThis.fetch;
   const timeoutMs = options.timeoutMs === undefined ? TELEGRAM_TIMEOUT_MS : options.timeoutMs;
   const setTimer = options.setTimer || globalThis.setTimeout;
@@ -194,8 +195,8 @@ export async function requireProductionToken(options = {}) {
     }
     const bytes = await boundedBytes(response, TOKEN_CONFIG_BODY_LIMIT, deadline, value => { reader = value; });
     const config = tokenConfigBytesOf(bytes);
-    if (!config || !config.address) fail("activation");
-    return { active: true };
+    if (!config) fail("activation");
+    return { active: config.address !== null };
   } catch (error) {
     if (error instanceof BootstrapFailure) throw error;
     fail("request");
@@ -203,6 +204,20 @@ export async function requireProductionToken(options = {}) {
     clearTimer(timer);
     reader = null;
   }
+}
+
+/** Fail closed unless the public activation document carries one valid nonzero token address. */
+export async function requireProductionToken(options = {}) {
+  const state = await productionTokenState(options);
+  if (!state.active) fail("activation");
+  return state;
+}
+
+/** Fail closed unless the public activation document is the complete three-null pre-token state. */
+export async function requireProductionPreToken(options = {}) {
+  const state = await productionTokenState(options);
+  if (state.active) fail("activation");
+  return state;
 }
 
 const requestOptions = options => ({
@@ -263,9 +278,7 @@ export async function productionWebhookInfo(options = {}) {
   return webhookInfoOf(await botApiRequest("getWebhookInfo", {}, request));
 }
 
-export async function setProductionWebhook(options = {}) {
-  if (!validWebhookSecret(options.secret)) fail("input");
-  await requireProductionToken(options);
+const setVerifiedProductionWebhook = async options => {
   const request = requestOptions(options);
   await verifiedBot(request);
   const result = await botApiRequest("setWebhook", {
@@ -276,6 +289,18 @@ export async function setProductionWebhook(options = {}) {
   }, request);
   if (result !== true) fail("api");
   return { url: PRODUCTION_WEBHOOK_URL, allowed_updates: [...PRODUCTION_ALLOWED_UPDATES], drop_pending_updates: false };
+};
+
+export async function setProductionWebhook(options = {}) {
+  if (!validWebhookSecret(options.secret)) fail("input");
+  await requireProductionToken(options);
+  return await setVerifiedProductionWebhook(options);
+}
+
+export async function setProductionPreTokenWebhook(options = {}) {
+  if (!validWebhookSecret(options.secret)) fail("input");
+  await requireProductionPreToken(options);
+  return await setVerifiedProductionWebhook(options);
 }
 
 export async function deleteProductionWebhook(options = {}) {
@@ -339,7 +364,7 @@ export async function readMasked(label, input = process.stdin, output = process.
   });
 }
 
-const USAGE = "usage: telegram-bootstrap <discover|webhook-info|set-webhook|delete-webhook>";
+const USAGE = "usage: telegram-bootstrap <discover|webhook-info|set-webhook|set-webhook-pretoken|delete-webhook>";
 
 export async function runCli(argv = process.argv.slice(2), io = {}) {
   const input = io.input || process.stdin;
@@ -348,7 +373,7 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
   const prompt = io.prompt || readMasked;
   const fetchImpl = io.fetchImpl || globalThis.fetch;
   const tokenFetchImpl = io.tokenFetchImpl || fetchImpl;
-  if (!Array.isArray(argv) || argv.length !== 1 || !["discover", "webhook-info", "set-webhook", "delete-webhook"].includes(argv[0])) {
+  if (!Array.isArray(argv) || argv.length !== 1 || !["discover", "webhook-info", "set-webhook", "set-webhook-pretoken", "delete-webhook"].includes(argv[0])) {
     errorOutput.write(USAGE + "\n");
     return 1;
   }
@@ -365,9 +390,11 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
     let result;
     if (argv[0] === "discover") result = await discoverProductionChat({ token, fetchImpl });
     else if (argv[0] === "webhook-info") result = await productionWebhookInfo({ token, fetchImpl });
-    else if (argv[0] === "set-webhook") {
+    else if (argv[0] === "set-webhook" || argv[0] === "set-webhook-pretoken") {
       secret = await prompt("Webhook secret: ", input, output, WEBHOOK_SECRET_INPUT_LIMIT);
-      result = await setProductionWebhook({ token, secret, fetchImpl, tokenFetchImpl });
+      result = argv[0] === "set-webhook"
+        ? await setProductionWebhook({ token, secret, fetchImpl, tokenFetchImpl })
+        : await setProductionPreTokenWebhook({ token, secret, fetchImpl, tokenFetchImpl });
     } else {
       confirmation = await prompt("Type DELETE to confirm: ", input, output, DELETE_CONFIRMATION.length);
       if (confirmation !== DELETE_CONFIRMATION) fail("confirmation");

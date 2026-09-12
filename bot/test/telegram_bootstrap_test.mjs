@@ -19,9 +19,12 @@ import {
   deleteProductionWebhook,
   discoverProductionChat,
   productionWebhookInfo,
+  productionTokenState,
   readMasked,
+  requireProductionPreToken,
   requireProductionToken,
   runCli,
+  setProductionPreTokenWebhook,
   setProductionWebhook,
   validBotToken,
   validWebhookSecret
@@ -32,6 +35,7 @@ const TOKEN = "123456:OFFLINE_FAKE_TOKEN";
 const SECRET = "OFFLINE_TEST_WEBHOOK_SECRET";
 const ACTIVE_ADDRESS = "0x" + "1".repeat(40);
 const ACTIVE_TOKEN = { address: ACTIVE_ADDRESS, pons: "https://example.invalid/pons", uniswap: null };
+const DORMANT_TOKEN = { address: null, pons: null, uniswap: null };
 const ME = {
   id: 1,
   is_bot: true,
@@ -49,6 +53,7 @@ const tokenResponse = (value, init = {}) => new Response(
   { status: init.status || 200, headers: { "content-type": "application/json", ...(init.headers || {}) } }
 );
 const activeTokenFetch = async () => tokenResponse(ACTIVE_TOKEN);
+const dormantTokenFetch = async () => tokenResponse(DORMANT_TOKEN);
 const webhook = url => ({ url, has_custom_certificate: false, pending_update_count: 0 });
 const rejected = promise => promise.then(() => null, error => error);
 const generic = error => error && error.message === "telegram bootstrap failed" &&
@@ -72,6 +77,14 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
   const configured = [...wrangler.matchAll(/^\s*BOT_USERNAME\s*=\s*"([^"]*)"\s*$/gm)];
   t.ok(configured.length === 1 && configured[0][1] === EXPECTED_BOT_USERNAME,
     "the helper identity and checked-in BOT_USERNAME cannot drift");
+}
+
+{
+  const dormant = await productionTokenState({ tokenFetchImpl: dormantTokenFetch });
+  const active = await productionTokenState({ tokenFetchImpl: activeTokenFetch });
+  const preToken = await requireProductionPreToken({ tokenFetchImpl: dormantTokenFetch });
+  t.ok(dormant.active === false && active.active === true && preToken.active === false,
+    "the fixed public token document distinguishes complete dormant and active states");
 }
 
 {
@@ -121,6 +134,37 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
     t.ok(generic(error), label + " blocks webhook activation with a redacted failure");
   }
   t.ok(telegramCalls === 0, "a refused activation document prevents every Bot API request");
+}
+
+{
+  const calls = [];
+  const result = await setProductionPreTokenWebhook({
+    token: TOKEN,
+    secret: SECRET,
+    tokenFetchImpl: dormantTokenFetch,
+    fetchImpl: async (url, init) => { calls.push({ url, init }); return response(url.endsWith("/getMe") ? ME : true); }
+  });
+  const body = JSON.parse(calls[1].init.body);
+  t.ok(calls.length === 2 && calls[0].url.endsWith("/getMe") && calls[1].url.endsWith("/setWebhook") &&
+    JSON.stringify(body) === JSON.stringify({
+      url: PRODUCTION_WEBHOOK_URL,
+      allowed_updates: ["message", "edited_message"],
+      drop_pending_updates: false,
+      secret_token: SECRET
+    }) && result.url === PRODUCTION_WEBHOOK_URL,
+  "explicit pre-token mode connects the same production webhook only from the complete dormant document");
+
+  let telegramCalls = 0;
+  for (const tokenFetchImpl of [activeTokenFetch, async () => tokenResponse("{")]) {
+    const error = await rejected(setProductionPreTokenWebhook({
+      token: TOKEN,
+      secret: SECRET,
+      tokenFetchImpl,
+      fetchImpl: async () => { telegramCalls++; return response(true); }
+    }));
+    t.ok(generic(error), "pre-token mode rejects an active or malformed public token document");
+  }
+  t.ok(telegramCalls === 0, "a refused pre-token state prevents every Bot API request");
 }
 
 {
@@ -457,6 +501,23 @@ class FakeOutput {
     prompts[1].limit === WEBHOOK_SECRET_INPUT_LIMIT && errorOutput.text === "",
   "set CLI obtains both credentials only through their bounded masked prompts");
   t.ok(!output.text.includes(TOKEN) && !output.text.includes(SECRET) && output.text.includes(PRODUCTION_WEBHOOK_URL), "successful CLI output includes no credential");
+}
+
+{
+  const output = new FakeOutput();
+  const errorOutput = new FakeOutput();
+  const answers = [TOKEN, SECRET];
+  const status = await runCli(["set-webhook-pretoken"], {
+    input: { isTTY: true },
+    output,
+    errorOutput,
+    prompt: async () => answers.shift(),
+    tokenFetchImpl: dormantTokenFetch,
+    fetchImpl: async url => response(url.endsWith("/getMe") ? ME : true)
+  });
+  t.ok(status === 0 && errorOutput.text === "" && output.text.includes('"mode":"set-webhook-pretoken"') &&
+    !output.text.includes(TOKEN) && !output.text.includes(SECRET),
+  "pre-token CLI uses masked credential inputs and emits only safe deployment state");
 }
 
 {

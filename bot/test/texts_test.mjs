@@ -35,7 +35,7 @@ const GIVEN = {
     it reads the chain and answers, and it does nothing else.
 
     /ca — the contract
-    /price — price and market cap
+    /price — price and market cap, when the venue can be read
     /stats — what the feed has seen
     /site — the site, the repository, the chart
 
@@ -46,11 +46,11 @@ const GIVEN = {
     It never messages you first. It never asks for a key, a seed or an
     approval. It never holds funds and never trades. Everything it says is
     read from the chain, and its code is in the repository with the rest.`,
-  greeting: `This room is the tape. Every buy lands here as it clears the pool.
+  greeting: `This room is the tape. Every buy the feed can prove lands here as it clears the venue the bot can read.
     Nobody here will message you first, and nobody will ever ask you for
     your seed. One contract; any other address with this name is not ours.
 
-    /ca for the contract, /price for the number, /site for everything else.`,
+    /ca for the contract, /price when the venue can be read, /site for everything else.`,
   verify: `Prove you hold $LINTCHA.
 
     Open the link, connect the wallet that holds the tokens, and sign one
@@ -84,14 +84,25 @@ t.ok(sameWords(T.NO_TOKEN_YET, GIVEN.noToken), "the no token text is word for wo
 t.ok(T.START.includes("/ca — the contract"), "/start keeps each command on its own line");
 t.ok(T.START.split("\n").filter(l => l.startsWith("/")).length === 6, "six command lines in /start: four for the room and two for a holder");
 t.ok(T.GREETING.includes("\n\n/ca for the contract"), "the greeting keeps its last line apart");
+t.ok(T.startText("active") === T.START && T.greetingText("active") === T.GREETING,
+  "active status retains the full feed and holder texts");
+t.ok(T.startText("dormant") === T.START_PRETOKEN && T.greetingText("dormant") === T.GREETING_PRETOKEN &&
+  /does not exist yet/.test(T.START_PRETOKEN) && /publish no placeholder/.test(T.GREETING_PRETOKEN) &&
+  !/Every buy lands here/.test(T.GREETING_PRETOKEN),
+  "pre-token status names only live commands and makes no feed, price or contract claim");
+t.ok(T.startText("unreadable") === T.START_TOKEN_STATE_UNREADABLE &&
+  T.greetingText("unreadable") === T.GREETING_TOKEN_STATE_UNREADABLE &&
+  /will not say from memory/.test(T.START_TOKEN_STATE_UNREADABLE) &&
+  /will not claim/.test(T.GREETING_TOKEN_STATE_UNREADABLE),
+  "an unreadable token document is neither called active nor dormant");
 
 // ---------------------------------------------------------------- the sells disclosure, and where it sits
 t.ok(/\bsells\b/i.test(T.START), "/start says the word sells");
-t.ok(/The feed posts buys, not sells\./.test(T.START), "/start says which way the feed leans");
+t.ok(/The feed posts the buys it can prove, not sells\./.test(T.START), "/start says which proved events the feed posts and which way it leans");
 t.ok(/\/stats shows them/.test(T.START), "/start says where sells can be seen");
 t.ok(/never land in the room/.test(T.START), "/start says they do not reach the room");
 t.ok(/choice about which facts reach you/.test(T.START), "/start gives the reason, not just the fact");
-t.ok(T.START.indexOf("The feed posts buys") > T.START.indexOf("read from the chain, and its code is in the repository"),
+t.ok(T.START.indexOf("The feed posts the buys it can prove") > T.START.indexOf("read from the chain, and its code is in the repository"),
   "and it comes after the borrowed text, not inside it");
 
 // ---------------------------------------------------------------- the origin- and mark-bound sentence, in both places it lives
