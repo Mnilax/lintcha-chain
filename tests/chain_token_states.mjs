@@ -233,7 +233,9 @@ if (treeState && treeState.address === null) {
 }
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
-ok(count(tree, /class="out"/g) === 3 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === TELEGRAM_DEFAULT && count(tree, /data-i18n="nav\.telegram"/g) === 1, "the tree's page links the default X account and the confirmed Telegram room");
+ok(count(tree, /class="out"/g) === 4 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === "https://x.com/lintchadotcom" && outHrefs(tree)[3] === TELEGRAM_DEFAULT &&
+  clusterOf(tree).includes("@mnilax") && clusterOf(tree).includes("@lintchadotcom") && count(tree, /data-i18n="nav\.telegram"/g) === 1,
+  "the tree's page links and labels both confirmed X accounts and the confirmed Telegram room");
 ok(treeLocales.every(page => treeState.address === null ? count(page, /data-token-address|data-copy-address|class="buy"|token-sec/g) === 0 : page.includes(`data-token-address>${treeState.address}<`)), "every tree locale agrees with the shared token document");
 
 // The eight never lines are the product boundary, not ordinary copy. Pin the ordered set in every source language so
