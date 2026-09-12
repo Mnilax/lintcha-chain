@@ -1,218 +1,280 @@
-<p align="center"><img src="assets/avatar.png" width="128" height="128" alt=""></p>
-<p align="center"><img src="assets/banner.png" alt="lintcha-chain" width="100%"></p>
 <p align="center">
-<img alt="tests" src="https://img.shields.io/badge/tests-2292_passing-d4fc50?labelColor=08090a&style=flat-square">
-<img alt="node" src="https://img.shields.io/badge/node-%3E%3D24-5e5a53?labelColor=08090a&style=flat-square">
-<img alt="runtime deps" src="https://img.shields.io/badge/runtime_deps-0-5e5a53?labelColor=08090a&style=flat-square">
-<img alt="chain" src="https://img.shields.io/badge/chain-4663-5e5a53?labelColor=08090a&style=flat-square">
-<img alt="index" src="https://img.shields.io/badge/index-24%2C621_entries-5e5a53?labelColor=08090a&style=flat-square">
-<img alt="window" src="https://img.shields.io/badge/window-one_day%2C_manual_refresh-5e5a53?labelColor=08090a&style=flat-square">
-<img alt="licence" src="https://img.shields.io/badge/licence-MIT-d4fc50?labelColor=08090a&style=flat-square">
+  <a href="https://chain.lintcha.com/">
+    <img src="assets/banner.png" width="100%" alt="lintcha — reads strings, not contracts">
+  </a>
 </p>
+
+<h1 align="center">lintcha-chain</h1>
+
+<p align="center">
+  <strong>Read what a Robinhood Chain launch calls itself — and see what those strings are shared with.</strong>
+</p>
+
+<p align="center">
+  A browser-side comparison against a finalized, state-pinned day of launches.<br>
+  Shared strings, stated plainly. No score. No verdict.
+</p>
+
+<p align="center">
+  <a href="https://chain.lintcha.com/">Read a launch</a>
+  ·
+  <a href="https://chain.lintcha.com/live/">Live wall</a>
+  ·
+  <a href="https://chain.lintcha.com/deployer/">Deployer history</a>
+  ·
+  <a href="#run-in-sixty-seconds">Run locally</a>
+  ·
+  <a href="https://t.me/lintcha">Telegram</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Mnilax/lintcha-chain/actions/workflows/test.yml?query=branch%3Amain"><img alt="test workflow" src="https://github.com/Mnilax/lintcha-chain/actions/workflows/test.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/Mnilax/lintcha-chain/actions/workflows/vendor.yml?query=branch%3Amain"><img alt="vendor verification" src="https://github.com/Mnilax/lintcha-chain/actions/workflows/vendor.yml/badge.svg?branch=main"></a>
+  <img alt="Node 24 or newer" src="https://img.shields.io/badge/node-%3E%3D24-5e5a53?labelColor=08090a&style=flat-square">
+  <img alt="zero root runtime dependencies" src="https://img.shields.io/badge/root_runtime_deps-0-5e5a53?labelColor=08090a&style=flat-square">
+  <img alt="Robinhood Chain 4663" src="https://img.shields.io/badge/chain-4663-5e5a53?labelColor=08090a&style=flat-square">
+  <img alt="English, Spanish and Portuguese" src="https://img.shields.io/badge/languages-EN_%C2%B7_ES_%C2%B7_PT-5e5a53?labelColor=08090a&style=flat-square">
+  <img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-d4fc50?labelColor=08090a&style=flat-square">
+</p>
+
 <!-- the token line, when there is a token: uncomment and paste the contract
 <p align="center"><b>$LINTCHA</b> · <code>0x...</code></p>
 -->
 
-# lintcha-chain
+> [!IMPORTANT]
+> The snapshot comparison reads self-declared identity strings. It does not inspect a launch contract, calculate a price, assign a score, predict an outcome or recommend a trade. A reported shared value is evidence of a matching index key inside the stated window — not evidence that a launch is safe, unsafe, original or copied.
 
-The repository for lintcha's second site, configured for [chain.lintcha.com](https://chain.lintcha.com/). Its snapshot comparison reads what a
-launch on Robinhood Chain calls itself — its name, ticker, description, five link fields, logo and fee recipient — and
-reports what those strings are shared with across one day of launches: how many carry the same value, from how many
-deployers, and since when. The tree also contains a separate live wall for publishable self-declared names and tickers
-after that snapshot boundary, plus bounded retained history for one deployer address. These views read strings.
-They do not read a contract, price anything, score anything or predict anything. This README describes what is
-implemented and testable in the repository; it does not assert that a deployment has happened.
+## What lintcha-chain does
 
-## What is here
+A launch presents a name, ticker, description, links, logo URI and creator fee recipient. Those fields can be reused, intentionally or otherwise. lintcha-chain makes that reuse visible without turning it into a verdict.
 
-- `site/` is the static output directory. The build writes the English comparison at `site/index.html`, Spanish and
-  Portuguese at `site/es/index.html` and `site/pt/index.html`, one English `site/404.html`, `site/sitemap.xml` and
-  `site/launch-manifest.json`; `site/live/` is the owned static live wall and
-  `site/deployer/` is the owned retained-history page; `site/launch-index.json` and
-  `site/launch-numbers.json` are written by the index writer and refreshed only by a deliberate guarded workflow run; everything else under `site/` is
-  either a copy from lintcha or a file this repository owns (see VENDOR.md).
-- `src/templates/shell.html` is the comparison around the vendored tool, `src/templates/404.html` the same shell around two
-  strings; `src/i18n-src/chain.<lang>.json` are this site's strings, `src/i18n-src/launch.<lang>.json` the vendored
-  ones. The build merges them into `src/i18n/<lang>.json`.
-- `tools/build.mjs` builds the comparison, sitemap and published integrity manifest; `tools/build-viz.mjs` the three charts and the ornament from the index;
-  `tools/build-method.mjs` the method section's tables from the engine's own files; `tools/verify-vendor.mjs` checks
-  the vendored files against VENDOR.md; `tools/verify-index.mjs` is `npm run verify`.
-- `tools/launch-collect.mjs` and `tools/launch-index.mjs` (vendored) read one day of launches and write the index and
-  numbers file. The source-first refresh contract requires one exact finalized identity-state block number/hash, with
-  every token, factory and Multicall identity read on its numeric tag and that state carried into the numbers file.
-  The owned guard now fails closed when the state is absent, verifies its canonical header before and after repeating
-  those identity reads, and re-reads the exact finalized range with
-  aligned and shifted page layouts that differ from the collector, compares their canonical raw rows, binds every
-  event block hash to a finalized header and refuses publication unless its strict
-  event, identity and record reconstruction agrees with the collector. For the transaction sample it reproduces the
-  collector's counters, proves exact direct factory/forwarder calls against verified ABIs, and leaves other outer
-  wallet/router envelopes classified rather than interpreting them as launch calls.
-- `tests/` carries the vendored engine tests and this site's own, including the rendered comparison, live wall,
-  deployer history, published-manifest contract and offline identity-kit contracts.
-- `lib/identity.mjs`, `tools/identity.mjs` and `fixtures/identity-conformance.json` are the public normalization
-  integration kit, its offline JSON CLI and its conformance fixture. The adapter exports the site's engine instead
-  of copying its normalization rules.
-- `bot/` is the separate API worker: the Telegram webhook, holder verification, the public tail, wall and deployer-history endpoints,
-  KV sessions, and two SQLite Durable Objects for the feed and watcher. The watcher object also consumes holder
-  nonces atomically. The worker has no runtime dependencies and its own test suite.
-- `assets/` is the brand kit: the avatar and the banner above. The site's icons, the social card and the header mark
-  (`site/mark-acid.png`) are the same mark.
+Paste the fields exactly as the launch shows them. The browser normalizes and hashes them locally, compares them with the published snapshot index, and reports:
 
-## Vendored, not edited
+- whether the snapshot contains a matching value;
+- how many launches carry it;
+- how many distinct deployers carry it;
+- when it first appeared in that window;
+- whether a name or ticker shares a lookalike skeleton with a different spelling.
 
-lintcha is the source of the engine. Every copied file is a row in VENDOR.md with its sha256 and the lintcha commit it
-came from, and is never edited here: a fix goes to lintcha first and is copied back with a new row. Files this
-repository writes itself are listed under "owned here" in the same document; a path is added there in the commit that
-creates the file. `node tools/verify-vendor.mjs` reports any mismatch, missing, unlisted or duplicate file, and runs in
-its own CI workflow on every push (`.github/workflows/vendor.yml`). The separate test workflow runs the complete root
-and bot suites, the i18n check, a deterministic build check and the browser contracts.
+These counts describe the snapshot corpus. The browser does not know whether the launch being inspected belongs to that window, so it never infers or subtracts “this launch” from a count.
 
-## Build and test
+The comparison needs no account and no wallet. What you paste stays in the browser.
 
-Node 24, no dependency.
+## What ships here
 
-```
-npm run build     merge the strings; build three localized comparisons, one root 404, sitemap and published manifest from the current index and numbers
-npm test          verify-vendor plus the config, manifest, token, wall, history, engine, index and identity contracts
-npm test --prefix bot     the Telegram, holder, feed, watcher, rules and all five API-route contracts
-npm run smoke:production  compare every public static byte, security/MIME header, HTTPS redirect and fail-closed API contract with this tree
-npm run i18n      merge the strings and run the vendored i18n check (three languages, all three emitted)
-npm run verify    refuse the current legacy snapshot before network; for a state-pinned replacement, audit its exact state/window, rebuild, print both hashes
-node tests/published_contract_test.mjs     verify the manifest against the exact index and numbers bytes
-node tests/chain_browser.mjs site --pages "/,/es/,/pt/,/live/,/deployer/,/hold/,/hold/?t=0123456789abcdef0123456789abcdef"     all rendered-page and holder-flow contracts in a headless browser
-node tests/hour_x_workflow_test.mjs     check the manual activation workflow's inputs, secret boundary, exact files, race guards and PR review sequence
-npm run identity -- doctor     run the public conformance fixture
-node tools/collection-guard.mjs --in <report.json> --published site/launch-numbers.json --diagnose-semantic     reconstruct identities at the report's exact recorded state; this skips event-header batches and sampled transactions and is not publication proof
-npm run identity -- help       print the offline JSON CLI contract
-npm run identity -- read --input <input.json>     read JSON with the shipped index and its matching manifest
-bash tests/console_check.sh site      console-error checks for every published HTML page
-bash tests/chain_acceptance.sh     the fourteen criteria, each with the command that ran it
+| Surface | What it does | Availability |
+| --- | --- | --- |
+| [Snapshot comparison](https://chain.lintcha.com/) | Compares self-declared launch identity fields with one exact finalized day | Published |
+| [Live wall](https://chain.lintcha.com/live/) | Renders publishable names and tickers only when the watcher supplies a complete verified suffix | Static page shipped; runtime state fails closed |
+| [Deployer history](https://chain.lintcha.com/deployer/) | Renders bounded retained declarations for one public deployer address when watcher state is readable | Static page shipped; retained range only |
+| Fact receipts | Copies or downloads the exact input, rendered result and snapshot context locally | Shipped |
+| Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
+| Identity kit | Exposes the same normalization engine as an ESM library and offline JSON CLI | Shipped |
+| Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
+| Telegram, holder and feed code | Routes commands, verifies holder proofs and delivers finalized feed events | Shipped in code; token-dependent paths dormant before activation |
+
+The live path never mutates the comparison index. The snapshot stays pinned to its recorded state and window until a guarded refresh publishes a replacement.
+
+## Run in sixty seconds
+
+Node.js 24 or newer is required. The root project has no runtime dependencies to install.
+
+```sh
+git clone https://github.com/Mnilax/lintcha-chain.git
+cd lintcha-chain
+
+node tools/identity.mjs doctor
+npm test
+npm run build
 ```
 
-## Production checklist
+`npm run build` writes the localized static comparison, root 404 page, sitemap and integrity manifest into `site/`. Serve that directory with any static HTTP server to inspect the built site.
 
-A green local tree is not deployment proof. Before calling a release live, publish both `site/` and the Worker, then
-run `npm run smoke:production`; it is credentialless, read-only and exits nonzero on drift in that fixed public
-contract. A conforming deployment of both Wrangler configs disables the account `workers.dev` endpoint and per-version
-preview URLs, leaving the configured custom origin as the only public copy. In Cloudflare, turn on
-[Always Use HTTPS](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/)
-and verify the redirect before enabling HSTS. Disable
-[Network Error Logging](https://developers.cloudflare.com/network-error-logging/get-started/) and verify that neither `Nel` nor
-`Report-To` or `Reporting-Endpoints` sends a browser report to a third party: that would contradict the page's
-no-third-party-beacon promise. The smoke also requires every published static response to reproduce the five owned
-security headers in `site/_headers`, retain its expected MIME type, and emit no `Set-Cookie`.
-Apply a dashboard-level admission/rate rule to `/api/hold`; the Worker bucket is deliberately only a per-isolate work
-bound. The Worker-side KV, secrets, routes, Durable Object migrations and the live plan's request budget are separate
-manual facts covered by `bot/README.md`; `npm run deploy --prefix bot` must remain blocked until its predeploy check
-can prove the local configuration.
+## A read, end to end
 
-Every figure on the snapshot comparison arrives by substitution from `site/launch-numbers.json` or
-`site/launch-index.json`; the
-build refuses a digit in a template's text or in a string, and its comment names the only other sources (the section
-numbers, the engine's tables; the specimen in the diagram carries letters, not figures). The live wall's figures come
-from its same-origin API response and are verified before display. The site's origin, used for canonical links, the
-social card and the sitemap, is the `origin` key of `site/launch-site.json`.
+```mermaid
+flowchart LR
+    A["Factory launch log<br/>one finalized day"] --> B["Identity reads<br/>at one exact block"]
+    B --> C["Normalize and hash"]
+    C --> D["Published snapshot index"]
 
-## Implemented in the tree
+    E["Fields pasted<br/>in the browser"] --> F["Normalize and hash locally"]
+    F --> G["Compare"]
+    D --> G
+    G --> H["Shared · unique · lookalike<br/>counts · deployers · first seen"]
 
-- Round E is the public live wall: the owned `/live/` page and the worker's `GET/HEAD /api/wall` route. It keeps the
-  snapshot comparison pinned to its recorded window and accepts only a complete, hash-verified post-snapshot suffix.
-- Round F is retained deployer history: the owned `/deployer/` page and `GET/HEAD /api/deployer`. It states the exact
-  retained watcher range and exposes bounded launch declarations without token addresses or transactions.
-- Round G is the holder-alert and bot code under `bot/`. It is locally tested. A null token address keeps the feed
-  dormant and does not by itself block deployment. Room configuration, bindings, secrets, routes, cron and deployment
-  are operational facts outside this tree and are checked with the bot's production checklist. The webhook remains
-  deliberately disconnected while the shared token document carries a null address; it is connected only after the
-  exact non-null token has passed the Hour-X activation and the public deployment has been reproduced.
-- Round H is the public normalization integration kit: `lib/identity.mjs`, the `lintcha-chain` JSON CLI and the
-  conformance fixture. Its `read` command refuses a custom index without a matching manifest.
-
-The comparison can also copy or download a local fact receipt containing the exact pasted fields, rendered lines and
-snapshot context. Creating that JSON makes no request; the receipt is portable context, not independent proof. The
-published manifest binds the exact bytes of `site/launch-index.json` and `site/launch-numbers.json`. The watcher and
-identity CLI validate those bytes against it; the built page embeds the same index digest and rejects a fetched index
-that does not match.
-
-## Where the badge figures come from
-
-The badges above are static images from shields.io, which GitHub renders; nothing under `site/` loads from there.
-Each figure is read from the tree, not typed from memory:
-
-```
-tests           npm test; npm test --prefix bot              860 root checks + 1432 bot checks = 2292 checks
-node            package.json, engines.node                  >=24
-runtime deps    package.json                                no "dependencies" key
-chain           site/launch-numbers.json, chain_id          4663
-index           site/launch-numbers.json, index.entries_total
-window          site/launch-numbers.json, window.hours; .github/workflows/launch-refresh.yml, manual-only trigger
-licence         LICENSE                                     MIT
+    I["Finalized blocks<br/>after the snapshot"] --> J["Watcher"]
+    J --> K["Live wall"]
+    J --> L["Bounded deployer history"]
 ```
 
-When a refresh lands a new index, the index badge is a line to edit here; nothing on the page depends on it.
+The snapshot and live suffix remain separate on purpose. A new declaration cannot silently change a snapshot count, and an incomplete watcher suffix is never presented as complete.
 
-## The refresh workflow
+## Fields compared
 
-`.github/workflows/launch-refresh.yml` is intentionally manual-only until a strict full refresh passes through its
-two routed upstreams. Its unattended schedule stays removed. A new collection records one exact finalized block number/hash, and the collector and guard use only that
-numeric state tag for identity reads. The legacy published numbers artifact has no such state and `npm run verify`
-therefore fails closed until a new guarded refresh replaces it; the verifier never invents a state for old bytes.
-When deliberately dispatched, the workflow collects the most recent full day, rebuilds the index, the numbers
-file, the integrity manifest, all three comparison pages and the root 404, then opens a unique PR containing only those seven artifacts after the owned guard re-reads the
-exact finalized logs in two alternate page layouts, compares their complete canonical rows, binds each event hash to its block header, derives every UTC
-boundary, and rebuilds every table and summary. It also reproduces the collector's sampled-transaction counters;
-sampled direct factory/forwarder calls must match their exact verified outer ABI, destination and complete launch
-fields, while other outer envelopes remain explicitly uninterpreted. These reads deliberately use the same configured
-endpoint and are not described as an independent-provider proof. The job also requires a non-empty internally
-consistent window, a published-day sanity floor, the schema, engine and index tests,
-verify-vendor before, between and after, and a membership test that allows exactly those seven paths to have changed.
-It never pushes directly to `main`, and aborts if `main` moved during collection or while its checks ran rather than rebasing generated bytes.
-Because a push made by `GITHUB_TOKEN` does not recursively start ordinary push workflows, the refresh opens a draft
-PR, explicitly dispatches and waits for both `test.yml` and `vendor.yml` on its unique branch, rechecks `main`, and
-marks the PR ready only after both runs pass for the exact generated commit and both the remote branch and PR head
-still name that commit. The PR remains the repository-review and merge boundary. GitHub Actions must be allowed to
-create pull requests in the repository settings; with that permission disabled, the job stops after pushing its
-isolated branch and cannot place generated bytes on `main`.
+| Field | Comparison |
+| --- | --- |
+| Ticker | Exact normalized ticker, plus a separate lookalike skeleton |
+| Name | Exact normalized name, plus a separate lookalike skeleton |
+| Links | Twitter/X, Telegram, Discord, website and Farcaster, with published alias rules |
+| Logo URI | Compared as written after raw-link normalization; never fetched |
+| Creator fee recipient | Compared as normalized address text; never resolved |
+| Description | Compared after normalization when it contains at least twelve words |
 
-The strict direct-call check re-reads the factory record at the launch block. Before starting the expensive scan, the
-guard proves that both the recorded identity state and the historical launch-window state are available. Set a
-credential-bearing archive endpoint in `LINTCHA_CHAIN_RPC_URL`; `--rpc` remains a deliberate local override but is
-visible in the process argument list, and neither command prints its URL. An endpoint that cannot read either fixed
-state is a hard failure. The hosted job is attached to the protected `launch-refresh` GitHub Environment and gives
-its environment secret only to the two RPC-reading steps. In each one, the owned
-`tools/with-launch-rpc-split.mjs` wrapper starts a loopback-only proxy, waits for it, and always closes it after
-the child exits. The child receives only the localhost URL: `eth_getLogs` goes to the checked-in public Robinhood RPC,
-while exact state, transaction and block-header requests go to the archive endpoint. The vendored collector, Gate and
-strict guard remain unchanged. A missing archive secret refuses the hosted run before collection rather than falling
-back to an endpoint that cannot serve the required fixed state.
+A missing field stays missing. An unreadable recipient stays unreadable. A short description is reported as too short rather than forced into a comparison.
 
-## The token
+## Snapshot, receipts and integrity
 
-`site/token.json` is the one activation document for the static page and Worker. Its dormant state has three null
-values and renders no token block, address or buy link; its active state requires one canonical nonzero address and a
-canonical pons HTTPS URL containing that exact address as a separate hex sequence. The optional uniswap field remains
-null unless it is separately configured. Both dormant and active states are checked by `tests/chain_token_states.mjs`.
+The checked-in snapshot bundle is finalized and state-pinned. Mutable figures live in versioned artifacts instead of badges or prose that will drift after the next refresh:
 
-At Hour X, run the guarded pons-only switch with the two public values:
+- [`site/launch-numbers.json`](site/launch-numbers.json) records the chain, exact block and timestamp window, identity-state block and hash, and collection counters.
+- [`site/launch-index.json`](site/launch-index.json) stores counted truncated hashes, not the raw launch strings.
+- [`site/launch-manifest.json`](site/launch-manifest.json) binds the exact index and numbers bytes, sizes and namespace counts.
 
+Index keys use the first eight bytes of each normalized SHA-256 digest. A collision would merge counts and cannot be separated from the published index.
+
+The page embeds the expected index digest and refuses a fetched index that does not match it. The watcher and identity CLI validate the published corpus against the same manifest.
+
+A fact receipt contains the exact fields entered, the lines rendered by the page and the snapshot context used. It is created locally and makes no request. A receipt is portable context, not independent proof.
+
+## Privacy boundary
+
+The first comparison fetches the index once from the same origin. Pasted fields are normalized, hashed and compared in the browser; they are not uploaded.
+
+The site sets no cookie and loads no third-party script, font, image, analytics or beacon. URLs and logo URIs entered into the tool are compared as strings and are never opened by the comparison.
+
+## Developer commands
+
+### Identity CLI
+
+The CLI writes JSON and uses the same normalization engine as the browser.
+
+```sh
+node tools/identity.mjs help
+node tools/identity.mjs doctor
+node tools/identity.mjs normalize --field ticker --value '$bob'
+node tools/identity.mjs read --input ./identity.json
 ```
+
+`read` uses the checked-in index and manifest by default. A custom index is refused unless its matching manifest is supplied.
+
+### Useful commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm test` | Verify vendored files and run the root config, page, engine, index, workflow and identity contracts |
+| `npm run build` | Rebuild the localized static output and integrity manifest |
+| `npm run i18n` | Merge and validate the English, Spanish and Portuguese strings |
+| `node tools/identity.mjs doctor` | Run the public identity conformance fixture |
+| `npm run verify` | Re-read the published state and window, rebuild in a temporary directory and compare the index hash |
+| `npm run smoke:production` | Compare deployed bytes, headers, redirects and fail-closed API behavior with this tree |
+| `npm ci --prefix bot` | Install the bot's pinned development tooling |
+| `npm test --prefix bot` | Run the Worker, Telegram, holder, feed, watcher, wall and history tests |
+| `npm run bundle --prefix bot` | Build the Worker bundle |
+
+`npm run verify` is the full network reproduction path, not a quick smoke. It needs historical-state access and a log route capable of the recorded range. The hosted refresh separates public log reads from protected historical reads through the repository's loopback-only RPC wrapper.
+
+## Guarded snapshot refresh
+
+The refresh workflow is manual and fail-closed. [`.github/workflows/launch-refresh.yml`](.github/workflows/launch-refresh.yml) never pushes generated data directly to `main`.
+
+When deliberately dispatched, it:
+
+1. pins the run to the exact clean `main` revision;
+2. records one finalized identity-state block number and hash;
+3. collects the latest complete day and reads every identity at that pinned numeric state;
+4. re-reads the launch range through differently aligned page layouts and compares their complete canonical rows;
+5. binds event hashes to finalized headers, checks sampled transaction envelopes and reconstructs the index and summary;
+6. rebuilds the site and permits only the guarded publication-artifact set to differ in the commit;
+7. opens a draft pull request and waits for the generated commit to pass both test and vendor workflows before marking it ready.
+
+The alternate log layouts use the same configured public log endpoint. They detect truncation and boundary omissions, but are not described as independent-provider proof.
+
+If a state, range, response, hash, file-membership or branch invariant fails, nothing is published and the previous snapshot remains intact.
+
+## Live wall and deployer history
+
+The watcher is designed to follow finalized factory-log blocks after the published snapshot boundary.
+
+The live wall exposes only publishable self-declared names and tickers. Alongside them it states the snapshot boundary, last finalized block read, any startup gap, watcher freshness and a SHA-256 commitment to the exact ordered rows. The browser recomputes that commitment before displaying the response.
+
+Deployer history uses the same retained watcher data for one supplied public deployer address. It is not an all-time wallet profile: it states the retained block range and exposes no token address or transaction.
+
+Runtime availability is part of the claim. A missing, stale, incomplete or mismatched suffix fails closed instead of being shown as complete data.
+
+## Telegram, holder proof and Hour X
+
+[`site/token.json`](site/token.json) is the single activation document shared by the static site and Worker. Its dormant form contains null values for the contract and buy routes; its active form requires one canonical nonzero address and a canonical HTTPS buy URL containing that address.
+
+Before activation, token-dependent UI and feed behavior remain dormant. The repository already contains tested code for:
+
+- the Telegram webhook and command router;
+- public `/start`, `/ca`, `/price`, `/stats` and `/site` commands;
+- private `/verify`, `/me`, `/forget`, `/rule`, `/rules` and `/unrule` commands;
+- one-time holder verification with a plain signed message that moves, approves and spends nothing;
+- finalized transfer reads and durable buy delivery;
+- sell counters in `/stats`, without sell posts to the room;
+- holder rules matched against the same published identity index;
+- public tail, wall and deployer-history API routes.
+
+The watcher-backed wall and history are architecturally separate from the token-dependent feed.
+
+When the public contract and canonical buy link exist, the guarded local switch is:
+
+```sh
 npm run activate-token -- <CA> <PONS_HTTPS_URL>
 ```
 
-For the hosted path, `.github/workflows/hour-x.yml` exposes those same two public values as a manual form. It requires
-`LINTCHA_CHAIN_RPC_URL` as a repository secret, masks the supplied values before handing them to the activation step,
-never prints the inputs or endpoint, and refuses a run outside the exact current `main`. It accepts exactly the activation document,
-README line, root comparison and 404, and the Spanish and Portuguese comparison pages as changes. Those paths are
-taken from `git status`, not a handwritten staging command. The workflow opens a draft PR, explicitly dispatches and
-waits for both required review workflows on the generated commit, rechecks `main`, the remote branch and the PR head,
-and only then marks the PR ready. It never merges or deploys.
+The companion [Hour-X workflow](.github/workflows/hour-x.yml) prepares the same review-only change. It validates the public inputs and configured chain reads before opening a draft pull request; it does not merge or deploy.
 
-Before changing the tree it validates the shared config contract and URL/address binding, proves the configured
-endpoint's chain, reads one canonical finalized header, and uses that header's exact numeric block tag for token code,
-the factory record, `symbol()`, decimals and total supply. The symbol must canonically decode to exactly `LINTCHA`.
-It then reproduces the build and all eight never-line digests in a temporary copy. Only after every proof passes does
-it replace `site/token.json` and the README token line and run the real build. It neither reads the token name nor
-accepts or writes a uniswap URL, secret, Worker setting or git state.
+## Repository map
+
+| Path | Responsibility |
+| --- | --- |
+| [`site/`](site/) | Static production output, snapshot artifacts, live wall, deployer history and holder page |
+| [`src/templates/`](src/templates/) | Authored HTML shells |
+| [`src/i18n-src/`](src/i18n-src/) | English, Spanish and Portuguese source strings |
+| [`lib/identity.mjs`](lib/identity.mjs) | Public normalization and comparison integration surface |
+| [`tools/`](tools/) | Build, collection, guards, verification, refresh support and identity CLI |
+| [`bot/`](bot/) | Cloudflare Worker, Telegram, holder proof, feed, watcher and API routes |
+| [`tests/`](tests/) | Root contracts, browser checks, refresh guards and production smoke |
+| [`fixtures/identity-conformance.json`](fixtures/identity-conformance.json) | Public identity conformance fixture |
+| [`VENDOR.md`](VENDOR.md) | Provenance and SHA-256 for every file copied from lintcha |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution rules and local checks |
+
+## Source-first by design
+
+lintcha is the source of the comparison engine. Vendored files are listed in [`VENDOR.md`](VENDOR.md) with their source commit and SHA-256 and are not edited in place. A change belongs upstream first, then returns here with an updated vendor row.
+
+Files owned by this repository are listed separately. CI refuses missing, modified, duplicated or unlisted vendored paths.
+
+If the site computes something this repository cannot reproduce, the repository has stopped being the source. That is a product failure, not a documentation problem.
+
+## The eight never lines
+
+These are the product constraints verbatim:
+
+- no score, no probability, no rating, no ordering, and no colour that means good or bad
+- no private index and no paid tier that reads more than this page reads
+- no hosted key, and no signature anywhere that moves, approves or spends anything
+- no third-party script, font, image, analytics or beacon on this site, on any page, ever
+- no figure we did not read ourselves; a tile that cannot be read shows a dash and not a number from somewhere else
+- no dates on this page, because a date that cannot be kept is worth less than a line that can be checked
+- no closed core: if the site computes something the repository cannot, the repository is decoration
+- no licence change
+
+A proposal that weakens one of these lines changes the product rather than extending it.
+
+## Contributing
+
+Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and use the repository's issue forms for reproducible bugs or product proposals.
+
+Keep one concern per pull request. State the source of every new public fact, the checks run and the limit the change cannot prove. Do not post credentials, private RPC URLs, bot tokens, wallet secrets, signatures or unpublished vulnerability details.
+
+Generated comparison files and vendored files are not hand-edited.
 
 ## Licence
 
-MIT, see LICENSE. Not affiliated with Robinhood, pons or any launchpad, and using none of their marks.
+MIT, see [`LICENSE`](LICENSE).
+
+lintcha-chain is not affiliated with Robinhood, Pons or any launchpad and uses none of their marks.

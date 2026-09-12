@@ -69,11 +69,12 @@ ok(prep.includes('replace(/%/g, "%25")') && prep.includes("::add-mask::") && pre
 ok(count(prep, 'mode: 0o600') === 2 && prep.includes('"hour-x-ca.txt"), config.address + "\\n"') && prep.includes('"hour-x-pons.txt"), config.pons + "\\n"') && !prep.includes("GITHUB_OUTPUT"), "only canonical masked inputs enter two fixed private runner-temp files with readable line termination");
 
 const secretExpression = "${{ secrets.LINTCHA_CHAIN_RPC_URL }}";
+ok(/^    environment: launch-refresh$/m.test(code), "the activation job is attached to the protected environment that owns the RPC secret");
 ok(count(code, secretExpression) === 1 && activation.includes(secretExpression), "the RPC secret is referenced exactly once, only by the activation step");
 ok(!code.replace(activation, "").includes("LINTCHA_CHAIN_RPC_URL"), "the RPC setting does not escape the activation step");
 const requireSecretAt = activation.indexOf('if [ -z "${LINTCHA_CHAIN_RPC_URL:-}" ]');
 const invokeAt = activation.indexOf('node tools/activate-token.mjs "${HOUR_X_CA}" "${HOUR_X_PONS_URL}" > /dev/null');
-ok(requireSecretAt >= 0 && invokeAt > requireSecretAt, "an empty repository secret fails before the guarded activator runs");
+ok(requireSecretAt >= 0 && invokeAt > requireSecretAt, "an empty environment secret fails before the guarded activator runs");
 ok(activation.includes('IFS= read -r HOUR_X_CA < "${RUNNER_TEMP}/hour-x-ca.txt"') && activation.includes('IFS= read -r HOUR_X_PONS_URL < "${RUNNER_TEMP}/hour-x-pons.txt"') && activation.includes("trap cleanup_inputs EXIT"), "the masked inputs are read without printing and removed on every activation exit");
 ok(invokeAt >= 0 && !code.includes("npm run activate-token"), "the activator's stdout and npm's argument echo cannot enter the log");
 ok(!/set\s+-x|printenv|toJSON\s*\(|::debug::|::notice::|upload-artifact/i.test(code) && !/(?:echo|printf)[^\n]*\$\{(?:HOUR_X_CA|HOUR_X_PONS_URL|LINTCHA_CHAIN_RPC_URL)/.test(code),

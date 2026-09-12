@@ -1,5 +1,5 @@
 # hour-x: turn the dormant public token document into one chain-proved pons-only activation.
-# The operator supplies only the two public values. The RPC endpoint remains a repository secret, is required rather
+# The operator supplies only the two public values. The RPC endpoint remains a protected environment secret, is required rather
 # than allowed to fall back, and exists in the environment of the activation step only. The job never prints either
 # public input: they belong in the reviewed diff, not in workflow logs, commit metadata or PR prose.
 name: hour-x
@@ -28,6 +28,7 @@ concurrency:
 jobs:
   activate:
     runs-on: ubuntu-latest
+    environment: launch-refresh
     steps:
       - name: Check out the dispatched revision without retaining credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -103,7 +104,7 @@ jobs:
           }
           trap cleanup_inputs EXIT
           if [ -z "${LINTCHA_CHAIN_RPC_URL:-}" ]; then
-            echo "abort: the LINTCHA_CHAIN_RPC_URL repository secret is not configured"
+            echo "abort: the LINTCHA_CHAIN_RPC_URL environment secret is not configured"
             exit 1
           fi
           IFS= read -r HOUR_X_CA < "${RUNNER_TEMP}/hour-x-ca.txt"
