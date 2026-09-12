@@ -73,7 +73,7 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | [Deployer history](https://chain.lintcha.com/deployer/) | Renders bounded retained declarations for one public deployer address when watcher state is readable | Static page shipped; retained range only |
 | Fact receipts | Copies or downloads the exact input, rendered result and snapshot context locally | Shipped |
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
-| Identity kit | Exposes the same normalization engine as an ESM library and offline JSON CLI | Shipped |
+| Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
 | Telegram, holder and feed code | Routes commands, verifies holder proofs and delivers finalized feed events | Shipped in code; token-dependent paths dormant before activation |
 
@@ -147,6 +147,8 @@ The first comparison fetches the index once from the same origin. Pasted fields 
 
 The site sets no cookie and loads no third-party script, font, image, analytics or beacon. URLs and logo URIs entered into the tool are compared as strings and are never opened by the comparison.
 
+The public site does not call `/api/identity`. That endpoint is an opt-in integration surface: a client that calls it sends the submitted strings to the Worker. The Worker keeps no identity request state, echoes no submitted declaration and answers from the same manifest-bound public index. Use the browser or offline kit when the strings must not cross the network.
+
 ## Developer commands
 
 ### Identity CLI
@@ -161,6 +163,18 @@ node tools/identity.mjs read --input ./identity.json
 ```
 
 `read` uses the checked-in index and manifest by default. A custom index is refused unless its matching manifest is supplied.
+
+### Identity HTTP API
+
+`POST https://chain.lintcha.com/api/identity` accepts the same complete JSON input as `node tools/identity.mjs read` and returns the engine result with the verified corpus SHA-256, byte count and entry count. It requires `Content-Type: application/json`, stores nothing and never echoes submitted fields.
+
+```sh
+curl https://chain.lintcha.com/api/identity \
+  --header 'content-type: application/json' \
+  --data @identity.json
+```
+
+Successful responses use schema `lintcha-chain/identity-api/v1` and engine `LINTCHA_12`. Shape, media-type, rate-limit and unavailable-corpus failures are machine-readable and fail closed.
 
 ### Useful commands
 

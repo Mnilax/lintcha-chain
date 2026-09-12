@@ -15,7 +15,7 @@ config and the bot's config cannot disturb each other.
 
     wrangler.toml     the worker: name, routes, bindings, migrations, the cron, the settings
     package.json      type module, the scripts, and one exact dev dependency: Wrangler 4.131.0
-    src/index.js      the worker. Five routes and a cron, and nothing else answers
+    src/index.js      the worker. Six routes and a cron, and nothing else answers
     src/router.js     the commands. Returns actions and sends nothing, so a test can read what it would say
     src/texts.js      every sentence the bot can say
     src/telegram.js   sending, and the small amount of markup
@@ -28,6 +28,7 @@ config and the bot's config cannot disturb each other.
     src/watch.js      the watcher: the launch log's live tail, and the rules read against it
     src/rules.js      what a holder asked to be told about, and whether a launch matches it
     src/engine.js     site/launch.js, loaded and never copied. See below
+    src/identity.js   the strict full-input boundary for the opt-in HTTP identity route
     src/engine-globals.js  the two vendored tables the engine needs, put where it looks for them
     src/tally.js      counting launches the way the collector counts them
     tools/verify-tail.mjs  rebuild the tail's block range with the collector and compare
@@ -231,7 +232,7 @@ covered against a `token.json` of three nulls and the feed sleeps, but the Teleg
 the public launch promise. That dormant state is distinct from the two Telegram credentials, which are required before
 the Worker deployment.
 
-## The five routes
+## The six routes
 
     POST /api/telegram   every update must carry X-Telegram-Bot-Api-Secret-Token matching
                          the secret. A wrong or missing header gets four hundred and one
@@ -242,6 +243,9 @@ the Worker deployment.
     POST /api/hold       the holder check, posted by the /hold page on the site. Same
                          origin, JSON media type and a bounded body are required before a separate
                          courtesy limit can let the request touch Watch
+    POST /api/identity   the same manifest-bound identity comparison as the page and offline kit,
+                         for integrations that explicitly choose to send their strings to the Worker;
+                         no request fields are stored or echoed
     GET/HEAD /api/tail   versioned, block-aligned committed pages of the public launch tail: ranges,
                          counts and hashes only; no raw name, ticker, address or private holder data
     GET/HEAD /api/wall   the public, strict post-snapshot suffix: bounded self-declared name
@@ -252,6 +256,13 @@ the Worker deployment.
 
 Anything else under `/api/` is four hundred and four. The site's own pages are untouched:
 the route is `/api/*` and the root stays with the assets worker.
+
+`/api/identity` is not used by the public comparison page. The page keeps its existing local-only path; the HTTP
+route is an opt-in network boundary for integrations. It accepts only the complete documented identity shape,
+uses `site/launch.js` rather than another normalizer, verifies `launch-index.json` against the published manifest,
+and returns the same corpus receipt as the offline CLI. Malformed requests never reach the Durable Object, and
+the successful path performs no SQLite or KV write. CORS is public, responses are `no-store`, and an independent
+per-isolate courtesy bucket can be tightened with `IDENTITY_PER_SECOND`.
 
 ## The holder check
 
@@ -630,6 +641,9 @@ Telegram, KV and both Durable Object contexts are local fakes from `test/fakes.m
                    loaded a second time the way the page loads it, and one fixture set through
                    both engines compared value for value, hash for hash, entry for entry, and
                    through check() itself
+    identity_api_test   strict full-input and media boundaries, bounded ingress, CORS, independent
+                   rate limiting, manifest-bound corpus reads, exact engine result, no durable write
+                   and no reflection of submitted declarations
     rules_test     a string rule fires on a match and is otherwise silent, a dev rule on that
                    deployer and no other, a shared rule at the threshold and not one below,
                    and one person's rule is not removable by another

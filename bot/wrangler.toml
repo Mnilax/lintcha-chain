@@ -177,6 +177,9 @@ INDEX_TTL_MS = "600000"
 # courtesy and not a guarantee: many isolates run, and a real global limit would need a write per request.
 TAIL_CACHE_MS = "5000"
 TAIL_PER_SECOND = "4"
+# The opt-in identity POST has its own per-isolate courtesy bucket. It is public for integrations, but the
+# browser comparison never calls it and continues to keep pasted fields local.
+IDENTITY_PER_SECOND = "4"
 # The holder POST has a separate per-isolate courtesy bucket. Origin and media-type checks run before this bucket,
 # and the bucket runs before a request can touch the singleton Watch object. Neither a browser Origin header nor
 # an isolate-local bucket is global admission control; production requires a separately verified dashboard rule.

@@ -1,4 +1,4 @@
-// The worker. Five routes and a cron, and nothing else answers.
+// The worker. Six routes and a cron, and nothing else answers.
 //
 //   POST /api/telegram   the webhook. Every update must carry X-Telegram-Bot-Api-Secret-Token matching the
 //                        TELEGRAM_WEBHOOK_SECRET secret. A wrong or missing header gets four hundred and one
@@ -7,6 +7,8 @@
 //   POST /api/hold       the holder check, from the /hold page on the site. Same origin, which is why the
 //                        vendored connect-src 'self' needs no editing. The route requires that exact browser
 //                        origin and JSON media type before it touches the one global Watch object.
+//   POST /api/identity   an opt-in integration surface for the page's exact comparison. Unlike the browser
+//                        tool, an API call sends its strings to this Worker. They are not stored or echoed.
 //   GET  /api/tail       versioned, bounded pages of the live launch tail: counted hashes, an exact block range,
 //                        ordered chunk commitments and an opaque continuation cursor. Public, cached for a few
 //                        seconds, and rate limited per isolate. The page is
@@ -35,6 +37,7 @@ import * as T from "./texts.js";
 import { Tape } from "./tape.js";
 import { Watch, DEFAULT_TAIL_CACHE_MS, DEFAULT_INDEX_TTL_MS } from "./watch.js";
 import { integerSetting } from "./config.js";
+import { identityInputOf } from "./identity.js";
 
 export { Tape, Watch };
 
@@ -190,11 +193,13 @@ const tailBucket = { at: 0, taken: 0 };
 const wallBucket = { at: 0, taken: 0 };
 const historyBucket = { at: 0, taken: 0 };
 const holdBucket = { at: 0, taken: 0 };
+const identityBucket = { at: 0, taken: 0 };
 export const DEFAULT_API_PER_SECOND = 4;
 export const MAX_API_PER_SECOND = 100;
 /** Public request bodies are tiny protocol messages; these bounds are byte ceilings, not hints. */
 export const TELEGRAM_UPDATE_BODY_LIMIT = 64 * 1024;
 export const HOLD_BODY_LIMIT = 1024;
+export const IDENTITY_BODY_LIMIT = TELEGRAM_UPDATE_BODY_LIMIT;
 /** Inbound body reads share the watcher's existing bounded I/O window. */
 export const INBOUND_BODY_TIMEOUT_MS = DEFAULT_TAIL_CACHE_MS;
 /** Only for tests: forget what this second has already served. */
@@ -202,6 +207,7 @@ export function forgetTailBucket() { tailBucket.at = 0; tailBucket.taken = 0; }
 export function forgetWallBucket() { wallBucket.at = 0; wallBucket.taken = 0; }
 export function forgetHistoryBucket() { historyBucket.at = 0; historyBucket.taken = 0; }
 export function forgetHoldBucket() { holdBucket.at = 0; holdBucket.taken = 0; }
+export function forgetIdentityBucket() { identityBucket.at = 0; identityBucket.taken = 0; }
 function bucketAllowed(bucket, now, perSecond) {
   const second = Math.floor(now / 1000);
   if (bucket.at !== second) { bucket.at = second; bucket.taken = 0; }
@@ -232,6 +238,17 @@ const tailAllowed = (now, perSecond) => bucketAllowed(tailBucket, now, perSecond
 const wallAllowed = (now, perSecond) => bucketAllowed(wallBucket, now, perSecond);
 const historyAllowed = (now, perSecond) => bucketAllowed(historyBucket, now, perSecond);
 const holdAllowed = (now, perSecond) => bucketAllowed(holdBucket, now, perSecond);
+const identityAllowed = (now, perSecond) => bucketAllowed(identityBucket, now, perSecond);
+
+const identityHeaders = Object.freeze({
+  "content-type": "application/json",
+  "cache-control": "no-store",
+  "access-control-allow-origin": "*"
+});
+const identityJson = (value, status = 200, extra = {}) => new Response(JSON.stringify(value), {
+  status,
+  headers: { ...identityHeaders, ...extra }
+});
 
 const BODY_READ_TIMEOUT = Symbol("body read timeout");
 const cancelBestEffort = target => {
@@ -286,6 +303,42 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "");
+
+    if (path === "/api/identity") {
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "cache-control": "no-store",
+            "access-control-allow-origin": "*",
+            "access-control-allow-methods": "POST, OPTIONS",
+            "access-control-allow-headers": "content-type"
+          }
+        });
+      }
+      if (request.method !== "POST") return identityJson({ ok: false, why: "method" }, 405, { allow: "POST, OPTIONS" });
+      const mediaType = String(request.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+      if (mediaType !== "application/json") return identityJson({ ok: false, why: "media_type" }, 415);
+      if (!identityAllowed(Date.now(), configuredPerSecond(env.IDENTITY_PER_SECOND, env.TAIL_PER_SECOND))) {
+        return identityJson({ ok: false, why: "rate_limited" }, 429);
+      }
+      const body = await boundedJsonBody(request, IDENTITY_BODY_LIMIT);
+      const input = identityInputOf(body);
+      if (!input) return identityJson({ ok: false, why: "shape" }, 400);
+      const stub = watchStub(env);
+      if (!stub) return identityJson({ ok: false, why: "corpus_unavailable" }, 503);
+      try {
+        const response = await stub.fetch("https://watch/identity", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        });
+        if (![200, 400, 503].includes(response.status)) return identityJson({ ok: false, why: "corpus_unavailable" }, 503);
+        return new Response(response.body, { status: response.status, headers: identityHeaders });
+      } catch {
+        return identityJson({ ok: false, why: "corpus_unavailable" }, 503);
+      }
+    }
 
     if (path === "/api/telegram") {
       if (request.method !== "POST") return new Response(null, { status: 405 });
