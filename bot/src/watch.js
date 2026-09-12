@@ -36,6 +36,7 @@ import * as TEXT from "./texts.js";
 import { validLaunchIndex, publishedManifestOf } from "../../lib/published-contract.mjs";
 import { requiredHttpsUrlOf } from "../../lib/config-contract.mjs";
 import { integerSetting } from "./config.js";
+import { ENGINE_ID, IDENTITY_API_SCHEMA, identityInputOf } from "./identity.js";
 
 export const DEFAULT_INTERVAL_MS = 12000;
 export const DEFAULT_WATCHDOG_MS = 90000;
@@ -434,6 +435,25 @@ export class Watch {
       if (!this.historyAllowed(now)) return json(wallFailure("rate_limited"), 429);
       const body = await this.deployerHistory(address, now);
       return json(body, body.ok ? 200 : 503);
+    }
+    if (path === "identity") {
+      if (request.method !== "POST") return new Response(null, { status: 405 });
+      const body = await request.json().catch(() => null);
+      if (!identityInputOf(body)) return json({ ok: false, why: "shape" }, 400);
+      const state = await this.manifestState(Date.now());
+      const index = state ? await this.index(Date.now()) : null;
+      if (!state || !index) return json({ ok: false, why: "corpus_unavailable" }, 503);
+      return json({
+        ok: true,
+        schema: IDENTITY_API_SCHEMA,
+        engine: ENGINE_ID,
+        corpus: {
+          sha256: state.value.index.sha256,
+          bytes: state.value.index.bytes,
+          entries_total: state.value.index.entries_total
+        },
+        result: await engineCheck(body, index)
+      });
     }
     if (path === "state") return json(await this.state());
     if (path === "nonce") {
