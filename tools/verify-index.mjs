@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// lintcha-chain, `npm run verify`: refuses before network when the published numbers file predates an exact
-// finalized identity state. For a state-pinned replacement, it does what the page conditionally promises:
+// lintcha-chain, `npm run verify`: reads the exact finalized identity state recorded by the published numbers
+// artifact and does what the page promises for a state-pinned snapshot:
 // read site/launch-numbers.json for the block window and recorded identity-state number/hash; run
 // tools/launch-collect.mjs over exactly that window and state into a temporary directory; run the owned collection guard, whose
 // strict second chain read must rebuild the exact identity tables and summary; run tools/launch-index.mjs on what it wrote,
