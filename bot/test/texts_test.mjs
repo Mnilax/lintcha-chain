@@ -46,7 +46,7 @@ const GIVEN = {
     It never messages you first. It never asks for a key, a seed or an
     approval. It never holds funds and never trades. Everything it says is
     read from the chain, and its code is in the repository with the rest.`,
-  greeting: `This room is the tape. Every buy lands here as it clears the pool.
+  greeting: `This room is the tape. Every buy the feed can prove lands here as it clears the venue the bot can read.
     Nobody here will message you first, and nobody will ever ask you for
     your seed. One contract; any other address with this name is not ours.
 
@@ -98,11 +98,11 @@ t.ok(T.startText("unreadable") === T.START_TOKEN_STATE_UNREADABLE &&
 
 // ---------------------------------------------------------------- the sells disclosure, and where it sits
 t.ok(/\bsells\b/i.test(T.START), "/start says the word sells");
-t.ok(/The feed posts buys, not sells\./.test(T.START), "/start says which way the feed leans");
+t.ok(/The feed posts the buys it can prove, not sells\./.test(T.START), "/start says which proved events the feed posts and which way it leans");
 t.ok(/\/stats shows them/.test(T.START), "/start says where sells can be seen");
 t.ok(/never land in the room/.test(T.START), "/start says they do not reach the room");
 t.ok(/choice about which facts reach you/.test(T.START), "/start gives the reason, not just the fact");
-t.ok(T.START.indexOf("The feed posts buys") > T.START.indexOf("read from the chain, and its code is in the repository"),
+t.ok(T.START.indexOf("The feed posts the buys it can prove") > T.START.indexOf("read from the chain, and its code is in the repository"),
   "and it comes after the borrowed text, not inside it");
 
 // ---------------------------------------------------------------- the origin- and mark-bound sentence, in both places it lives

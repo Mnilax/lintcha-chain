@@ -301,7 +301,7 @@
   "roadmap.shipped.l4": "Spanish and Portuguese pages from the machinery already in the tree",
   "roadmap.next.t": "next",
   "roadmap.next.l1": "keep the guarded snapshot current and verify every published replacement",
-  "roadmap.next.l2": "bring the Telegram bot live for commands that do not depend on the token; keep the token block, holder verification and the token feed dormant, and /ca, /price and /stats in their no-token state, until a verified token address exists",
+  "roadmap.next.l2": "keep the Telegram bot available for commands that do not depend on the token; keep the token block, holder verification and the token feed dormant, and /ca, /price and /stats in their no-token state, until a verified token address exists",
   "roadmap.later.t": "later",
   "roadmap.later.l1": "a longer window, if the endpoint sustains it",
   "roadmap.later.l2": "the state markers on result rows, waiting on a change in lintcha",

@@ -50,7 +50,7 @@ const START_AS_GIVEN = [
 // and this project's whole argument elsewhere is that it does not make choices like that. So it is said here
 // with the reason, in the open, rather than left for somebody to notice.
 const START_ON_SELLS = [
-  "The feed posts buys, not sells. Sells are counted, and /stats shows them; they never land in the room. That is a choice about which facts reach you, and it is written here rather than left for you to find: everything else this project does refuses to pick which facts to show, and the feed is the one place we picked."
+  "The feed posts the buys it can prove, not sells. Sells are counted, and /stats shows them; they never land in the room. That is a choice about which facts reach you, and it is written here rather than left for you to find: everything else this project does refuses to pick which facts to show, and the feed is the one place we picked."
 ].join("\n");
 
 export const START = START_AS_GIVEN + "\n\n" + START_ON_SELLS;
@@ -88,7 +88,7 @@ export const startText = state => state === "active" ? START
   : START_TOKEN_STATE_UNREADABLE;
 
 export const GREETING = [
-  "This room is the tape. Every buy lands here as it clears the pool. Nobody here will message you first, and nobody will ever ask you for your seed. One contract; any other address with this name is not ours.",
+  "This room is the tape. Every buy the feed can prove lands here as it clears the venue the bot can read. Nobody here will message you first, and nobody will ever ask you for your seed. One contract; any other address with this name is not ours.",
   "",
   "/ca for the contract, /price when the venue can be read, /site for everything else."
 ].join("\n");

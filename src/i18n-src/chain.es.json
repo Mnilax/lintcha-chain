@@ -301,7 +301,7 @@
   "roadmap.shipped.l4": "las páginas en español y portugués a partir de la maquinaria que ya está en el árbol",
   "roadmap.next.t": "siguiente",
   "roadmap.next.l1": "mantener actualizada la instantánea protegida y verificar cada reemplazo publicado",
-  "roadmap.next.l2": "poner en funcionamiento el bot de Telegram para los comandos que no dependen del token; mantener inactivos el bloque del token, la verificación de tenencia y el feed del token, y /ca, /price y /stats en su estado sin token, hasta que exista una dirección verificada",
+  "roadmap.next.l2": "mantener disponible el bot de Telegram para los comandos que no dependen del token; mantener inactivos el bloque del token, la verificación de tenencia y el feed del token, y /ca, /price y /stats en su estado sin token, hasta que exista una dirección verificada",
   "roadmap.later.t": "más adelante",
   "roadmap.later.l1": "una ventana más larga, si el endpoint lo sostiene",
   "roadmap.later.l2": "los marcadores de estado en las filas de resultados, a la espera de un cambio en lintcha",

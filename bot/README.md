@@ -178,8 +178,9 @@ when what actually happened was a network fault.
    disabled. From the repository root, exercise `npm run smoke:production` before connecting Telegram.
 
    When `site/token.json` is the complete three-null document, connect the bot only with the explicit pre-token
-   command below. `/start` and `/site` answer; `/ca`, `/price`, `/stats` and holder commands state that the token
-   does not exist yet, and the feed starts no alarm and sends nothing. This is a live information bot, not a token
+   command below. `/start` and `/site` answer; `/ca`, `/price`, `/stats` and token-dependent holder commands state
+   that the token does not exist yet, and the feed starts no alarm and sends nothing. `/forget` remains available
+   because removing stored state must not depend on token activation. This is a live information bot, not a token
    activation or a placeholder launch.
 
         npm run telegram:set-webhook-pretoken

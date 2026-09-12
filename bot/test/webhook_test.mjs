@@ -141,8 +141,8 @@ r = await worker.fetch(post("/api/telegram", ordinaryJoinedUpdate, { "X-Telegram
 t.ok(r.status === 200 && net.sent.length === joinedBefore,
   "an ordinary member joining is acknowledged and never greets the room");
 r = await worker.fetch(post("/api/telegram", joinedUpdate, { "X-Telegram-Bot-Api-Secret-Token": STAND_WEBHOOK_SECRET }), env(), ctx);
-t.ok(r.status === 200 && net.sent.length === joinedBefore + 1 && net.sent.at(-1).chat_id === -1005 && net.sent.at(-1).text === T.GREETING,
-  "the production webhook renders the one quiet room greeting through the durable response path");
+t.ok(r.status === 200 && net.sent.length === joinedBefore + 1 && net.sent.at(-1).chat_id === -1005 && net.sent.at(-1).text === T.GREETING_PRETOKEN,
+  "the production webhook renders the one quiet pre-token room greeting through the durable response path");
 r = await worker.fetch(post("/api/telegram", joinedUpdate, { "X-Telegram-Bot-Api-Secret-Token": STAND_WEBHOOK_SECRET }), env(), ctx);
 t.ok(r.status === 200 && net.sent.length === joinedBefore + 1, "a retried room-join update cannot greet twice after completion");
 
