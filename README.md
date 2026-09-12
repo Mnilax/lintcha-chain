@@ -180,9 +180,9 @@ node tools/identity.mjs read --input ./identity.json
 
 ## Guarded snapshot refresh
 
-The refresh workflow is manual and fail-closed. [`.github/workflows/launch-refresh.yml`](.github/workflows/launch-refresh.yml) never pushes generated data directly to `main`.
+The refresh workflow runs weekly, remains manually dispatchable and fails closed. [`.github/workflows/launch-refresh.yml`](.github/workflows/launch-refresh.yml) never pushes generated data directly to `main`.
 
-When deliberately dispatched, it:
+When scheduled or deliberately dispatched, it:
 
 1. pins the run to the exact clean `main` revision;
 2. records one finalized identity-state block number and hash;

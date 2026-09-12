@@ -34,8 +34,8 @@ node tools/verify-vendor.mjs
 After a build, confirm that only the generated files you intended to update changed. The pull request workflows run
 the complete root and bot suites, translation check, deterministic build, browser contracts and vendor verification.
 
-The collection and publication workflow is deliberately manual and fail-closed. Do not run it merely to make a test
-green, and never replace a missing historical read with a guessed value.
+The collection and publication workflow runs weekly, remains manually dispatchable and fails closed. Do not dispatch
+it merely to make a test green, and never replace a missing historical read with a guessed value.
 
 ## Pull requests
 

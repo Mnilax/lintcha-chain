@@ -1,5 +1,5 @@
-# launch-refresh: manual-only until a strict full refresh is demonstrated through the routed log and state endpoints.
-# When deliberately dispatched, rebuild the launch index and its numbers file from the most recent full day of
+# launch-refresh: guarded weekly rebuild through the routed log and state endpoints, also manually dispatchable.
+# When scheduled or deliberately dispatched, rebuild the launch index and its numbers file from the most recent full day of
 # launches, rebuild the pages that print their figures and integrity manifest, and open a PR containing the seven files. This is the job that
 # writes a branch on its own, so every guardrail is hard and the job commits nothing rather than something
 # wrong. Ported from lintcha's launch-refresh.yml (approved there 2026-09-08) with three differences, each marked
@@ -32,6 +32,8 @@
 #     because pushes made by GITHUB_TOKEN do not recursively trigger ordinary push workflows
 name: launch-refresh
 on:
+  schedule:
+    - cron: "17 11 * * 1"   # Mondays, 11:17 UTC
   workflow_dispatch:
 permissions:
   contents: write
@@ -60,17 +62,17 @@ jobs:
         shell: bash
         run: |
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
-            echo "abort: launch-refresh must be dispatched from main"
+            echo "abort: launch-refresh must run from main"
             exit 1
           fi
           head_sha=$(git rev-parse HEAD)
           if [ "${head_sha}" != "${GITHUB_SHA}" ]; then
-            echo "abort: checkout HEAD does not match the dispatched revision"
+            echo "abort: checkout HEAD does not match the event revision"
             exit 1
           fi
           git fetch --no-tags origin main
           if [ "${head_sha}" != "$(git rev-parse origin/main)" ]; then
-            echo "abort: main moved before launch-refresh began; dispatch again from the new main"
+            echo "abort: main moved before launch-refresh began; wait for the next schedule or dispatch again from the new main"
             exit 1
           fi
           if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
@@ -143,11 +145,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add site/launch-index.json site/launch-numbers.json site/launch-manifest.json site/index.html site/es/index.html site/pt/index.html site/404.html
           summary=$(node -p 'const n=require("./site/launch-numbers.json"); n.window.from_date+" to "+n.window.to_date+", blocks "+n.window.from_block+" to "+n.window.to_block+", "+n.launches_scanned+" launches, collected "+n.collected')
-          git commit -m "launch index: manual refresh, ${summary}"
+          git commit -m "launch index: guarded refresh, ${summary}"
           generated_sha=$(git rev-parse HEAD)
           branch="automation/launch-refresh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git push origin "HEAD:refs/heads/${branch}"
-          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "launch index: ${summary}" --body "Manual launch-refresh run ${GITHUB_RUN_ID}, guarded at one recorded finalized identity state. This PR contains only the seven generated publication artifacts; merge only after the dispatched full test and vendor workflows plus repository review checks pass.")
+          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "launch index: ${summary}" --body "Guarded launch-refresh run ${GITHUB_RUN_ID}, pinned to one recorded finalized identity state. This PR contains only the seven generated publication artifacts; merge only after the dispatched full test and vendor workflows plus repository review checks pass.")
           gh workflow run test.yml --ref "${branch}"
           gh workflow run vendor.yml --ref "${branch}"
           test_run=""
