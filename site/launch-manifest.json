@@ -1,22 +1,22 @@
 {
   "schema": "lintcha-chain/published-manifest/v1",
   "index": {
-    "sha256": "fd3e40d53697d5d4d296939eb94f8aca50a9ac4e08f7d441d91f6a83ce230748",
-    "bytes": 1381421,
+    "sha256": "18cd4c4d6a3255f58b359f7d2c802888bb9d78f8f515f8b1c4d7013fb16ed665",
+    "bytes": 888039,
     "entries": {
-      "link": 4894,
-      "logo": 2709,
-      "recipient": 137,
-      "description": 630,
-      "ticker": 4040,
-      "name": 4063,
-      "ticker_skeleton": 4065,
-      "name_skeleton": 4083
+      "link": 3595,
+      "logo": 1532,
+      "recipient": 103,
+      "description": 417,
+      "ticker": 2534,
+      "name": 2546,
+      "ticker_skeleton": 2548,
+      "name_skeleton": 2567
     },
-    "entries_total": 24621
+    "entries_total": 15842
   },
   "numbers": {
-    "sha256": "ee3c21833400c8f622b307dc83ea3c8292db202e703d1b510f6282a9b485f3c8",
-    "bytes": 1511
+    "sha256": "bb0ecad8f8bf36ca879b418099cd4d4b5a5220f8bd71892f6c28aba3fd748269",
+    "bytes": 1642
   }
 }
