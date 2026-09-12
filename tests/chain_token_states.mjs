@@ -8,8 +8,8 @@
 //   b. address and pons   one filled BUY button in the header cluster, the contract row, section seventeen with the
 //                         pons button only, two live tiles showing a dash, the launch band under the footer
 //   c. pons and uniswap   both buttons, the uniswap one an outline
-// A fourth build takes a temporary links.json with both accounts filled and checks the cluster: three outbound items,
-// GITHUB then X then TELEGRAM, X on the substituted address. States a, b and c pass no --links, so they render against
+// A fourth build takes a temporary links.json with two labelled X accounts and Telegram and checks the cluster: four
+// outbound items, GITHUB then both X accounts then TELEGRAM. States a, b and c pass no --links, so they render against
 // the tree's own site/links.json and the shipped default is what is under test there.
 //
 // The address appears three times on a built page with an address, and two of those places carry a copy button:
@@ -25,7 +25,7 @@
 // phase lists it was folded out of.
 //
 // Then it checks that the tree's own site/token.json and rendered page agree exactly in either dormant or active state,
-// and that site/links.json carries only the confirmed Telegram account alongside the default X account.
+// and that site/links.json carries the two confirmed X accounts and the confirmed Telegram room.
 //   node tests/chain_token_states.mjs
 import fs from "node:fs";
 import os from "node:os";
@@ -55,6 +55,7 @@ const address = "0x" + crypto.randomBytes(20).toString("hex");   // made up here
 const pons = "https://example.invalid/pons/" + crypto.randomBytes(4).toString("hex");
 const uniswap = "https://example.invalid/uniswap/" + crypto.randomBytes(4).toString("hex");
 const xAccount = "https://example.invalid/x/" + crypto.randomBytes(4).toString("hex");
+const xAccountTwo = "https://example.invalid/x/" + crypto.randomBytes(4).toString("hex");
 const telegram = "https://example.invalid/telegram/" + crypto.randomBytes(4).toString("hex");
 const X_DEFAULT = "https://x.com/mnilax";   // the account the vendored footer links; the build falls back to it when links.json carries no x
 const TELEGRAM_DEFAULT = "https://t.me/lintcha";
@@ -100,9 +101,9 @@ ok(count(a, /class="buy"/g) === 0, "no buy button");
 ok(count(a, /token-sec/g) === 0, "no token section");
 ok(count(a, /class="band"/g) === 0 && count(a, /band-address|band-copy/g) === 0, "no launch band, not even an empty one");
 ok(count(a, /data-token-address/g) === 0 && count(a, /data-copy-address/g) === 0, "no address slot and no copy button for one");
-ok(count(a, /class="out"/g) === 3, "cluster is three outbound items");
+ok(count(a, /class="out"/g) === 4, "cluster is four outbound items");
 ok(count(a, /data-i18n="nav\.telegram"/g) === 1, "the configured telegram item is present once");
-ok(outHrefs(a).length === 3 && outHrefs(a)[1] === X_DEFAULT && outHrefs(a)[2] === TELEGRAM_DEFAULT, "X points at the default account and Telegram at the configured room");
+ok(outHrefs(a).length === 4 && outHrefs(a)[1] === X_DEFAULT && outHrefs(a)[2] === "https://x.com/lintchadotcom" && outHrefs(a)[3] === TELEGRAM_DEFAULT, "both X accounts and Telegram point at the configured destinations");
 ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are nowhere");
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
 ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 3, "the hero has one three-action start path");
@@ -181,7 +182,7 @@ ok(count(b, /data-copy-address/g) === 2, "two copy buttons: the contract row's a
 ok(count(b, /class="band"/g) === 1 && count(b, /class="band-copy"/g) === 1, "one launch band, with one copy button");
 ok(slot(b, "band-address") === address && slot(b, "band-address") === slot(b, "contract-address"), "the band carries the contract row's address");
 ok(b.indexOf('class="band"') > b.indexOf("</footer>"), "the band sits under the footer");
-ok(count(b, /class="out"/g) === 3 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: three items, X on the default account and Telegram on the configured room");
+ok(count(b, /class="out"/g) === 4 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === "https://x.com/lintchadotcom" && outHrefs(b)[3] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: both X accounts and Telegram remain configured");
 for (const lang of ["es", "pt"]) {
   const localized = fs.readFileSync(path.join(tmp, "b", lang, "index.html"), "utf8");
   ok(count(localized, new RegExp(`data-token-address>${re(address)}<`, "g")) === 3 && count(localized, new RegExp(`href="${re(attr(pons))}"`, "g")) === 2 && !/token-btn-uni/.test(localized), `${lang}: the active page carries the exact same pons-only token state`);
@@ -193,12 +194,13 @@ ok(count(c, /token-btn-pons/g) === 1 && count(c, /token-btn-uni/g) === 1 && c.in
 ok(count(c, /class="buy"/g) === 1, "still one filled button on the page");
 ok(count(c, /class="band"/g) === 1 && slot(c, "band-address") === address, "one band, the same address");
 
-console.log("links: both accounts filled");
-const l = build("links", { address, pons, uniswap: null }, { x: xAccount, telegram });
+console.log("links: both X accounts and Telegram filled");
+const l = build("links", { address, pons, uniswap: null }, { x: [{ href: xAccount, label: "@first" }, { href: xAccountTwo, label: "@second" }], telegram });
 const hrefs = outHrefs(l);
-ok(count(l, /class="out"/g) === 3, "cluster is three outbound items");
-ok(hrefs.length === 3 && hrefs[0] === "https://github.com/Mnilax/lintcha-chain" && hrefs[1] === xAccount && hrefs[2] === telegram, "github, then X on the substituted account, then telegram");
-ok(count(clusterOf(l), /class="arrow"/g) === 3, "each of the three carries the arrow");
+ok(count(l, /class="out"/g) === 4, "cluster is four outbound items");
+ok(hrefs.length === 4 && hrefs[0] === "https://github.com/Mnilax/lintcha-chain" && hrefs[1] === xAccount && hrefs[2] === xAccountTwo && hrefs[3] === telegram, "github, then both labelled X accounts, then telegram");
+ok(clusterOf(l).includes("@first") && clusterOf(l).includes("@second"), "both configured X labels are visible");
+ok(count(clusterOf(l), /class="arrow"/g) === 4, "each of the four carries the arrow");
 ok(count(l, /data-i18n="nav\.telegram"/g) === 1, "the telegram item is keyed nav.telegram");
 ok(!l.includes(X_DEFAULT), "the default X account is not on the page once links.json names one");
 
@@ -207,7 +209,10 @@ const treeToken = JSON.parse(fs.readFileSync(path.join(root, "site", "token.json
 const treeState = tokenConfigOf(treeToken);
 ok(!!treeState, "site/token.json matches the shared dormant-or-active contract");
 const treeLinks = JSON.parse(fs.readFileSync(path.join(root, "site", "links.json"), "utf8"));
-ok(treeLinks.x === null && treeLinks.telegram === TELEGRAM_DEFAULT, "site/links.json leaves X on its default and names the confirmed Telegram room");
+ok(JSON.stringify(treeLinks.x) === JSON.stringify([
+  { href: "https://x.com/mnilax", label: "@mnilax" },
+  { href: "https://x.com/lintchadotcom", label: "@lintchadotcom" }
+]) && treeLinks.telegram === TELEGRAM_DEFAULT, "site/links.json names both confirmed X accounts and the confirmed Telegram room");
 const tree = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");
 const treeLocales = [tree, ...["es", "pt"].map(lang => fs.readFileSync(path.join(root, "site", lang, "index.html"), "utf8"))];
 if (treeState && treeState.address === null) {

@@ -143,14 +143,16 @@ const engine = loadEngine(SITE);
 //   c. a uniswap link as well: the outline button arrives beside the pons one; each renders only when its link exists
 const token = tokenConfigBytesOf(fs.readFileSync(TOKEN_FILE));
 if (!token) throw new Error("token.json does not match the shared activation contract");
-// the cluster's two accounts, from one file so a later move is one edit, like the origin: an empty value keeps the
-// address the vendored footer already links (X_URL), a filled one replaces it. A missing telegram is absent from the
-// tree, not a stub: there is no third item at all until the account exists.
+// the cluster's public accounts, from one file so a later move is one edit, like the origin: a null X list keeps the
+// address the vendored footer already links (X_URL), while a configured list renders each account with its public
+// label. A missing telegram is absent from the tree, not a stub.
 const links = linksConfigOf(JSON.parse(read(LINKS_FILE)));
 if (!links) throw new Error("links.json does not match the shared outbound-link contract");
-const outbound = (href, key) => `<a class="out" href="${esc(href)}" rel="noopener" target="_blank"><span data-i18n="${key}"></span><span class="arrow" aria-hidden="true">↗</span></a>`;
+const outbound = (href, key, label = "") => `<a class="out" href="${esc(href)}" rel="noopener" target="_blank"><span${label ? "" : ` data-i18n="${key}"`}>${label ? escText(label) : ""}</span><span class="arrow" aria-hidden="true">↗</span></a>`;
 function cluster() {
-  const items = [outbound(REPO, "nav.github"), outbound(links.x || X_URL, "nav.x")];
+  const items = [outbound(REPO, "nav.github")];
+  if (links.x) links.x.forEach(account => items.push(outbound(account.href, "", account.label)));
+  else items.push(outbound(X_URL, "nav.x"));
   if (links.telegram) items.push(outbound(links.telegram, "nav.telegram"));
   if (token.address && token.pons) items.push(`<a class="buy" href="${esc(token.pons)}" rel="noopener" target="_blank" data-i18n="token.buy"></a>`);
   return items.join("");
@@ -300,5 +302,5 @@ const publishedManifest = {
 fs.writeFileSync(path.join(OUT, "launch-manifest.json"), JSON.stringify(publishedManifest, null, 2) + "\n");
 const out = fs.readFileSync(path.join(OUT, "index.html"));
 const state = !token.address ? "a, off (address null)" : token.uniswap ? "c, pons and uniswap" : token.pons ? "b, pons only" : "address without a buy link";
-const clusterState = `${links.x ? "x from links.json" : "x default"}, ${links.telegram ? "telegram present" : "no telegram"}`;
+const clusterState = `${links.x ? `x accounts ${links.x.length} from links.json` : "x default"}, ${links.telegram ? "telegram present" : "no telegram"}`;
 console.log(`built ${path.relative(root, path.join(OUT, "index.html"))}: ${out.length} bytes, ${EMIT.join(",")} emitted of ${Object.keys(i18n).join(",")}; origin ${ORIGIN || "(none, relative urls)"}; theme script hash present in _headers; token state ${state}; band ${token.address ? "on" : "off"}; cluster ${clusterState}; sections on the page ${ORDER.filter(k => !PENDING.includes(k)).map(k => NUM[k]).join(" ")}, pending ${PENDING.map(k => NUM[k] + " " + k).join(", ")}; window ${numbers.window.from_date} to ${numbers.window.to_date}, blocks ${numbers.window.from_block} to ${numbers.window.to_block}, ${numbers.launches_scanned} launches`);

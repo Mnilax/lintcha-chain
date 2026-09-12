@@ -24,6 +24,10 @@
   ·
   <a href="#run-in-sixty-seconds">Run locally</a>
   ·
+  <a href="https://x.com/mnilax">@mnilax</a>
+  ·
+  <a href="https://x.com/lintchadotcom">@lintchadotcom</a>
+  ·
   <a href="https://t.me/lintcha">Telegram</a>
 </p>
 

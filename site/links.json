@@ -1,4 +1,13 @@
 {
-  "x": null,
+  "x": [
+    {
+      "href": "https://x.com/mnilax",
+      "label": "@mnilax"
+    },
+    {
+      "href": "https://x.com/lintchadotcom",
+      "label": "@lintchadotcom"
+    }
+  ],
   "telegram": "https://t.me/lintcha"
 }

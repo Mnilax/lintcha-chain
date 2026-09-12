@@ -36,11 +36,21 @@ for (const [label, value] of [
 ]) ok(tokenConfigOf(value) === null, "token rejects " + label);
 
 ok(JSON.stringify(linksConfigOf({ x: null, telegram: null })) === JSON.stringify({ x: null, telegram: null }), "the explicit no-account state is valid");
-ok(JSON.stringify(linksConfigOf({ x: "https://example.invalid/x", telegram: "https://example.invalid/tg" })) === JSON.stringify({ x: "https://example.invalid/x", telegram: "https://example.invalid/tg" }), "two HTTPS public accounts are valid");
+const publicX = [
+  { href: "https://x.com/mnilax", label: "@mnilax" },
+  { href: "https://x.com/lintchadotcom", label: "@lintchadotcom" }
+];
+ok(JSON.stringify(linksConfigOf({ x: publicX, telegram: "https://example.invalid/tg" })) === JSON.stringify({ x: publicX, telegram: "https://example.invalid/tg" }), "labelled HTTPS X accounts and one Telegram account are valid");
 ok(requiredHttpsUrlOf("https://example.invalid/path") === "https://example.invalid/path" && requiredHttpsUrlOf("javascript:alert(1)") === null, "a required runtime link is either canonical HTTPS or absent");
 for (const [label, value] of [
   ["missing account key", { x: null }],
   ["extra account key", { x: null, telegram: null, other: null }],
+  ["string instead of X account list", { x: "https://x.com/mnilax", telegram: null }],
+  ["empty X account list", { x: [], telegram: null }],
+  ["duplicate X destination", { x: [publicX[0], publicX[0]], telegram: null }],
+  ["missing X label", { x: [{ href: "https://x.com/mnilax" }], telegram: null }],
+  ["empty X label", { x: [{ href: "https://x.com/mnilax", label: "" }], telegram: null }],
+  ["unsafe X destination", { x: [{ href: "javascript:alert(1)", label: "@mnilax" }], telegram: null }],
   ["empty account", { x: "", telegram: null }],
   ["non-HTTPS account", { x: "http://example.invalid/x", telegram: null }],
   ["script account", { x: null, telegram: "javascript:alert(1)" }]
