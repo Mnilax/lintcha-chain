@@ -1,58 +1,62 @@
 {
   "chain_id": 4663,
+  "identity_state": {
+    "number": 60643336,
+    "hash": "0xed19e7585743c024d4e992af662cef9f17c17d948897e202531f17eb179c137d"
+  },
   "window": {
-    "from_block": 56767595,
-    "to_block": 57623871,
-    "blocks": 856277,
-    "from_time": "2026-09-07T10:36:34.000Z",
-    "to_time": "2026-09-08T10:36:34.000Z",
-    "from_date": "2026-09-07",
-    "to_date": "2026-09-08",
+    "from_block": 59793981,
+    "to_block": 60643336,
+    "blocks": 849356,
+    "from_time": "2026-09-10T23:24:55.000Z",
+    "to_time": "2026-09-11T23:24:55.000Z",
+    "from_date": "2026-09-10",
+    "to_date": "2026-09-11",
     "hours": 24
   },
-  "collected": "2026-09-08",
-  "launches_scanned": 28567,
-  "launches_with_a_link": 20582,
-  "launches_with_a_link_share": 72,
+  "collected": "2026-09-11",
+  "launches_scanned": 17596,
+  "launches_with_a_link": 15108,
+  "launches_with_a_link_share": 85.9,
   "links": {
-    "distinct_raw": 16370,
-    "distinct_folded": 15985,
-    "shared_by_more_than_one_deployer_raw": 4388,
-    "shared_by_more_than_one_deployer_folded": 4401
+    "distinct_raw": 12417,
+    "distinct_folded": 12183,
+    "shared_by_more_than_one_deployer_raw": 3049,
+    "shared_by_more_than_one_deployer_folded": 3081
   },
-  "tickers_shared_by_more_than_one_deployer": 3832,
-  "lookalike_ticker_pairs": 253,
-  "lookalike_ticker_groups": 241,
-  "lookalike_name_groups": 89,
-  "names_shared_by_more_than_one_deployer": 3755,
-  "logos_shared_by_more_than_one_deployer": 2090,
-  "recipients_shared_by_more_than_one_deployer": 137,
-  "descriptions_compared": 4858,
-  "descriptions_shared_by_more_than_one_deployer": 547,
+  "tickers_shared_by_more_than_one_deployer": 2346,
+  "lookalike_ticker_pairs": 104,
+  "lookalike_ticker_groups": 98,
+  "lookalike_name_groups": 41,
+  "names_shared_by_more_than_one_deployer": 2291,
+  "logos_shared_by_more_than_one_deployer": 1104,
+  "recipients_shared_by_more_than_one_deployer": 103,
+  "descriptions_compared": 2945,
+  "descriptions_shared_by_more_than_one_deployer": 368,
   "description_min_words": 12,
   "count_floor": 2,
   "index": {
     "entries": {
-      "link": 4894,
-      "logo": 2709,
-      "recipient": 137,
-      "description": 630,
-      "ticker": 4040,
-      "name": 4063,
-      "ticker_skeleton": 4065,
-      "name_skeleton": 4083
+      "link": 3595,
+      "logo": 1532,
+      "recipient": 103,
+      "description": 417,
+      "ticker": 2534,
+      "name": 2546,
+      "ticker_skeleton": 2548,
+      "name_skeleton": 2567
     },
-    "entries_total": 24621,
-    "bytes": 1381421
+    "entries_total": 15842,
+    "bytes": 888039
   },
   "collector": {
-    "calls": 2512,
-    "http_429": 1,
+    "calls": 1584,
+    "http_429": 0,
     "rpc_429": 0,
-    "retries": 1,
+    "retries": 0,
     "other_errors": 0,
-    "seconds": 1063,
-    "launches_in_log": 28567,
-    "tokens_readable": 28567
+    "seconds": 967,
+    "launches_in_log": 17596,
+    "tokens_readable": 17596
   }
 }
