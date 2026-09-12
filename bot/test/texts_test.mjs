@@ -35,7 +35,7 @@ const GIVEN = {
     it reads the chain and answers, and it does nothing else.
 
     /ca — the contract
-    /price — price and market cap
+    /price — price and market cap, when the venue can be read
     /stats — what the feed has seen
     /site — the site, the repository, the chart
 
@@ -50,7 +50,7 @@ const GIVEN = {
     Nobody here will message you first, and nobody will ever ask you for
     your seed. One contract; any other address with this name is not ours.
 
-    /ca for the contract, /price for the number, /site for everything else.`,
+    /ca for the contract, /price when the venue can be read, /site for everything else.`,
   verify: `Prove you hold $LINTCHA.
 
     Open the link, connect the wallet that holds the tokens, and sign one
@@ -84,6 +84,17 @@ t.ok(sameWords(T.NO_TOKEN_YET, GIVEN.noToken), "the no token text is word for wo
 t.ok(T.START.includes("/ca — the contract"), "/start keeps each command on its own line");
 t.ok(T.START.split("\n").filter(l => l.startsWith("/")).length === 6, "six command lines in /start: four for the room and two for a holder");
 t.ok(T.GREETING.includes("\n\n/ca for the contract"), "the greeting keeps its last line apart");
+t.ok(T.startText("active") === T.START && T.greetingText("active") === T.GREETING,
+  "active status retains the full feed and holder texts");
+t.ok(T.startText("dormant") === T.START_PRETOKEN && T.greetingText("dormant") === T.GREETING_PRETOKEN &&
+  /does not exist yet/.test(T.START_PRETOKEN) && /publish no placeholder/.test(T.GREETING_PRETOKEN) &&
+  !/Every buy lands here/.test(T.GREETING_PRETOKEN),
+  "pre-token status names only live commands and makes no feed, price or contract claim");
+t.ok(T.startText("unreadable") === T.START_TOKEN_STATE_UNREADABLE &&
+  T.greetingText("unreadable") === T.GREETING_TOKEN_STATE_UNREADABLE &&
+  /will not say from memory/.test(T.START_TOKEN_STATE_UNREADABLE) &&
+  /will not claim/.test(T.GREETING_TOKEN_STATE_UNREADABLE),
+  "an unreadable token document is neither called active nor dormant");
 
 // ---------------------------------------------------------------- the sells disclosure, and where it sits
 t.ok(/\bsells\b/i.test(T.START), "/start says the word sells");

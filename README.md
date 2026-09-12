@@ -75,7 +75,7 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
-| Telegram, holder and feed code | Routes commands, verifies holder proofs and delivers finalized feed events | Shipped in code; token-dependent paths dormant before activation |
+| Telegram bot, holder and feed code | Routes commands, verifies holder proofs and delivers finalized feed events | Bot may run in explicit pre-token mode; token-dependent paths stay dormant before activation |
 
 The live path never mutates the comparison index. The snapshot stays pinned to its recorded state and window until a guarded refresh publishes a replacement.
 
@@ -224,7 +224,7 @@ Runtime availability is part of the claim. A missing, stale, incomplete or misma
 
 [`site/token.json`](site/token.json) is the single activation document shared by the static site and Worker. Its dormant form contains null values for the contract and buy routes; its active form requires one canonical nonzero address and a canonical HTTPS buy URL containing that address.
 
-Before activation, token-dependent UI and feed behavior remain dormant. The repository already contains tested code for:
+Before activation, token-dependent UI, holder and feed behavior remain dormant. The Telegram webhook may be connected through its explicit pre-token path: `/start` and `/site` work, while commands that require the token answer that no verified token exists and publish no placeholder. The repository already contains tested code for:
 
 - the Telegram webhook and command router;
 - public `/start`, `/ca`, `/price`, `/stats` and `/site` commands;

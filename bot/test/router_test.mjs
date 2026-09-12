@@ -56,6 +56,10 @@ for (const c of KNOWN_COMMANDS) {
   t.ok(a.length >= 1 && typeof a[0].text === "string" && a[0].text.trim().length > 0, `/${c} answers`);
 }
 t.ok(PUBLIC_COMMANDS.length === 5 && PRIVATE_COMMANDS.length === 6, "five commands answer anywhere and six in a direct message");
+forgetToken();
+let body = textOf(await handleUpdate(msg("/start"), { env: {}, kv: fakeKV() }));
+t.ok(body === T.START_PRETOKEN && !/Every buy lands here|The feed posts buys/.test(body),
+  "/start uses the explicit pre-token status and makes no live feed claim while the address is null");
 
 // ---------------------------------------------------------------- three null: no address, no zero, no dash
 for (const c of ["ca", "price", "me", "verify", "stats", "rule", "rules", "unrule"]) {
@@ -69,7 +73,7 @@ for (const c of ["ca", "price", "me", "verify", "stats", "rule", "rules", "unrul
 
 // the site is not the token: /site still answers, and says there is no chart rather than linking nothing
 forgetToken();
-let body = textOf(await handleUpdate(msg("/site"), { env: {}, kv: fakeKV() }));
+body = textOf(await handleUpdate(msg("/site"), { env: {}, kv: fakeKV() }));
 t.ok(body.includes("chain.lintcha.com"), "/site names the site");
 t.ok(body.includes("github.com/Mnilax/lintcha-chain"), "/site names the repository");
 t.ok(/no chart to link yet/.test(body), "/site says there is no chart yet");
@@ -80,6 +84,9 @@ net.siteOk = false;
 body = textOf(await handleUpdate(msg("/ca"), { env: {}, kv: fakeKV() }));
 t.ok(body === T.SITE_UNREADABLE, "an unreadable site has its own sentence");
 t.ok(body !== T.NO_TOKEN_YET, "and it is not the one about the token not existing");
+forgetToken();
+body = textOf(await handleUpdate(msg("/start"), { env: {}, kv: fakeKV() }));
+t.ok(body === T.START_TOKEN_STATE_UNREADABLE, "/start names an unreadable token document instead of guessing its state");
 
 const offlineForget = fakeKV();
 await putSession(offlineForget, 7, FIXTURE.address);
@@ -108,7 +115,8 @@ const botJoin = { message: { chat: { id: 100, type: "supergroup" }, new_chat_mem
 t.ok(!ourBotJoined(ordinaryJoin, "lintcha_chain_bot") && (await handleUpdate(ordinaryJoin, { env: { BOT_USERNAME: "lintcha_chain_bot" }, kv: fakeKV() })).length === 0,
   "an ordinary member joining is silence");
 const greet = await handleUpdate(botJoin, { env: { BOT_USERNAME: "lintcha_chain_bot" }, kv: fakeKV() });
-t.ok(ourBotJoined(botJoin, "lintcha_chain_bot") && textOf(greet) === T.GREETING, "this configured bot joining gets the room greeting");
+t.ok(ourBotJoined(botJoin, "lintcha_chain_bot") && textOf(greet) === T.GREETING_PRETOKEN &&
+  !/Every buy lands here|One contract/.test(textOf(greet)), "this configured bot joining before activation gets the truthful pre-token greeting");
 t.ok((await handleUpdate(botJoin, { env: { BOT_USERNAME: "another_valid_bot" }, kv: fakeKV() })).length === 0,
   "another bot or a missing configured username cannot trigger this bot's greeting");
 t.ok(greet[0].quiet === true, "and it arrives without a notification");
@@ -128,6 +136,13 @@ const gate = fakeGate({
   eth_getLogs: []
 });
 setGate(gate);
+
+forgetToken();
+body = textOf(await handleUpdate(msg("/start"), { env: {}, kv: fakeKV() }));
+t.ok(body === T.START, "/start switches to the full active text after the public token document activates");
+forgetToken();
+const activeGreet = await handleUpdate(botJoin, { env: { BOT_USERNAME: "lintcha_chain_bot" }, kv: fakeKV() });
+t.ok(textOf(activeGreet) === T.GREETING, "the room greeting switches to the active tape text after activation");
 
 body = textOf(await handleUpdate(msg("/ca"), { env: {}, kv: fakeKV() }));
 t.ok(body.includes(TOKEN_ADDRESS), "/ca prints the address the site gave it");

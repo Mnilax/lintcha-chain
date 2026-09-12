@@ -16,6 +16,7 @@
     "telegram:discover": "node tools/telegram-bootstrap.mjs discover",
     "telegram:webhook-info": "node tools/telegram-bootstrap.mjs webhook-info",
     "telegram:set-webhook": "node tools/telegram-bootstrap.mjs set-webhook",
+    "telegram:set-webhook-pretoken": "node tools/telegram-bootstrap.mjs set-webhook-pretoken",
     "telegram:delete-webhook": "node tools/telegram-bootstrap.mjs delete-webhook",
     "predeploy": "npm run check-config:production && npm test && npm run bundle",
     "deploy": "wrangler deploy"

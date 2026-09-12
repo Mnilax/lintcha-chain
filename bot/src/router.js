@@ -68,6 +68,7 @@ export function argsOf(text) {
 }
 
 const isPrivate = msg => msg && msg.chat && msg.chat.type === "private";
+const tokenStateOf = token => !token || !token.ok ? "unreadable" : hasToken(token) ? "active" : "dormant";
 
 /**
  * What the bot would do with one update.
@@ -87,9 +88,9 @@ export async function handleUpdate(update, deps) {
   // an ordinary person's arrival is silence even if a malformed service update also happens to carry text.
   const joined = update && update.message && update.message.new_chat_members;
   if (Array.isArray(joined) && joined.length) {
-    return ourBotJoined(update, env.BOT_USERNAME)
-      ? [send(update.message.chat.id, T.GREETING, { quiet: true })]
-      : [];
+    if (!ourBotJoined(update, env.BOT_USERNAME)) return [];
+    const token = await readToken(env);
+    return [send(update.message.chat.id, T.greetingText(tokenStateOf(token)), { quiet: true })];
   }
 
   const msg = (update && (update.message || update.edited_message)) || null;
@@ -103,7 +104,10 @@ export async function handleUpdate(update, deps) {
   // Forgetting stored data must not depend on the site, the token or the chain being readable. It is intentionally
   // dispatched before every network-backed gate so the privacy promise still works during an outage and before launch.
   if (cmd === "forget") return await forgetActions(kv, watch, chat, msg);
-  if (cmd === "start") return [send(chat, T.START)];
+  if (cmd === "start") {
+    const token = await readToken(env);
+    return [send(chat, T.startText(tokenStateOf(token)))];
+  }
   if (cmd === "site") {
     const token = await readToken(env);
     return [send(chat, T.siteText(token.ok ? token : null))];

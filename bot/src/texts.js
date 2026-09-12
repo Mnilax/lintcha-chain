@@ -35,7 +35,7 @@ const START_AS_GIVEN = [
   "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is the room's half of that: it reads the chain and answers, and it does nothing else.",
   "",
   "/ca — the contract",
-  "/price — price and market cap",
+  "/price — price and market cap, when the venue can be read",
   "/stats — what the feed has seen",
   "/site — the site, the repository, the chart",
   "",
@@ -55,11 +55,63 @@ const START_ON_SELLS = [
 
 export const START = START_AS_GIVEN + "\n\n" + START_ON_SELLS;
 
+export const START_PRETOKEN = [
+  "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is online for the project while its token-dependent half sleeps.",
+  "",
+  "Available now",
+  "/start — this status",
+  "/site — the site and repository",
+  "",
+  "After one verified token address appears on the site",
+  "/ca — the contract",
+  "/price — price and market cap, when the venue can be read",
+  "/stats — what the feed has seen",
+  "holder verification and private watch rules",
+  "",
+  "$LINTCHA does not exist yet. Until it does, those token commands say so and publish no placeholder. There is no presale and no list to join.",
+  "",
+  "It never messages you first. It never asks for a key, a seed or an approval. It never holds funds and never trades."
+].join("\n");
+
+export const START_TOKEN_STATE_UNREADABLE = [
+  "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is online, but it cannot read the site's token document just now.",
+  "",
+  "/site — the site and repository",
+  "",
+  "I will not say from memory whether the token-dependent half is active. Try the token commands again after the site can be read.",
+  "",
+  "It never messages you first. It never asks for a key, a seed or an approval. It never holds funds and never trades."
+].join("\n");
+
+export const startText = state => state === "active" ? START
+  : state === "dormant" ? START_PRETOKEN
+  : START_TOKEN_STATE_UNREADABLE;
+
 export const GREETING = [
   "This room is the tape. Every buy lands here as it clears the pool. Nobody here will message you first, and nobody will ever ask you for your seed. One contract; any other address with this name is not ours.",
   "",
-  "/ca for the contract, /price for the number, /site for everything else."
+  "/ca for the contract, /price when the venue can be read, /site for everything else."
 ].join("\n");
+
+export const GREETING_PRETOKEN = [
+  "This is the public lintcha room. The bot is online before the token; the token-dependent tape stays asleep until the site carries one verified contract.",
+  "",
+  "/start for status, /site for the product and source. /ca, /price, /stats and holder actions publish no placeholder before activation.",
+  "",
+  "Nobody here will message you first, and nobody will ever ask for your key or seed. There is no presale and no list to join."
+].join("\n");
+
+export const GREETING_TOKEN_STATE_UNREADABLE = [
+  "This is the public lintcha room. The bot is online, but it cannot read the site's token document just now, so it will not claim that the token-dependent tape is active.",
+  "",
+  "/start for status, /site for the product and source. Try the token commands again after the site can be read.",
+  "",
+  "Nobody here will message you first, and nobody will ever ask for your key or seed."
+].join("\n");
+
+export const greetingText = state => state === "active" ? GREETING
+  : state === "dormant" ? GREETING_PRETOKEN
+  : GREETING_TOKEN_STATE_UNREADABLE;
 
 export const VERIFY_INTRO = [
   "Prove you hold $LINTCHA.",
