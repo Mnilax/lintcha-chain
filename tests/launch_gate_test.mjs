@@ -28,7 +28,7 @@ ok(gate.stats.calls === 1 && gate.stats.retries === 0 && gate.stats.otherErrors 
 let redirectPolicy = null;
 gate = new Gate(base);
 replies.push((_request, init) => { redirectPolicy = init.redirect; return { status: 200, text: async () => JSON.stringify({ jsonrpc: "2.0", id: 1, result: "ok" }) }; });
-ok(await gate.call("eth_blockNumber", []) === "ok" && redirectPolicy === "error", "refuses to follow redirects for an endpoint that may carry a path credential");
+ok(await gate.call("eth_blockNumber", []) === "ok" && redirectPolicy === "manual", "uses the Workers-compatible no-follow redirect mode for an endpoint that may carry a path credential");
 
 gate = new Gate({ ...base, spacingMs: 0, logsSpacingMs: 0 });
 replies.push({ result: "zero-spacing" });
