@@ -415,7 +415,7 @@
         later(function () { if (face) face.textContent = was; if (status) status.textContent = ""; }, 1600);
       });
     });
-    var copyReceipt = one("[data-copy-receipt]", tools), downloadReceipt = one("[data-download-receipt]", tools);
+    var copyReceipt = one("[data-copy-receipt]", tools), downloadReceipt = one("[data-download-receipt]", tools), downloadReceiptSvg = one("[data-download-receipt-svg]", tools);
     if (copyReceipt) {
       var copyFace = one("[data-receipt-copy-label]", copyReceipt), copyWas = copyFace ? copyFace.textContent : "";
       copyReceipt.addEventListener("click", function () {
@@ -446,6 +446,27 @@
           receiptFeedback(tools, "result.receipt.failed");
         }
         later(function () { if (downloadFace) downloadFace.textContent = downloadWas; }, 1600);
+      });
+    }
+    if (downloadReceiptSvg) {
+      var svgFace = one("[data-receipt-svg-label]", downloadReceiptSvg), svgWas = svgFace ? svgFace.textContent : "";
+      downloadReceiptSvg.addEventListener("click", function () {
+        var receipt = factReceipt(form, tools);
+        try {
+          var renderer = window.FactReceiptSvg;
+          var svg = receipt && renderer && typeof renderer.render === "function" ? renderer.render(receipt) : null;
+          if (!svg || typeof Blob !== "function" || !window.URL || typeof window.URL.createObjectURL !== "function") throw new Error("visual receipt unavailable");
+          var url = window.URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+          var link = doc.createElement("a"); link.href = url; link.download = "lintcha-chain-fact-receipt.svg"; link.hidden = true;
+          doc.body.appendChild(link); link.click(); doc.body.removeChild(link);
+          later(function () { window.URL.revokeObjectURL(url); }, 0);
+          if (svgFace) svgFace.textContent = t("result.receipt.svg_downloaded");
+          receiptFeedback(tools, "result.receipt.svg_downloaded");
+        } catch (e) {
+          if (svgFace) svgFace.textContent = t("result.receipt.failed");
+          receiptFeedback(tools, "result.receipt.failed");
+        }
+        later(function () { if (svgFace) svgFace.textContent = svgWas; }, 1600);
       });
     }
     var clear = one("#launch-clear"); if (clear) clear.addEventListener("click", function () { pendingResultInput = null; committedResultInput = null; later(syncResultTools, 0); });

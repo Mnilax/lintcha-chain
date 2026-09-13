@@ -133,7 +133,7 @@ ok(a.indexOf('id="s14"') < a.indexOf('id="s15"'), "lore comes before the roadmap
 ok(count(a, /class="lore-card"/g) === 6, "six lore cards");
 ok(count(a, /class="never"/g) === 1 && count(a, /<li data-i18n="road\.never\.l\d">/g) === 8, "the never list, eight lines");
 ok(count(a, /data-livetile="snapshot"/g) === 1 && a.includes(shippedIndexHash.slice(0, 16)), "the status strip identifies the shipped snapshot by its index key");
-ok(count(a, /data-result-tools/g) === 1 && count(a, /data-share-result/g) === 1 && count(a, /data-copy-receipt/g) === 1 && count(a, /data-download-receipt/g) === 1, "one result context block with share, copy-receipt and download-receipt controls");
+ok(count(a, /data-result-tools/g) === 1 && count(a, /data-share-result/g) === 1 && count(a, /data-copy-receipt/g) === 1 && count(a, /data-download-receipt(?:>|\s)/g) === 1 && count(a, /data-download-receipt-svg/g) === 1, "one result context block with share, JSON receipt and SVG receipt controls");
 ok(a.includes(`data-window-from="${shippedNumbers.window.from_block}"`) && a.includes(`data-window-to="${shippedNumbers.window.to_block}"`) && a.includes(`data-window-start="${shippedNumbers.window.from_time}"`) && a.includes(`data-window-end="${shippedNumbers.window.to_time}"`) && a.includes(`data-index-hash="${shippedIndexHash}"`), "the result context carries both shipped snapshot boundaries, both times and the full index hash");
 ok(count(a, /data-i18n="faq\.(?:bot_first|signature)\.q"/g) === 2, "the FAQ carries both bot questions");
 ok(a.lastIndexOf('data-i18n="roadmap.close"') > a.lastIndexOf('data-i18n="road.check.p"'), "roadmap.close is still the last thing in the section");

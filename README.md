@@ -75,7 +75,7 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | Refusal gallery | Makes missing, too-short, unreadable, redirect and meaning boundaries visible without inventing a value or verdict | Shipped |
 | [Live wall](https://chain.lintcha.com/live/) | Renders publishable names and tickers only when the watcher supplies a complete verified suffix | Static page shipped; runtime state fails closed |
 | [Deployer history](https://chain.lintcha.com/deployer/) | Renders bounded retained declarations for one public deployer address when watcher state is readable | Static page shipped; retained range only |
-| Fact receipts | Copies or downloads the exact input, rendered result and snapshot context locally | Shipped |
+| Fact receipts | Copies or downloads the exact input, rendered result and snapshot context locally as JSON or a self-contained SVG card | Shipped |
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
@@ -143,7 +143,7 @@ Index keys use the first eight bytes of each normalized SHA-256 digest. A collis
 
 The page embeds the expected index digest and refuses a fetched index that does not match it. The watcher and identity CLI validate the published corpus against the same manifest.
 
-A fact receipt contains the exact fields entered, the lines rendered by the page and the snapshot context used. It is created locally and makes no request. A receipt is portable context, not independent proof.
+A fact receipt contains the exact fields entered, the lines rendered by the page and the snapshot context used. It is created locally and makes no request. The page can export the same receipt as JSON or as a self-contained SVG card. A receipt is portable context, not independent proof.
 
 ## Privacy boundary
 
