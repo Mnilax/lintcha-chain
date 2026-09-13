@@ -71,9 +71,12 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | Surface | What it does | Availability |
 | --- | --- | --- |
 | [Snapshot comparison](https://chain.lintcha.com/) | Compares self-declared launch identity fields with one exact finalized day | Published |
+| Verified specimen | Loads synthetic checked-in fields and runs them through the same browser engine against the current published snapshot | Shipped |
+| Refusal gallery | Makes missing, too-short, unreadable, redirect and meaning boundaries visible without inventing a value or verdict | Shipped |
+| Proof loop | Shows the exact paste → normalize → compare → read → receipt path as a user-controlled explanatory sequence | Shipped |
 | [Live wall](https://chain.lintcha.com/live/) | Renders publishable names and tickers only when the watcher supplies a complete verified suffix | Static page shipped; runtime state fails closed |
 | [Deployer history](https://chain.lintcha.com/deployer/) | Renders bounded retained declarations for one public deployer address when watcher state is readable | Static page shipped; retained range only |
-| Fact receipts | Copies or downloads the exact input, rendered result and snapshot context locally | Shipped |
+| Fact receipts | Exports the exact input, rendered result and snapshot context locally as JSON or SVG, then verifies or replays the JSON offline | Shipped |
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
@@ -141,7 +144,9 @@ Index keys use the first eight bytes of each normalized SHA-256 digest. A collis
 
 The page embeds the expected index digest and refuses a fetched index that does not match it. The watcher and identity CLI validate the published corpus against the same manifest.
 
-A fact receipt contains the exact fields entered, the lines rendered by the page and the snapshot context used. It is created locally and makes no request. A receipt is portable context, not independent proof.
+A fact receipt contains the exact fields entered, the lines rendered by the page and the snapshot context used. It is created locally and makes no request. The page can export the same receipt as JSON or as a self-contained SVG card. A receipt is portable context, not independent proof.
+
+The offline CLI can validate a JSON receipt's strict structure and exact file digest, or replay its input against the manifest-bound checked-in corpus and require every localized result line to match. Replay does not rebuild the chain snapshot. See [Fact-receipt verification and replay](docs/FACT_RECEIPTS.md).
 
 ## Privacy boundary
 
@@ -162,9 +167,11 @@ node tools/identity.mjs help
 node tools/identity.mjs doctor
 node tools/identity.mjs normalize --field ticker --value '$bob'
 node tools/identity.mjs read --input ./identity.json
+node tools/identity.mjs receipt-verify --receipt ./lintcha-chain-fact-receipt.json
+node tools/identity.mjs receipt-replay --receipt ./lintcha-chain-fact-receipt.json
 ```
 
-`read` uses the checked-in index and manifest by default. A custom index is refused unless its matching manifest is supplied.
+`read` uses the checked-in index and manifest by default. A custom index is refused unless its matching manifest is supplied. `receipt-verify` checks the receipt itself; `receipt-replay` additionally binds the checked-in index and numbers to their manifest and reproduces the exact rendered lines locally.
 
 ### Identity HTTP API
 

@@ -40,7 +40,7 @@ const BUILD_OUTPUTS = [
   path.join("src", "i18n", "es.json"),
   path.join("src", "i18n", "pt.json")
 ];
-const PREFLIGHT_DIRS = ["site", "src", "tools", "lib", "tests"];
+const PREFLIGHT_DIRS = ["site", "src", "tools", "lib", "tests", "fixtures"];
 const TOKEN_LINE = address => `<p align="center"><b>$LINTCHA</b> · <code>${address}</code></p>`;
 const PLACEHOLDER = /<!-- the token line, when there is a token: uncomment and paste the contract\r?\n<p align="center"><b>\$LINTCHA<\/b> · <code>0x\.\.\.<\/code><\/p>\r?\n-->/g;
 const ACTIVE_LINE = /<p align="center"><b>\$LINTCHA<\/b> · <code>(0x[0-9a-fA-F]{40})<\/code><\/p>/g;

@@ -108,6 +108,7 @@ ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are 
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
 ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 4, "the hero has one four-action start path");
 ok(/class="hero-actions"[\s\S]*?href="#s02"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?href="#s09"[\s\S]*?<\/nav>/.test(a), "the hero actions lead to read, live names, deployer history and the local run in that order");
+ok(count(a, /data-proof-loop/g) === 1 && count(a, /data-proof-step/g) === 5 && count(a, /data-proof-play/g) === 1, "one user-controlled five-stage proof loop sits in the hero");
 ok(/class="page-switch"[\s\S]*?page-switch-current[^>]*aria-current="page"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?<\/nav>/.test(a), "the persistent page switch names comparison, live and deployer in order");
 ok(count(a, /class="nav section-nav"/g) === 1, "the long-page section anchors remain a distinct secondary navigation");
 // The order gained the lore section in round B and the chain block in round C, and each moved every number after it
@@ -133,7 +134,7 @@ ok(a.indexOf('id="s14"') < a.indexOf('id="s15"'), "lore comes before the roadmap
 ok(count(a, /class="lore-card"/g) === 6, "six lore cards");
 ok(count(a, /class="never"/g) === 1 && count(a, /<li data-i18n="road\.never\.l\d">/g) === 8, "the never list, eight lines");
 ok(count(a, /data-livetile="snapshot"/g) === 1 && a.includes(shippedIndexHash.slice(0, 16)), "the status strip identifies the shipped snapshot by its index key");
-ok(count(a, /data-result-tools/g) === 1 && count(a, /data-share-result/g) === 1 && count(a, /data-copy-receipt/g) === 1 && count(a, /data-download-receipt/g) === 1, "one result context block with share, copy-receipt and download-receipt controls");
+ok(count(a, /data-result-tools/g) === 1 && count(a, /data-share-result/g) === 1 && count(a, /data-copy-receipt/g) === 1 && count(a, /data-download-receipt(?:>|\s)/g) === 1 && count(a, /data-download-receipt-svg/g) === 1, "one result context block with share, JSON receipt and SVG receipt controls");
 ok(a.includes(`data-window-from="${shippedNumbers.window.from_block}"`) && a.includes(`data-window-to="${shippedNumbers.window.to_block}"`) && a.includes(`data-window-start="${shippedNumbers.window.from_time}"`) && a.includes(`data-window-end="${shippedNumbers.window.to_time}"`) && a.includes(`data-index-hash="${shippedIndexHash}"`), "the result context carries both shipped snapshot boundaries, both times and the full index hash");
 ok(count(a, /data-i18n="faq\.(?:bot_first|signature)\.q"/g) === 2, "the FAQ carries both bot questions");
 ok(a.lastIndexOf('data-i18n="roadmap.close"') > a.lastIndexOf('data-i18n="road.check.p"'), "roadmap.close is still the last thing in the section");

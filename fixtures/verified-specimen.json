@@ -1,0 +1,18 @@
+{
+  "schema": "lintcha-chain/verified-specimen/v1",
+  "kind": "synthetic",
+  "input": {
+    "name": "Test",
+    "ticker": "R0BIN",
+    "description": "This checked in specimen is synthetic and does not describe a real launch anywhere.",
+    "links": {
+      "twitter": "@test",
+      "telegram": "",
+      "discord": "",
+      "website": "example.com",
+      "farcaster": ""
+    },
+    "logo": "",
+    "recipient": "not an address"
+  }
+}

@@ -30,6 +30,7 @@ import { charts, ornament } from "./build-viz.mjs";
 import { loadEngine, normalization, alias, skeleton, indexTable } from "./build-method.mjs";
 import { tokenConfigBytesOf, linksConfigOf } from "../lib/config-contract.mjs";
 import { MANIFEST_SCHEMA, validLaunchIndex } from "../lib/published-contract.mjs";
+import { validateIdentityInput } from "../lib/identity.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url)), root = path.resolve(here, "..");
 const SRC = path.join(root, "src"), SITE = path.join(root, "site");
@@ -40,6 +41,7 @@ const ORIGIN = (opt("origin", SITE_FILE.origin || "") || "").replace(/\/$/, "");
 const OUT = path.resolve(root, opt("out", SITE));                       // where index.html is written; the tree's site/ unless a test says otherwise
 const TOKEN_FILE = path.resolve(root, opt("token", path.join(SITE, "token.json")));   // the token block's one input; a test may point at a temporary file
 const LINKS_FILE = path.resolve(root, opt("links", path.join(SITE, "links.json")));   // the cluster's outbound links; same pattern, a test may point at a temporary file
+const SPECIMEN_FILE = path.join(root, "fixtures", "verified-specimen.json");
 const REPO = "https://github.com/Mnilax/lintcha-chain";                 // GITHUB and Repository go to this repository (LINTCHA_CHAIN_05, section 2)
 const X_URL = "https://x.com/mnilax";                                   // the account lintcha's own footer links (vendored launch.html)
 const read = p => fs.readFileSync(p, "utf8");
@@ -87,6 +89,19 @@ function tOpt(lang, key, vars) { const s = i18n[lang][key]; return typeof s === 
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const escText = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const inlineJson = obj => JSON.stringify(obj).replace(/<\//g, "<\\/");
+
+// The specimen is synthetic authored input, never a launch row and never part of the corpus. It is embedded so
+// trying it adds no request before the normal same-origin index fetch. The strict public input validator keeps the
+// example on the exact same boundary as CLI and API callers; its output is always computed by the shipped engine.
+let specimen;
+try {
+  specimen = JSON.parse(read(SPECIMEN_FILE));
+  if (!specimen || specimen.schema !== "lintcha-chain/verified-specimen/v1" || specimen.kind !== "synthetic" ||
+      Object.keys(specimen).sort().join(",") !== "input,kind,schema") throw new Error("unexpected specimen envelope");
+  validateIdentityInput(specimen.input);
+} catch (error) {
+  abort("verified specimen is invalid: " + (error && error.message ? error.message : "unknown error"));
+}
 
 // ---------------------------------------------------------------- the figures: every one from launch-numbers.json or the index
 const numbersBytes = fs.readFileSync(path.join(SITE, "launch-numbers.json"));
@@ -279,6 +294,7 @@ function render(tplName, lang, extra) {
     method_skeleton: landed("method") ? skeleton(T, engine.Skeleton) : "", method_index: landed("method") ? indexTable(T, numbers, engine.L, nf) : "",
     window_from: esc(numbers.window.from_block), window_to: esc(numbers.window.to_block),
     window_start: esc(numbers.window.from_time), window_end: esc(numbers.window.to_time), index_hash: esc(vars.index_hash),
+    specimen_json: inlineJson(specimen),
     i18n_json: inlineJson({ lang, strings: i18n[lang], fallback: lang === "en" ? null : i18n.en })
   }, extra || {});
   html = sections(html);
