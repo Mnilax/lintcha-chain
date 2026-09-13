@@ -15,9 +15,9 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `site/launch.js` | `site/launch.js` | `272399671bc2905b8b478e55b26315e8fc9a54ed0c31f8bc7f4c8b02a7765f7f` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/style.css` | `site/style.css` | `a4f92bfd1321431038fae84c667996d97019b6e0339885980ec82fd92cc0392d` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `site/ui-controls.js` | `site/ui-controls.js` | `5129055ba828f3e9bda59a82d912ac7fb3dffd53e6b8ca760e53e14acd47d81e` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
-| `src/i18n-src/launch.en.json` | not in lintcha, from working tree | `549f1fe03ec4c1ce8df53d63757bda55fc827efebd42f8732588f14c73bff9fc` | not in lintcha, from working tree |
-| `src/i18n-src/launch.es.json` | not in lintcha, from working tree | `ce8f320aa7e0af2beaf7302d4fb576362a5b5b6f2204807d36eb9664e29f026b` | not in lintcha, from working tree |
-| `src/i18n-src/launch.pt.json` | not in lintcha, from working tree | `009eac2d55cc818a37dd69b25614f8866d6ecb54382799c5306cc1478180d949` | not in lintcha, from working tree |
+| `src/i18n-src/launch.en.json` | not in lintcha, from working tree | `a60c2dc9d44379c16e73b3eca2825a08ce5da2ace44af5b7c5645eb75adc3cf2` | not in lintcha, from working tree |
+| `src/i18n-src/launch.es.json` | not in lintcha, from working tree | `1debd265fb22aff39c6e150d3bd369628ae63a1b3714353b620305b7a277dc90` | not in lintcha, from working tree |
+| `src/i18n-src/launch.pt.json` | not in lintcha, from working tree | `a42b1b6c08eb43a24082b1583264ebede13e74be687ba5a449aa389dc490f696` | not in lintcha, from working tree |
 | `src/templates/launch.html` | not in lintcha, from working tree | `1854aa4c122fdb765d1ca94f52eaefbbf55d4d3d4264f2718d4242864542f04d` | not in lintcha, from working tree |
 | `src/tools/i18n_check.js` | `src/tools/i18n_check.js` | `6da44f81a71c05c737babe8959f194d5a009e031d33332a5e77c9f3c5caf2b87` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `tests/console_check.sh` | `tests/console_check.sh` | `b4d4483a4a8b50ce85a894f709718d454d5ba596ba2d5b8b64fa729b32bc66ac` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
@@ -112,3 +112,9 @@ A path is added here in the same commit that creates the file.
 - `tests/production_smoke_test.mjs`
 - `tests/activate_token_test.mjs`
 - `tests/hour_x_workflow_test.mjs`
+- `fixtures/verified-specimen.json`
+- `site/verified-specimen.js`
+- `site/proof.css`
+- `site/refusal-gallery.js`
+- `tests/verified_specimen_test.mjs`
+- `tests/refusal_gallery_test.mjs`

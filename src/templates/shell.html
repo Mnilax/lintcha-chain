@@ -25,6 +25,7 @@
 <link rel="manifest" href="{{root}}manifest.webmanifest">
 <link rel="stylesheet" href="{{root}}style.css">
 <link rel="stylesheet" href="{{root}}launch.css">
+<link rel="stylesheet" href="{{root}}proof.css">
 <link rel="stylesheet" href="{{root}}chain.css">
 <script id="i18n-data" type="application/json">{{i18n_json}}</script>
 <script id="launch-specimen-data" type="application/json">{{specimen_json}}</script>
@@ -226,6 +227,43 @@
 <!-- section:limits -->
   <section class="sec" data-sec="limits">
     <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="limits.h2"></h2></div>
+    <p class="sec-p" data-i18n="refusal.intro"></p>
+    <div class="refusal-gallery" data-refusal-gallery>
+      <div class="refusal-tabs" role="tablist" data-i18n-attr="aria-label:refusal.tabs.label">
+        <button type="button" role="tab" id="refusal-tab-empty" aria-controls="refusal-panel-empty" aria-selected="true" tabindex="0" data-refusal-tab="empty" data-i18n="refusal.empty.tab"></button>
+        <button type="button" role="tab" id="refusal-tab-short" aria-controls="refusal-panel-short" aria-selected="false" tabindex="-1" data-refusal-tab="short" data-i18n="refusal.short.tab"></button>
+        <button type="button" role="tab" id="refusal-tab-recipient" aria-controls="refusal-panel-recipient" aria-selected="false" tabindex="-1" data-refusal-tab="recipient" data-i18n="refusal.recipient.tab"></button>
+        <button type="button" role="tab" id="refusal-tab-redirect" aria-controls="refusal-panel-redirect" aria-selected="false" tabindex="-1" data-refusal-tab="redirect" data-i18n="refusal.redirect.tab"></button>
+        <button type="button" role="tab" id="refusal-tab-meaning" aria-controls="refusal-panel-meaning" aria-selected="false" tabindex="-1" data-refusal-tab="meaning" data-i18n="refusal.meaning.tab"></button>
+      </div>
+      <div class="refusal-panels">
+        <section role="tabpanel" id="refusal-panel-empty" aria-labelledby="refusal-tab-empty" data-refusal-panel="empty">
+          <p class="refusal-given"><span data-i18n="refusal.given"></span> <code data-i18n="refusal.empty.given"></code></p>
+          <p class="refusal-answer" data-i18n="refusal.empty.answer"></p>
+          <p class="refusal-boundary" data-i18n="refusal.empty.boundary"></p>
+        </section>
+        <section role="tabpanel" id="refusal-panel-short" aria-labelledby="refusal-tab-short" data-refusal-panel="short" hidden>
+          <p class="refusal-given"><span data-i18n="refusal.given"></span> <code data-i18n="refusal.short.given"></code></p>
+          <p class="refusal-answer" data-i18n="refusal.short.answer"></p>
+          <p class="refusal-boundary" data-i18n="refusal.short.boundary"></p>
+        </section>
+        <section role="tabpanel" id="refusal-panel-recipient" aria-labelledby="refusal-tab-recipient" data-refusal-panel="recipient" hidden>
+          <p class="refusal-given"><span data-i18n="refusal.given"></span> <code data-i18n="refusal.recipient.given"></code></p>
+          <p class="refusal-answer" data-i18n="refusal.recipient.answer"></p>
+          <p class="refusal-boundary" data-i18n="refusal.recipient.boundary"></p>
+        </section>
+        <section role="tabpanel" id="refusal-panel-redirect" aria-labelledby="refusal-tab-redirect" data-refusal-panel="redirect" hidden>
+          <p class="refusal-given"><span data-i18n="refusal.given"></span> <code data-i18n="refusal.redirect.given"></code></p>
+          <p class="refusal-answer" data-i18n="refusal.redirect.answer"></p>
+          <p class="refusal-boundary" data-i18n="refusal.redirect.boundary"></p>
+        </section>
+        <section role="tabpanel" id="refusal-panel-meaning" aria-labelledby="refusal-tab-meaning" data-refusal-panel="meaning" hidden>
+          <p class="refusal-given"><span data-i18n="refusal.given"></span> <code data-i18n="refusal.meaning.given"></code></p>
+          <p class="refusal-answer" data-i18n="refusal.meaning.answer"></p>
+          <p class="refusal-boundary" data-i18n="refusal.meaning.boundary"></p>
+        </section>
+      </div>
+    </div>
 {{fixed}}
   </section>
 <!-- /section:limits -->
@@ -457,6 +495,8 @@
 <script src="{{root}}launch-links.js"></script>
 <script src="{{root}}launch.js"></script>
 <script src="{{root}}launch-page.js"></script>
+<script src="{{root}}verified-specimen.js"></script>
+<script src="{{root}}refusal-gallery.js"></script>
 <script src="{{root}}chain.js"></script>
 </body>
 </html>

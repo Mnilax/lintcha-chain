@@ -72,6 +72,7 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | --- | --- | --- |
 | [Snapshot comparison](https://chain.lintcha.com/) | Compares self-declared launch identity fields with one exact finalized day | Published |
 | Verified specimen | Loads synthetic checked-in fields and runs them through the same browser engine against the current published snapshot | Shipped |
+| Refusal gallery | Makes missing, too-short, unreadable, redirect and meaning boundaries visible without inventing a value or verdict | Shipped |
 | [Live wall](https://chain.lintcha.com/live/) | Renders publishable names and tickers only when the watcher supplies a complete verified suffix | Static page shipped; runtime state fails closed |
 | [Deployer history](https://chain.lintcha.com/deployer/) | Renders bounded retained declarations for one public deployer address when watcher state is readable | Static page shipped; retained range only |
 | Fact receipts | Copies or downloads the exact input, rendered result and snapshot context locally | Shipped |

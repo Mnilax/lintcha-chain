@@ -20,37 +20,6 @@
   var form = $("launch-form"), state = $("launch-state"), results = $("launch-results"), read = $("launch-read");
   if (!form || !results) return;
 
-  // ---------------------------------------------------------------- checked-in specimen
-  // The JSON is embedded by the build, so trying it makes no request of its own. It is deliberately synthetic and
-  // only fills the same public form; submit below still fetches the shipped index and runs the same engine.
-  var specimen = null;
-  try {
-    var specimenNode = $("launch-specimen-data"), parsed = specimenNode && JSON.parse(specimenNode.textContent);
-    if (parsed && parsed.schema === "lintcha-chain/verified-specimen/v1" && parsed.kind === "synthetic" && parsed.input) specimen = parsed.input;
-  } catch (e) {}
-  var specimenButton = $("launch-specimen"), specimenStatus = document.querySelector("[data-specimen-status]");
-  function setField(name, value) {
-    var field = form.elements[name];
-    if (!field) return false;
-    field.value = typeof value === "string" ? value : "";
-    try { field.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {}
-    return true;
-  }
-  if (specimenButton) {
-    specimenButton.disabled = !specimen;
-    specimenButton.addEventListener("click", function () {
-      if (!specimen || !specimen.links) return;
-      setField("name", specimen.name); setField("ticker", specimen.ticker); setField("description", specimen.description);
-      LaunchIdentity.LINKS.forEach(function (name) { setField(name, specimen.links[name]); });
-      setField("logo", specimen.logo); setField("recipient", specimen.recipient);
-      if (specimenStatus) { specimenStatus.textContent = t("launch.specimen.loaded"); specimenStatus.hidden = false; }
-      if (typeof form.requestSubmit === "function") form.requestSubmit(read); else read.click();
-    });
-    form.addEventListener("input", function (event) {
-      if (specimenStatus && event && event.isTrusted) specimenStatus.hidden = true;
-    });
-  }
-
   // ---------------------------------------------------------------- the index: fetched once, on the first check; "no-cache"
   // revalidates with the server so a regenerated index is never served stale from the browser's heuristic cache
   var index = null, loading = null;

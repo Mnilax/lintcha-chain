@@ -1,10 +1,6 @@
 /* lintcha launch identity (LINTCHA_12): the section's own stylesheet, loaded by launch.html only, on top of style.css.
    The tokens (--ink, --field, --line, --panel) come from style.css; nothing here restyles the shell. */
 body[data-page="launch"] { position:relative; z-index:0; }
-.launch-specimen { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:22px 0 8px; padding:16px 18px; border:1px solid var(--line); border-radius:14px; background:var(--panel); }
-.launch-specimen-copy { display:grid; gap:8px; min-width:0; }
-.launch-specimen-copy p { margin:0; max-width:700px; color:var(--ink-2); font-size:14px; line-height:1.5; }
-.launch-specimen-status { margin:10px 0 0; color:var(--ink-2); font-family:'IBM Plex Mono',monospace; font-size:13px; line-height:1.5; }
 /* the form, the rows, the fixed paragraph */
 .launch-form { display:grid; gap:14px; margin-top:24px; }
 .launch-form label { display:grid; gap:6px; font-size:15px; color:var(--ink-2); }
@@ -23,4 +19,4 @@ body[data-page="launch"] { position:relative; z-index:0; }
 .launch-state { font-size:15px; line-height:1.5; color:var(--ink-2); margin:16px 0 0; }
 .launch-fixed { margin-top:40px; max-width:720px; }
 .launch-fixed p { font-size:15px; line-height:1.55; color:var(--ink-2); margin:0 0 12px; }
-@media (max-width:640px) { .launch-specimen { align-items:flex-start; flex-direction:column; } .launch-two { grid-template-columns:1fr; } .launch-row { grid-template-columns:1fr; } }
+@media (max-width:640px) { .launch-two { grid-template-columns:1fr; } .launch-row { grid-template-columns:1fr; } }
