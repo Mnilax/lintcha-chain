@@ -103,7 +103,7 @@ HOLD_PAGE = "https://chain.lintcha.com/hold"
 # the public endpoint and the vendored limiter's three pacing numbers, the same ones the collector runs with.
 # Unlike the offline collector, the Worker performs no within-call RPC retry: its durable next beat retries the
 # range, keeping one logical RPC call to one physical external request.
-RPC_URL = "https://rpc.mainnet.chain.robinhood.com"
+RPC_URL = "https://rpc.ordofi.network"
 RPC_IN_FLIGHT = "2"
 RPC_SPACING_MS = "600"
 RPC_LOGS_SPACING_MS = "1500"

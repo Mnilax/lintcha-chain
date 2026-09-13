@@ -26,7 +26,7 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `tests/launch_browser.mjs` | not in lintcha, from working tree | `bc1e1ae157622a25b2d994b4ab92c0eb020df006ee16f5a6435785547775971c` | not in lintcha, from working tree |
 | `tests/launch_extraction.mjs` | not in lintcha, from working tree | `a364f11afe80298b4f018f55e61caf422ddeadac5413b142659cb6fa3025a0b2` | not in lintcha, from working tree |
 | `tests/launch_collector_state_test.mjs` | `tests/launch_collector_state_test.mjs` | `7842d4f5929a74478824a079795220de16a0e0d97d84460eefbe022c548ad42e` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
-| `tests/launch_gate_test.mjs` | `tests/launch_gate_test.mjs` | `9c8a479e1d772273ccc3b156561fe66492e09c7121ac63cc1984465cf2e5803b` | `77b27a7dbfad69afaa76a80a9ede505900b79234` |
+| `tests/launch_gate_test.mjs` | `tests/launch_gate_test.mjs` | `5352e948a869b269ff167e8c6305d3fc6559dc519f2ee10279005a4ba8f17e26` | `9da077a18c310bab7c1d0321f8f543d5701d89c9` |
 | `tests/launch_index_test.mjs` | `tests/launch_index_test.mjs` | `685bfc7fbcbb4485e55f19b02477936272fee08bb2b12da810466ca780adf380` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
 | `tests/launch_test.js` | not in lintcha, from working tree | `68514d7293582bab1ddecf1428d35be55d3cb9b06b9b56fb684bf7692602e4ad` | not in lintcha, from working tree |
 | `tools/launch-collect.mjs` | `tools/launch-collect.mjs` | `e095873dd55b3f00f26df13bfa1e3e3a1f9c3dcbef1509bf0f19807d79958e87` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
@@ -35,7 +35,7 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `tools/launch/MANIFEST.md` | not in lintcha, from working tree | `51b8122e1fb88953440565aefa0f95142d8621204be77fea95a10106f1168d3e` | not in lintcha, from working tree |
 | `tools/launch/abi.mjs` | not in lintcha, from working tree | `c81920315d4a5c99a891f0bd2d093b4914a0722a2ec422b306a90ea45e4601ba` | not in lintcha, from working tree |
 | `tools/launch/keccak.mjs` | not in lintcha, from working tree | `bef0295971781ce2e8afdf4f22e3f85ca639c13f6e460bbe4faf957dfaa8de5d` | not in lintcha, from working tree |
-| `tools/launch/rpc.mjs` | `tools/launch/rpc.mjs` | `53c3e6ce390bb6981c172c02547289d9b7ff71ec92c46a12c0a0ca7364201913` | `77b27a7dbfad69afaa76a80a9ede505900b79234` |
+| `tools/launch/rpc.mjs` | `tools/launch/rpc.mjs` | `ee4700340bc9f605ea0ffb85f02e42d3bda6758ad5dc6fa22fdf0e431bc99583` | `9da077a18c310bab7c1d0321f8f543d5701d89c9` |
 | `tools/launch/schema.mjs` | not in lintcha, from working tree | `6d0b3c53f336996a9c3dcb11d0b13c66e90ed8191ae3301e016d6d2b50edb8f1` | not in lintcha, from working tree |
 
 ## owned here
@@ -93,6 +93,11 @@ A path is added here in the same commit that creates the file.
 - `site/live/live.js`
 - `site/deployer/index.html`
 - `site/deployer/deployer.js`
+- `site/app/index.html`
+- `site/app/app.css`
+- `site/app/app.js`
+- `src/templates/app.html`
+- `tests/mini_app_test.mjs`
 - `lib/config-contract.mjs`
 - `lib/published-contract.mjs`
 - `lib/identity.mjs`

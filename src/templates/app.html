@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{theme_script}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#08090a">
+<title>lintcha — Telegram app</title>
+<meta name="description" content="The compact lintcha interface for Telegram.">
+<link rel="icon" type="image/png" href="/icon-32.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/launch.css">
+<link rel="stylesheet" href="/chain.css">
+<link rel="stylesheet" href="/app/app.css">
+<script id="i18n-data" type="application/json">{{i18n_json}}</script>
+</head>
+<body data-lang="en" data-root="/" data-page="chain" data-app-page data-live-page data-history-page>
+<header class="app-topbar" data-topbar>
+  <a class="brand" href="/" aria-label="lintcha comparison">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="wordmark">lintcha</span>
+  </a>
+  <span class="app-context">Telegram</span>
+</header>
+
+<nav class="app-tabs" role="tablist" aria-label="lintcha tools">
+  <button type="button" role="tab" id="app-tab-read" aria-controls="app-read" aria-selected="true" data-app-tab="read">Read</button>
+  <button type="button" role="tab" id="app-tab-live" aria-controls="app-live" aria-selected="false" tabindex="-1" data-app-tab="live">Live</button>
+  <button type="button" role="tab" id="app-tab-deployer" aria-controls="app-deployer" aria-selected="false" tabindex="-1" data-app-tab="deployer">Deployer</button>
+  <button type="button" role="tab" id="app-tab-token" aria-controls="app-token" aria-selected="false" tabindex="-1" data-app-tab="token">Token</button>
+</nav>
+
+<main class="app-shell">
+  <section class="app-panel sec-tool" id="app-read" role="tabpanel" aria-labelledby="app-tab-read" data-app-panel="read">
+    <div class="app-panel-head">
+      <p class="kicker">comparison</p>
+      <h1 class="app-title">Read a launch.</h1>
+      <p>Paste the fields exactly as the launch shows them. The comparison stays in this WebView and reads the same published index as the site.</p>
+    </div>
+    <p class="result-restored" data-share-restored hidden></p>
+    <form id="launch-form" class="launch-form" autocomplete="off" novalidate>
+      <div class="launch-two">
+        <label><span data-i18n="launch.form.name"></span><input name="name" type="text" spellcheck="false"></label>
+        <label><span data-i18n="launch.form.ticker"></span><input name="ticker" type="text" spellcheck="false"></label>
+      </div>
+      <label><span data-i18n="launch.form.description"></span><textarea name="description" spellcheck="false"></textarea></label>
+      <div class="launch-two">
+        <label><span data-i18n="launch.form.twitter"></span><input name="twitter" type="text" spellcheck="false"></label>
+        <label><span data-i18n="launch.form.telegram"></span><input name="telegram" type="text" spellcheck="false"></label>
+        <label><span data-i18n="launch.form.discord"></span><input name="discord" type="text" spellcheck="false"></label>
+        <label><span data-i18n="launch.form.website"></span><input name="website" type="text" spellcheck="false"></label>
+        <label><span data-i18n="launch.form.farcaster"></span><input name="farcaster" type="text" spellcheck="false"></label>
+        <label><span data-i18n="launch.form.logo"></span><input name="logo" type="text" spellcheck="false"></label>
+      </div>
+      <label><span data-i18n="launch.form.recipient"></span><input name="recipient" type="text" spellcheck="false"></label>
+      <p class="launch-hint" data-i18n="launch.form.hint"></p>
+      <div class="launch-actions">
+        <button id="launch-read" type="submit" data-i18n="launch.form.submit"></button>
+        <button id="launch-clear" type="button" data-i18n="launch.form.clear"></button>
+      </div>
+    </form>
+    <p id="launch-state" class="launch-state" hidden></p>
+    <section id="launch-results" aria-live="polite" hidden></section>
+    <div data-result-tools data-index-hash="{{index_hash}}" data-window-from="{{window_start}}" data-window-end="{{window_end}}" hidden></div>
+  </section>
+
+  <section class="app-panel" id="app-live" role="tabpanel" aria-labelledby="app-tab-live" data-app-panel="live" data-wall aria-busy="true" hidden>
+    <div class="app-panel-head">
+      <p class="kicker">post-snapshot wall</p>
+      <h1 class="app-title">Live names and tickers.</h1>
+      <p>Self-declared strings from the public factory log, with complete coverage stated before any row is shown.</p>
+      <span class="badge badge-notdata" data-wall-badge>connecting</span>
+    </div>
+    <section class="app-section" aria-labelledby="app-wall-coverage-title">
+      <h2 id="app-wall-coverage-title">Coverage</h2>
+      <div class="cells wall-cells">
+        <div class="cell"><span class="badge badge-snapshot">snapshot</span><div class="cell-v" data-wall-snapshot>—</div><div class="cell-l">published through block</div></div>
+        <div class="cell"><span class="badge badge-live">watcher</span><div class="cell-v" data-wall-watcher>—</div><div class="cell-l">last finalized block read through</div></div>
+        <div class="cell"><span class="badge badge-notdata">gap</span><div class="cell-v" data-wall-gap>—</div><div class="cell-l">blocks between snapshot and watcher start</div></div>
+        <div class="cell"><span class="badge badge-notdata">freshness</span><div class="cell-v" data-wall-freshness>—</div><div class="cell-l">last complete watcher read</div></div>
+      </div>
+      <p class="sec-p wall-gap-note" data-wall-gap-note>Coverage is being checked before any row is shown.</p>
+      <div class="wall-controls">
+        <button type="button" class="btn-quiet" data-wall-pause disabled aria-pressed="false">Pause updates</button>
+        <button type="button" class="btn-quiet" data-wall-retry hidden>Retry</button>
+      </div>
+      <p class="wall-state" role="status" aria-live="polite" aria-atomic="true" data-wall-status>Reading this site's wall endpoint.</p>
+    </section>
+    <section class="app-section" aria-labelledby="app-wall-rows-title">
+      <h2 id="app-wall-rows-title">Declarations</h2>
+      <div class="wall-find">
+        <label class="wall-search"><span>Filter this loaded page</span><input type="search" data-wall-search autocomplete="off" spellcheck="false" maxlength="200" placeholder="name or ticker"></label>
+        <button type="button" class="btn-quiet" data-wall-older hidden>Load earlier declarations</button>
+      </div>
+      <p class="wall-filter-state" role="status" aria-live="polite" data-wall-filter-state></p>
+      <div class="wall-table-wrap">
+        <table class="wall-table">
+          <caption class="sr-only">Publishable self-declared names and tickers after the snapshot boundary</caption>
+          <thead><tr><th scope="col">Self-declared name</th><th scope="col">Self-declared ticker</th></tr></thead>
+          <tbody data-wall-rows><tr><td class="wall-empty" colspan="2">Waiting for a verified response.</td></tr></tbody>
+        </table>
+      </div>
+      <p class="mono-line wall-hash"><span>page rows hash</span> <code data-wall-hash>—</code></p>
+    </section>
+  </section>
+
+  <section class="app-panel" id="app-deployer" role="tabpanel" aria-labelledby="app-tab-deployer" data-app-panel="deployer" data-history aria-busy="false" hidden>
+    <div class="app-panel-head">
+      <p class="kicker">retained observer history</p>
+      <h1 class="app-title">Deployer history.</h1>
+      <p>Paste one deployer address to read the self-declared names and tickers retained by the same watcher.</p>
+    </div>
+    <section class="app-section" aria-labelledby="app-history-query-title">
+      <h2 id="app-history-query-title">Address</h2>
+      <form class="history-form" data-history-form novalidate>
+        <label class="wall-search history-address"><span>Deployer address</span><input type="text" name="address" data-history-address autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="42" inputmode="text" aria-describedby="app-history-address-note"></label>
+        <button type="submit" class="btn-quiet" data-history-read>Read retained history</button>
+      </form>
+      <p class="result-share-note" id="app-history-address-note">The address is sent only after you press Read and is not stored by this page.</p>
+      <p class="wall-state" role="status" aria-live="polite" aria-atomic="true" data-history-status>Nothing has been requested.</p>
+    </section>
+    <section class="app-section" aria-labelledby="app-history-coverage-title" data-history-result hidden>
+      <h2 id="app-history-coverage-title">Observed range</h2>
+      <div class="cells wall-cells">
+        <div class="cell"><span class="badge badge-notdata">from</span><div class="cell-v" data-history-from>—</div><div class="cell-l">first covered block</div></div>
+        <div class="cell"><span class="badge badge-live">through</span><div class="cell-v" data-history-to>—</div><div class="cell-l">last finalized block read</div></div>
+        <div class="cell"><span class="badge badge-notdata">launches</span><div class="cell-v" data-history-count>—</div><div class="cell-l">from this address in that retained range</div></div>
+        <div class="cell"><span class="badge badge-notdata">freshness</span><div class="cell-v" data-history-freshness>—</div><div class="cell-l">last complete watcher read</div></div>
+      </div>
+      <p class="sec-p" data-history-scope></p>
+    </section>
+    <section class="app-section" aria-labelledby="app-history-rows-title" data-history-table-section hidden>
+      <h2 id="app-history-rows-title">Launch declarations</h2>
+      <label class="wall-search history-filter"><span>Filter this loaded page</span><input type="search" data-history-filter autocomplete="off" spellcheck="false" maxlength="200" placeholder="name or ticker"></label>
+      <p class="wall-filter-state" role="status" aria-live="polite" data-history-filter-state></p>
+      <div class="wall-table-wrap">
+        <table class="wall-table history-table">
+          <caption class="sr-only">Retained launches made by the requested deployer address</caption>
+          <thead><tr><th scope="col">Block</th><th scope="col">Date</th><th scope="col">Self-declared name</th><th scope="col">Self-declared ticker</th></tr></thead>
+          <tbody data-history-rows></tbody>
+        </table>
+      </div>
+      <p class="mono-line wall-hash"><span>page rows hash</span> <code data-history-hash>—</code></p>
+    </section>
+  </section>
+
+  <section class="app-panel" id="app-token" role="tabpanel" aria-labelledby="app-tab-token" data-app-panel="token" hidden>
+    <div class="app-panel-head">
+      <p class="kicker">project token</p>
+      <h1 class="app-title">Token.</h1>
+      <p>This panel mirrors the same verified token state published by the main site.</p>
+    </div>
+    {{app_token}}
+  </section>
+</main>
+
+<script src="/launch-skeleton.js"></script>
+<script src="/launch-links.js"></script>
+<script src="/launch.js"></script>
+<script src="/launch-page.js"></script>
+<script src="/chain.js"></script>
+<script src="/deployer/deployer.js"></script>
+<script src="/app/app.js"></script>
+</body>
+</html>

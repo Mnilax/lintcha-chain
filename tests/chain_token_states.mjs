@@ -106,8 +106,10 @@ ok(count(a, /data-i18n="nav\.telegram"/g) === 1, "the configured telegram item i
 ok(outHrefs(a).length === 4 && outHrefs(a)[1] === X_DEFAULT && outHrefs(a)[2] === "https://x.com/lintchadotcom" && outHrefs(a)[3] === TELEGRAM_DEFAULT, "both X accounts and Telegram point at the configured destinations");
 ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are nowhere");
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
-ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 3, "the hero has one three-action start path");
-ok(/class="hero-actions"[\s\S]*?href="#s02"[\s\S]*?href="\/live\/"[\s\S]*?href="#s09"[\s\S]*?<\/nav>/.test(a), "the hero actions lead to read, live names and the local run in that order");
+ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 4, "the hero has one four-action start path");
+ok(/class="hero-actions"[\s\S]*?href="#s02"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?href="#s09"[\s\S]*?<\/nav>/.test(a), "the hero actions lead to read, live names, deployer history and the local run in that order");
+ok(/class="page-switch"[\s\S]*?page-switch-current[^>]*aria-current="page"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?<\/nav>/.test(a), "the persistent page switch names comparison, live and deployer in order");
+ok(count(a, /class="nav section-nav"/g) === 1, "the long-page section anchors remain a distinct secondary navigation");
 // The order gained the lore section in round B and the chain block in round C, and each moved every number after it
 // and every anchor with it. All of it is read back off the built page rather than trusted: the bar's anchors have to
 // name sections that are on the page, there have to be as many anchors as items, the numbers they point at have to

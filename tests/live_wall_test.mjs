@@ -16,6 +16,8 @@ const ok = (condition, what) => {
 const count = (text, pattern) => (text.match(pattern) || []).length;
 
 // The page is a static, semantic two-column wall. Nothing executable is inline.
+ok(/<nav class="page-switch"[\s\S]*?href="\/">comparison<\/a>[\s\S]*?aria-current="page">live<\/span>[\s\S]*?href="\/deployer\/">deployer<\/a>[\s\S]*?<\/nav>/.test(html), "the primary switch keeps comparison, live and deployer in one order");
+ok(/href="\/#s11">method<\/a>/.test(html) && !/href="\/#s10">method<\/a>/.test(html), "the method link points to the actual method section");
 ok(/<main\b[^>]*data-wall\b[^>]*aria-busy="true"/.test(html), "the wall is the page main and begins busy");
 ok(/<table\b[\s\S]*?<caption\b[\s\S]*?<thead><tr><th scope="col">Self-declared name<\/th><th scope="col">Self-declared ticker<\/th><\/tr><\/thead>[\s\S]*?<tbody data-wall-rows>/.test(html), "the declarations are a captioned two-column table");
 ok(count(html, /<th scope="col">/g) === 2, "there are exactly two public row fields");

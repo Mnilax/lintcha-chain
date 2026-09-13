@@ -143,7 +143,9 @@ export class Gate {
     const timer = setTimeout(() => controller.abort(), this.requestTimeoutMs);
     try {
       const id = ++this.id;
-      const r = await withAbort(fetch(this.url, { method: "POST", redirect: "error", headers: { "content-type": "application/json", "user-agent": "lintcha-launch-collector/0.1 (+https://lintcha.com)" }, body: JSON.stringify({ jsonrpc: "2.0", id, method: task.method, params: task.params }), signal: controller.signal }), controller.signal);
+      // Cloudflare Workers does not implement redirect:"error". manual is the portable no-follow mode; only an
+      // exact 200 result envelope succeeds below, so a redirect response is still rejected rather than followed.
+      const r = await withAbort(fetch(this.url, { method: "POST", redirect: "manual", headers: { "content-type": "application/json", "user-agent": "lintcha-launch-collector/0.1 (+https://lintcha.com)" }, body: JSON.stringify({ jsonrpc: "2.0", id, method: task.method, params: task.params }), signal: controller.signal }), controller.signal);
       status = r.status;
       if (status === 429) cancelBestEffort(r.body);
       else {

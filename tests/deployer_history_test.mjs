@@ -12,6 +12,8 @@ let checks = 0, failures = 0;
 const ok = (value, label) => { checks++; if (!value) { failures++; console.log("  FAIL " + label); } };
 
 ok(/<link rel="canonical" href="https:\/\/chain\.lintcha\.com\/deployer\/">/.test(html), "canonical points at the public deployer page");
+ok(/<nav class="page-switch"[\s\S]*?href="\/">comparison<\/a>[\s\S]*?href="\/live\/">live<\/a>[\s\S]*?aria-current="page">deployer<\/span>[\s\S]*?<\/nav>/.test(html), "the primary switch keeps comparison, live and deployer in one order");
+ok(/href="\/#s11">method<\/a>/.test(html), "the footer links to the actual method section");
 ok(/data-history-form/.test(html) && /data-history-address/.test(html) && /type="submit"[^>]*data-history-read/.test(html), "one labelled, explicit-submit address form exists");
 ok(/Nothing has been requested\./.test(html), "loading the page claims no lookup and starts from a no-request state");
 ok(/not an all-time wallet profile/i.test(html) && /exact block range/i.test(html), "the visible copy bounds the product instead of claiming all-time history");
