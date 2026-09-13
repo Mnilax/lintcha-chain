@@ -16,11 +16,18 @@ import {
   validateIdentityInput,
   readIdentity
 } from "../lib/identity.mjs";
+import {
+  FactReceiptError,
+  validateFactReceipt,
+  factReceiptIdentityInput,
+  renderFactReceiptResult
+} from "../lib/fact-receipt.mjs";
 import { publishedManifestOf, validLaunchIndex } from "../lib/published-contract.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const defaultIndex = path.join(root, "site", "launch-index.json");
 const defaultManifest = path.join(root, "site", "launch-manifest.json");
+const defaultNumbers = path.join(root, "site", "launch-numbers.json");
 const conformanceFile = path.join(root, "fixtures", "identity-conformance.json");
 
 class CliError extends Error {
@@ -85,6 +92,44 @@ function jsonDocument(file, label) {
   return { bytes, value };
 }
 
+const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
+const plain = value => !!value && typeof value === "object" && !Array.isArray(value);
+const whole = value => Number.isSafeInteger(value) && value >= 0;
+const instant = value => {
+  if (typeof value !== "string") return false;
+  const at = Date.parse(value);
+  return Number.isFinite(at) && new Date(at).toISOString() === value;
+};
+
+function replayCorpus(options, receiptFile) {
+  const names = ["index", "manifest", "numbers"];
+  const supplied = names.filter(name => options[name] !== undefined);
+  if (supplied.length > 0 && supplied.length !== names.length) {
+    throw new CliError("incomplete_corpus", "a custom replay corpus requires --index, --manifest, and --numbers together");
+  }
+  const indexFile = options.index === undefined ? defaultIndex : options.index;
+  const manifestFile = options.manifest === undefined ? defaultManifest : options.manifest;
+  const numbersFile = options.numbers === undefined ? defaultNumbers : options.numbers;
+  const translationsFile = options.translations === undefined ? null : options.translations;
+  if ([receiptFile, indexFile, manifestFile, numbersFile, translationsFile].filter(file => file === "-").length > 1) {
+    throw new CliError("stdin_conflict", "only one replay document can read from stdin");
+  }
+  return { indexFile, manifestFile, numbersFile, translationsFile };
+}
+
+function replayNumbers(value, manifest) {
+  const window = plain(value) && plain(value.window) ? value.window : null;
+  const index = plain(value) && plain(value.index) ? value.index : null;
+  if (!window || !whole(window.from_block) || !whole(window.to_block) || window.to_block < window.from_block ||
+      !whole(window.blocks) || window.blocks !== window.to_block - window.from_block + 1 ||
+      !instant(window.from_time) || !instant(window.to_time) || Date.parse(window.to_time) < Date.parse(window.from_time) ||
+      !index || index.bytes !== manifest.index.bytes || index.entries_total !== manifest.index.entries_total ||
+      !isDeepStrictEqual(index.entries, manifest.index.entries)) {
+    throw new CliError("invalid_numbers", "numbers do not bind the manifest counts and a usable snapshot window");
+  }
+  return window;
+}
+
 async function normalizeCommand(args) {
   const options = parseOptions(args, ["field", "value", "platform"]);
   const field = required(options, "field");
@@ -128,6 +173,96 @@ async function readCommand(args) {
   };
 }
 
+async function receiptVerifyCommand(args) {
+  const options = parseOptions(args, ["receipt"]);
+  const receiptFile = required(options, "receipt");
+  const document = jsonDocument(receiptFile, "receipt");
+  const receipt = validateFactReceipt(document.value);
+  return {
+    ok: true,
+    schema: IDENTITY_KIT_SCHEMA,
+    engine: ENGINE_ID,
+    command: "receipt-verify",
+    receipt: {
+      schema: receipt.schema,
+      exact_bytes_sha256: sha256(document.bytes),
+      source: receipt.source,
+      language: receipt.language,
+      index_sha256: receipt.snapshot.index_sha256
+    },
+    verification: {
+      receipt_structure: "valid",
+      corpus_checked: false,
+      result_replayed: false,
+      independent_proof: false
+    }
+  };
+}
+
+async function receiptReplayCommand(args) {
+  const options = parseOptions(args, ["receipt", "index", "manifest", "numbers", "translations"]);
+  const receiptFile = required(options, "receipt");
+  const files = replayCorpus(options, receiptFile);
+  const receiptDocument = jsonDocument(receiptFile, "receipt");
+  const receipt = validateFactReceipt(receiptDocument.value);
+  const index = jsonDocument(files.indexFile, "index");
+  const manifest = publishedManifestOf(jsonFile(files.manifestFile, "manifest"));
+  const numbers = jsonDocument(files.numbersFile, "numbers");
+  if (!manifest) throw new CliError("invalid_manifest", "manifest does not satisfy the published corpus contract");
+  if (index.bytes.length !== manifest.index.bytes || sha256(index.bytes) !== manifest.index.sha256 ||
+      numbers.bytes.length !== manifest.numbers.bytes || sha256(numbers.bytes) !== manifest.numbers.sha256) {
+    throw new CliError("corpus_mismatch", "index or numbers bytes do not match the supplied manifest", 1);
+  }
+  if (!validLaunchIndex(index.value, { entries: manifest.index.entries, entries_total: manifest.index.entries_total })) {
+    throw new CliError("invalid_index", "index does not satisfy the published corpus contract");
+  }
+  const window = replayNumbers(numbers.value, manifest);
+  if (receipt.snapshot.index_sha256 !== manifest.index.sha256) {
+    throw new CliError("receipt_corpus_mismatch", "receipt names a different index than the supplied manifest", 1);
+  }
+  if (receipt.snapshot.from_block !== window.from_block || receipt.snapshot.to_block !== window.to_block ||
+      receipt.snapshot.from_time !== window.from_time || receipt.snapshot.to_time !== window.to_time) {
+    throw new CliError("receipt_snapshot_mismatch", "receipt window differs from the manifest-bound numbers", 1);
+  }
+  const translationsFile = files.translationsFile || path.join(root, "src", "i18n-src", "launch." + receipt.language + ".json");
+  if ([receiptFile, files.indexFile, files.manifestFile, files.numbersFile, translationsFile].filter(file => file === "-").length > 1) {
+    throw new CliError("stdin_conflict", "only one replay document can read from stdin");
+  }
+  const input = validateIdentityInput(factReceiptIdentityInput(receipt));
+  const identityResult = await readIdentity(input, index.value);
+  const expectedResult = renderFactReceiptResult(identityResult, jsonFile(translationsFile, "translations"), receipt.language);
+  if (!isDeepStrictEqual(receipt.result, expectedResult)) {
+    throw new CliError("receipt_result_mismatch", "receipt result was not reproduced from its input and supplied corpus", 1);
+  }
+  return {
+    ok: true,
+    schema: IDENTITY_KIT_SCHEMA,
+    engine: ENGINE_ID,
+    command: "receipt-replay",
+    receipt: {
+      schema: receipt.schema,
+      exact_bytes_sha256: sha256(receiptDocument.bytes),
+      source: receipt.source,
+      language: receipt.language
+    },
+    corpus: {
+      index_sha256: manifest.index.sha256,
+      index_bytes: manifest.index.bytes,
+      numbers_sha256: manifest.numbers.sha256,
+      numbers_bytes: manifest.numbers.bytes,
+      entries_total: manifest.index.entries_total
+    },
+    verification: {
+      receipt_structure: "valid",
+      corpus: "manifest-bound",
+      snapshot: "matches-numbers",
+      result: "reproduced",
+      chain_rebuilt: false,
+      independent_proof: false
+    }
+  };
+}
+
 async function doctorCommand(args) {
   if (args.length) throw new CliError("unexpected_argument", "doctor takes no options");
   const fixture = jsonFile(conformanceFile, "conformance fixture");
@@ -164,6 +299,17 @@ function helpCommand(args) {
         stdin: "use - for only one input file; a custom index requires its matching manifest",
         input_schema: IDENTITY_INPUT_SCHEMA
       },
+      "receipt-verify": {
+        required: ["--receipt"],
+        optional: [],
+        scope: "strict receipt structure and exact-byte SHA-256 only; no corpus or result claim"
+      },
+      "receipt-replay": {
+        required: ["--receipt"],
+        optional: ["--index", "--manifest", "--numbers", "--translations"],
+        corpus: "custom index, manifest, and numbers must be supplied together",
+        scope: "replays the receipt locally against manifest-bound artifacts; does not rebuild the chain snapshot"
+      },
       doctor: { required: [], optional: [] }
     }
   };
@@ -174,16 +320,18 @@ async function main(argv) {
   const args = argv.slice(1);
   if (command === "normalize") return normalizeCommand(args);
   if (command === "read") return readCommand(args);
+  if (command === "receipt-verify") return receiptVerifyCommand(args);
+  if (command === "receipt-replay") return receiptReplayCommand(args);
   if (command === "doctor") return doctorCommand(args);
   if (command === "help" || command === "--help") return helpCommand(args);
-  if (command === undefined) throw new CliError("missing_command", "expected one command: normalize, read, doctor, or help");
+  if (command === undefined) throw new CliError("missing_command", "expected one command: normalize, read, receipt-verify, receipt-replay, doctor, or help");
   throw new CliError("unknown_command", "unknown command: " + command);
 }
 
 try {
   emit(await main(process.argv.slice(2)));
 } catch (error) {
-  const known = error instanceof CliError || error instanceof IdentityInputError;
+  const known = error instanceof CliError || error instanceof IdentityInputError || error instanceof FactReceiptError;
   emit({
     ok: false,
     schema: IDENTITY_KIT_SCHEMA,

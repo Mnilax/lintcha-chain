@@ -101,9 +101,11 @@ A path is added here in the same commit that creates the file.
 - `lib/config-contract.mjs`
 - `lib/published-contract.mjs`
 - `lib/identity.mjs`
+- `lib/fact-receipt.mjs`
 - `tools/identity.mjs`
 - `fixtures/identity-conformance.json`
 - `tests/identity_cli_test.mjs`
+- `tests/fact_receipt_test.mjs`
 - `tests/deployer_history_test.mjs`
 - `tests/config_contract_test.mjs`
 - `tests/published_contract_test.mjs`
@@ -122,3 +124,4 @@ A path is added here in the same commit that creates the file.
 - `tests/refusal_gallery_test.mjs`
 - `tests/fact_receipt_svg_test.js`
 - `tests/proof_loop_test.js`
+- `docs/FACT_RECEIPTS.md`

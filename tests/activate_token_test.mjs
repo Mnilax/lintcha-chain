@@ -20,7 +20,7 @@ const DEPLOYER = "0x" + "3".repeat(40);
 const PAIR = "0x" + "4".repeat(40);
 const PONS = "https://example.invalid/pons/" + ADDRESS + "?token=hour-x&view=buy";
 const RPC = "https://rpc.example.invalid/fixture";
-const COPY_DIRS = ["site", "src", "tools", "lib", "tests"];
+const COPY_DIRS = ["site", "src", "tools", "lib", "tests", "fixtures"];
 const DORMANT_TOKEN = { address: null, pons: null, uniswap: null };
 const README_PLACEHOLDER = `<!-- the token line, when there is a token: uncomment and paste the contract
 <p align="center"><b>$LINTCHA</b> · <code>0x...</code></p>
