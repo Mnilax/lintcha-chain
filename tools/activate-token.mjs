@@ -30,6 +30,7 @@ const TOKEN_REL = path.join("site", "token.json");
 const README_REL = "README.md";
 const BUILD_OUTPUTS = [
   path.join("site", "index.html"),
+  path.join("site", "app", "index.html"),
   path.join("site", "es", "index.html"),
   path.join("site", "pt", "index.html"),
   path.join("site", "404.html"),
@@ -137,6 +138,7 @@ function verifyRendered(root, config, readmeBytes) {
   if (!token || JSON.stringify(token) !== JSON.stringify(config)) fail("the built token document does not equal the requested activation");
 
   const notFound = fs.readFileSync(path.join(root, "site", "404.html"), "utf8");
+  const app = fs.readFileSync(path.join(root, "site", "app", "index.html"), "utf8");
   const address = escapePattern(config.address);
   const href = escapePattern(escapeAttribute(config.pons));
   const comparisonPages = [
@@ -159,6 +161,12 @@ function verifyRendered(root, config, readmeBytes) {
       count(notFound, new RegExp(`class="buy" href="${href}"`, "g")) !== 1 ||
       /token-btn-uni/.test(notFound)) {
     fail("the not-found page did not render the exact activation header");
+  }
+  if (count(app, new RegExp(`data-token-address>${address}<`, "g")) !== 1 ||
+      count(app, /data-copy-address/g) !== 1 ||
+      count(app, new RegExp(`class="token-btn token-btn-pons" href="${href}"`, "g")) !== 1 ||
+      /token-btn-uni/.test(app)) {
+    fail("the Mini App did not render the exact pons-only activation state");
   }
 
   const readme = readmeBytes.toString("utf8");

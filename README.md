@@ -28,7 +28,9 @@
   ·
   <a href="https://x.com/lintchadotcom">@lintchadotcom</a>
   ·
-  <a href="https://t.me/lintcha">Telegram</a>
+  <a href="https://t.me/lintchabot">Telegram Mini App</a>
+  ·
+  <a href="https://t.me/lintcha">Telegram room</a>
 </p>
 
 <p align="center">
@@ -75,7 +77,7 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
-| Telegram bot, holder and feed code | Routes commands, verifies holder proofs and delivers finalized feed events | Bot may run in explicit pre-token mode; token-dependent paths stay dormant before activation |
+| [Telegram Mini App and bot](https://t.me/lintchabot) | Packs Read, Live, Deployer and token state into a compact view; publishes a safe inline share palette; routes commands, holder proofs and finalized feed events | May run in explicit pre-token mode; token-dependent paths stay dormant before activation |
 
 The live path never mutates the comparison index. The snapshot stays pinned to its recorded state and window until a guarded refresh publishes a replacement.
 
@@ -227,6 +229,8 @@ Runtime availability is part of the claim. A missing, stale, incomplete or misma
 Before activation, token-dependent UI, holder and feed behavior remain dormant. The Telegram webhook may be connected through its explicit pre-token path: `/start` and `/site` work, while commands that require the token answer that no verified token exists and publish no placeholder. The repository already contains tested code for:
 
 - the Telegram webhook and command router;
+- the compact Mini App with Read, Live, Deployer and the published token state;
+- inline cards for the Mini App, comparison, live wall, deployer history, source and current token status, shareable from any Telegram chat;
 - public `/start`, `/ca`, `/price`, `/stats` and `/site` commands;
 - private `/verify`, `/me`, `/forget`, `/rule`, `/rules` and `/unrule` commands;
 - one-time holder verification with a plain signed message that moves, approves and spends nothing;
