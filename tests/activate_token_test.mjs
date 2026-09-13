@@ -30,6 +30,7 @@ const WATCHED = [
   "README.md",
   "site/token.json",
   "site/index.html",
+  "site/app/index.html",
   "site/es/index.html",
   "site/pt/index.html",
   "site/404.html",
@@ -111,6 +112,7 @@ try {
     fs.readFileSync(path.join(live, "site", "pt", "index.html"), "utf8")
   ];
   const notFound = fs.readFileSync(path.join(live, "site", "404.html"), "utf8");
+  const app = fs.readFileSync(path.join(live, "site", "app", "index.html"), "utf8");
   ok(result.changed === true && result.address === ADDRESS && result.pons === PONS, "a valid proof returns the canonical public activation");
   ok(JSON.stringify(token) === JSON.stringify({ address: ADDRESS, pons: PONS, uniswap: null }), "only address, pons and the required null uniswap field are written");
   ok(readme.includes(`<p align="center"><b>$LINTCHA</b> · <code>${ADDRESS}</code></p>`) && !readme.includes("<code>0x...</code>"), "the one README placeholder becomes the exact canonical address");
@@ -118,6 +120,9 @@ try {
     "every generated comparison plus the root 404 carries the exact configured address in its designed slots");
   ok(indexes.every(index => (index.match(/hour-x&amp;view=buy/g) || []).length === 2) && (notFound.match(/hour-x&amp;view=buy/g) || []).length === 1, "every generated comparison plus the root 404 carries the exact escaped primary destination");
   ok(!/token-btn-uni/.test(indexes.join("") + notFound), "the pons-only command cannot create a secondary venue button");
+  ok(app.split("data-token-address>" + ADDRESS + "<").length - 1 === 1 &&
+    (app.match(/hour-x&amp;view=buy/g) || []).length === 1 && !/token-btn-uni/.test(app),
+  "the generated Mini App carries the same exact pons-only activation state");
   const proofReads = liveGate.rawAsked.filter(call => call.method === "eth_getCode" || call.method === "eth_call");
   ok(liveGate.rawAsked.filter(call => call.method === "eth_getBlockByNumber").length === 1 &&
     liveGate.rawAsked.some(call => call.method === "eth_getBlockByNumber" && JSON.stringify(call.params) === JSON.stringify(["finalized", false])) &&
@@ -200,6 +205,7 @@ try {
   const buildFile = path.join(failedRealBuild, "tools", "build.mjs");
   fs.writeFileSync(buildFile, `if (!path.basename(process.cwd()).startsWith("lintcha-hour-x-")) {
   fs.writeFileSync(path.join(process.cwd(), "site", "index.html"), "deliberately broken real build");
+  fs.writeFileSync(path.join(process.cwd(), "site", "app", "index.html"), "deliberately broken Mini App build");
   fs.writeFileSync(path.join(process.cwd(), "site", "es", "index.html"), "deliberately broken localized real build");
   fs.rmSync(path.join(process.cwd(), "site", "pt", "index.html"));
   fs.writeFileSync(path.join(process.cwd(), "src", "i18n", "en.json"), "deliberately created real-build output");

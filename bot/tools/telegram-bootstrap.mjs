@@ -14,7 +14,7 @@ export const EXPECTED_BOT_USERNAME = "lintchabot";
 export const DISCOVERY_CHAT = "@lintcha";
 export const PRODUCTION_WEBHOOK_URL = "https://chain.lintcha.com/api/telegram";
 export const PRODUCTION_TOKEN_JSON_URL = "https://chain.lintcha.com/token.json";
-export const PRODUCTION_ALLOWED_UPDATES = Object.freeze(["message", "edited_message"]);
+export const PRODUCTION_ALLOWED_UPDATES = Object.freeze(["message", "edited_message", "inline_query"]);
 // This is an implementation safety ceiling, not a claim about BotFather's undocumented exact token length.
 export const BOT_TOKEN_INPUT_LIMIT = TELEGRAM_RESPONSE_LIMIT;
 export const WEBHOOK_SECRET_INPUT_LIMIT = 256;
@@ -233,11 +233,13 @@ const verifiedBot = async request => {
   const me = await botApiRequest("getMe", {}, request);
   if (!plainObject(me) || me.is_bot !== true || !safeInteger(me.id) || me.id <= 0 ||
       typeof me.username !== "string" || me.username.toLowerCase() !== EXPECTED_BOT_USERNAME ||
-      !optionalBoolean(me.can_join_groups) || !optionalBoolean(me.can_read_all_group_messages)) fail("identity");
+      !optionalBoolean(me.can_join_groups) || !optionalBoolean(me.can_read_all_group_messages) ||
+      !optionalBoolean(me.supports_inline_queries)) fail("identity");
   return {
     username: EXPECTED_BOT_USERNAME,
     can_join_groups: me.can_join_groups === undefined ? null : me.can_join_groups,
-    can_read_all_group_messages: me.can_read_all_group_messages === undefined ? null : me.can_read_all_group_messages
+    can_read_all_group_messages: me.can_read_all_group_messages === undefined ? null : me.can_read_all_group_messages,
+    supports_inline_queries: me.supports_inline_queries === undefined ? null : me.supports_inline_queries
   };
 };
 
@@ -274,13 +276,16 @@ const webhookInfoOf = value => {
 
 export async function productionWebhookInfo(options = {}) {
   const request = requestOptions(options);
-  await verifiedBot(request);
-  return webhookInfoOf(await botApiRequest("getWebhookInfo", {}, request));
+  const bot = await verifiedBot(request);
+  return { ...webhookInfoOf(await botApiRequest("getWebhookInfo", {}, request)), supports_inline_queries: bot.supports_inline_queries };
 }
 
 const setVerifiedProductionWebhook = async options => {
   const request = requestOptions(options);
-  await verifiedBot(request);
+  const bot = await verifiedBot(request);
+  // BotFather owns this flag. Do not subscribe production to inline updates until getMe proves that the
+  // intended bot can actually answer them; discovery, status and deletion remain available before that step.
+  if (bot.supports_inline_queries !== true) fail("inline");
   const result = await botApiRequest("setWebhook", {
     url: PRODUCTION_WEBHOOK_URL,
     allowed_updates: [...PRODUCTION_ALLOWED_UPDATES],

@@ -102,7 +102,7 @@ const ALLOW = [
   [/^tests[\\/\\\\](?:chain_acceptance\\.sh|launch_abi_test\\.mjs|launch_extraction\\.mjs)$/, /0xca11bde05977b3631167028862be2a173976ca11/i, \"the Multicall3 constant under test\"],
   [/^tests[\\/\\\\]chain_acceptance\\.sh$/, /0xe33e9e479df8802cb0866d5d05258bec4cf62948/i, \"the wrapped native constant in the guard allowance\"]
 ];
-const activeAddressFiles = new Set([\"site/token.json\", \"site/index.html\", \"site/es/index.html\", \"site/pt/index.html\", \"site/404.html\", \"README.md\"]);
+const activeAddressFiles = new Set([\"site/token.json\", \"site/index.html\", \"site/app/index.html\", \"site/es/index.html\", \"site/pt/index.html\", \"site/404.html\", \"README.md\"]);
 let hits = 0; for (const f of files) { if (/\\.(png|woff2|jpg|log)$/i.test(f)) continue;   /* *.log is gitignored: a run record, not the tree */ const s = fs.readFileSync(f, \"utf8\"); for (const m of s.matchAll(/(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/gi)) { hits++; const rel = f.replace(/^\\.[\\/\\\\]/, \"\"); const projectToken = active && activeAddressFiles.has(rel) && m[0].toLowerCase() === t.address; const a = projectToken ? [null, null, \"the exact active address from site/token.json\"] : ALLOW.find(([fr, ar]) => fr.test(rel) && ar.test(m[0])); console.log(\"  \" + rel + \": \" + m[0].slice(0, 10) + \"… \" + (a ? \"allowed, \" + a[2] : \"NOT ALLOWED\")); if (!a) bad++; } }
 console.log(\"forty-hex strings in the tree: \" + hits + \", not allowed: \" + bad); process.exit(bad ? 1 : 0);'"
 

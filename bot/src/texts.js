@@ -25,6 +25,9 @@ import { esc, code, TELEGRAM_TEXT_LIMIT } from "./telegram.js";
 
 /** the site's own pages, and the repository the bot ships in */
 export const SITE = "https://chain.lintcha.com/";
+export const MINI_APP = "https://chain.lintcha.com/app/";
+export const LIVE = "https://chain.lintcha.com/live/";
+export const DEPLOYER = "https://chain.lintcha.com/deployer/";
 export const REPO = "https://github.com/Mnilax/lintcha-chain";
 export const TOKEN_JSON = "https://chain.lintcha.com/token.json";
 export const HOLD_PAGE = "https://chain.lintcha.com/hold";
@@ -53,9 +56,11 @@ const START_ON_SELLS = [
   "The feed posts the buys it can prove, not sells. Sells are counted, and /stats shows them; they never land in the room. That is a choice about which facts reach you, and it is written here rather than left for you to find: everything else this project does refuses to pick which facts to show, and the feed is the one place we picked."
 ].join("\n");
 
-export const START = START_AS_GIVEN + "\n\n" + START_ON_SELLS;
+export const INLINE_DISCOVERY = "Type @lintchabot in any chat to share the Mini App, Read, Live, Deployer, Run or the current token status without leaving the conversation.";
 
-export const START_PRETOKEN = [
+export const START = START_AS_GIVEN + "\n\n" + START_ON_SELLS + "\n\n" + INLINE_DISCOVERY;
+
+const START_PRETOKEN_AS_GIVEN = [
   "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is online for the project while its token-dependent half sleeps.",
   "",
   "Available now",
@@ -72,8 +77,9 @@ export const START_PRETOKEN = [
   "",
   "It never messages you first. It never asks for a key, a seed or an approval. It never holds funds and never trades."
 ].join("\n");
+export const START_PRETOKEN = START_PRETOKEN_AS_GIVEN + "\n\n" + INLINE_DISCOVERY;
 
-export const START_TOKEN_STATE_UNREADABLE = [
+const START_TOKEN_STATE_UNREADABLE_AS_GIVEN = [
   "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is online, but it cannot read the site's token document just now.",
   "",
   "/site — the site and repository",
@@ -82,6 +88,7 @@ export const START_TOKEN_STATE_UNREADABLE = [
   "",
   "It never messages you first. It never asks for a key, a seed or an approval. It never holds funds and never trades."
 ].join("\n");
+export const START_TOKEN_STATE_UNREADABLE = START_TOKEN_STATE_UNREADABLE_AS_GIVEN + "\n\n" + INLINE_DISCOVERY;
 
 export const startText = state => state === "active" ? START
   : state === "dormant" ? START_PRETOKEN

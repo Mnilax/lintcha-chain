@@ -264,6 +264,12 @@ body[data-page="chain"] .hero-action-primary:hover { color:var(--accent-ink); op
 /* the sprite stands on the line where shipped ends and next begins: the left edge of the next group is that boundary,
    so the position is the markup's own and not a percentage fitted by eye */
 .road-sprite { position:absolute; left:0; top:calc(var(--ph-h) + var(--up-h) + var(--tick-h) / 2); transform:translate(-50%,-100%); z-index:1; }
+.telegram-app-callout { max-width:720px; box-sizing:border-box; margin:20px 0 6px; padding:20px 22px; border:1px solid var(--accent-line); border-radius:14px; background:var(--panel); }
+.telegram-app-title { margin:0; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); }
+.telegram-app-callout .sec-p { margin:8px 0 0; }
+.telegram-app-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+.telegram-app-button { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.13em; text-transform:uppercase; padding:10px 16px; border:1px solid var(--btn-quiet-line); border-radius:999px; color:var(--ink-2); }
+.telegram-app-button:hover { border-color:var(--accent); color:var(--accent); }
 .road-close { margin-top:24px; max-width:640px; }
 .faq { margin-top:22px; max-width:780px; display:grid; gap:26px; }
 .qa h3 { font-size:17px; font-weight:600; margin:0 0 8px; }

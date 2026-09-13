@@ -27,6 +27,7 @@ import { code, link, esc } from "./telegram.js";
 import { formatUnits, shortAddress } from "./texts.js";
 import { requiredHttpsUrlOf } from "../../lib/config-contract.mjs";
 import { botUsernameOf } from "./config.js";
+import { inlineActionFor, inlineKindsFor, inlineQueryOf } from "./inline.js";
 
 /** the commands that answer anywhere, and the ones that only answer in a direct message */
 export const PUBLIC_COMMANDS = ["start", "ca", "price", "stats", "site"];
@@ -83,6 +84,15 @@ export async function handleUpdate(update, deps) {
   // Production passes this property even when the durable object is unavailable, so there is no silent KV
   // fallback. Tests that exercise the pure router can omit it and use their local store.
   const nonces = deps && Object.prototype.hasOwnProperty.call(deps, "nonces") ? deps.nonces : kv;
+
+  // Inline queries have no chat and cannot enter any private or mutating command path. Their text only filters
+  // fixed share cards; it is never reflected. Token status comes from the same public document as /ca.
+  const inline = inlineQueryOf(update);
+  if (inline) {
+    const needsToken = inlineKindsFor(inline.query).includes("token");
+    const action = inlineActionFor(inline, needsToken ? await readToken(env) : null);
+    return action ? [action] : [];
+  }
 
   // Telegram uses this service field for every member. Only this configured bot joining earns the one greeting;
   // an ordinary person's arrival is silence even if a malformed service update also happens to carry text.

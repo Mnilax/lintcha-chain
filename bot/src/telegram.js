@@ -13,6 +13,9 @@ export const TELEGRAM_TEXT_LIMIT = 4096;
 export const TELEGRAM_RESPONSE_LIMIT = TELEGRAM_TEXT_LIMIT * 4;
 /** A Telegram request cannot hold a Durable Object delivery beat beyond the existing five-second I/O window. */
 export const TELEGRAM_TIMEOUT_MS = 5000;
+/** Inline cards are intentionally a small palette, not an unbounded Bot API passthrough. */
+export const TELEGRAM_INLINE_RESULT_LIMIT = 8;
+export const TELEGRAM_INLINE_ACTION_LIMIT = 16 * 1024;
 
 /** the three characters HTML cares about */
 export const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -24,13 +27,98 @@ export const code = s => "<code>" + esc(s) + "</code>";
 /** a link whose text is its own words, never the raw url twice */
 export const link = (text, href) => '<a href="' + escAttribute(href) + '">' + esc(text) + "</a>";
 
+const plainObject = value => !!value && typeof value === "object" && !Array.isArray(value);
+const exactKeys = (value, keys) => plainObject(value) && Object.keys(value).length === keys.length &&
+  Object.keys(value).every(key => keys.includes(key));
+const charsWithin = (value, min, max) => typeof value === "string" && value.length >= min &&
+  Array.from(value).length <= max && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+const bytesWithin = (value, min, max) => typeof value === "string" &&
+  new TextEncoder().encode(value).byteLength >= min && new TextEncoder().encode(value).byteLength <= max;
+const httpsUrl = value => {
+  if (!bytesWithin(value, 1, 2048)) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
+  } catch { return null; }
+};
+
+/**
+ * Canonical durable inline action. The router cannot smuggle arbitrary Bot API fields through this boundary:
+ * the transport below constructs every Telegram object from this short, exact schema.
+ */
+export function inlineActionOf(value) {
+  const actionKeys = ["kind", "inlineQueryId", "cacheTime", "results", "buttonText", "buttonWebAppUrl"];
+  if (!exactKeys(value, actionKeys) || value.kind !== "answer-inline" ||
+      !bytesWithin(value.inlineQueryId, 1, 256) || !Number.isSafeInteger(value.cacheTime) ||
+      value.cacheTime < 0 || value.cacheTime > 300 || !Array.isArray(value.results) ||
+      value.results.length > TELEGRAM_INLINE_RESULT_LIMIT || !charsWithin(value.buttonText, 1, 64)) return null;
+  const buttonWebAppUrl = httpsUrl(value.buttonWebAppUrl);
+  if (!buttonWebAppUrl) return null;
+
+  const ids = new Set();
+  const results = [];
+  const resultKeys = ["id", "title", "description", "text", "openText", "openUrl"];
+  for (const raw of value.results) {
+    if (!exactKeys(raw, resultKeys) || typeof raw.id !== "string" || !/^[a-z0-9_-]{1,64}$/.test(raw.id) || ids.has(raw.id) ||
+        !charsWithin(raw.title, 1, 256) || !charsWithin(raw.description, 1, 512) ||
+        !charsWithin(raw.text, 1, TELEGRAM_TEXT_LIMIT) || !charsWithin(raw.openText, 1, 64)) return null;
+    const openUrl = httpsUrl(raw.openUrl);
+    if (!openUrl) return null;
+    ids.add(raw.id);
+    results.push({ id: raw.id, title: raw.title, description: raw.description, text: raw.text, openText: raw.openText, openUrl });
+  }
+  const action = {
+    kind: "answer-inline",
+    inlineQueryId: value.inlineQueryId,
+    cacheTime: value.cacheTime,
+    results,
+    buttonText: value.buttonText,
+    buttonWebAppUrl
+  };
+  try {
+    return new TextEncoder().encode(JSON.stringify(action)).byteLength <= TELEGRAM_INLINE_ACTION_LIMIT ? action : null;
+  } catch { return null; }
+}
+
+/** One bounded Bot API call, retaining enough refusal detail for inline-query expiry to be terminal. */
+async function botApiCallResult(env, method, body) {
+  const token = env && env.TELEGRAM_BOT_TOKEN;
+  if (!token || typeof method !== "string" || !plainObject(body)) return { state: "refused" };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TELEGRAM_TIMEOUT_MS);
+  try {
+    const r = await fetch(API + token + "/" + method, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    if (controller.signal.aborted) { cancelBody(r); return { state: "uncertain" }; }
+    if (!r.ok) {
+      const status = Number.isSafeInteger(r.status) ? r.status : null;
+      cancelBody(r);
+      return { state: "refused", status };
+    }
+    const answer = await boundedJson(r, TELEGRAM_RESPONSE_LIMIT, controller.signal);
+    if (controller.signal.aborted) return { state: "uncertain" };
+    if (plainObject(answer) && answer.ok === true) return { state: "accepted" };
+    if (plainObject(answer) && answer.ok === false) {
+      return { state: "refused", errorCode: Number.isSafeInteger(answer.error_code) ? answer.error_code : null };
+    }
+    return { state: "uncertain" };
+  } catch {
+    return { state: "uncertain" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * One message, with a tri-state result. A valid Bot API `ok: true` is accepted, an explicit HTTP/API rejection
  * is refused, and a lost or malformed success response is uncertain because Telegram may already have posted.
  */
 export async function sendMessageResult(env, chatId, text, options = {}) {
-  const token = env.TELEGRAM_BOT_TOKEN;
-  if (!token || !chatId || typeof text !== "string" || text.length > TELEGRAM_TEXT_LIMIT) return "refused";
+  if (!env || !env.TELEGRAM_BOT_TOKEN || !chatId || typeof text !== "string" || text.length > TELEGRAM_TEXT_LIMIT) return "refused";
   const body = {
     chat_id: chatId,
     text,
@@ -39,32 +127,46 @@ export async function sendMessageResult(env, chatId, text, options = {}) {
     disable_notification: options.quiet === true
   };
   if (options.replyTo) body.reply_parameters = { message_id: options.replyTo, allow_sending_without_reply: true };
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TELEGRAM_TIMEOUT_MS);
-  try {
-    const r = await fetch(API + token + "/sendMessage", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-    if (controller.signal.aborted) { cancelBody(r); return "uncertain"; }
-    if (!r.ok) { cancelBody(r); return "refused"; }
-    const answer = await boundedJson(r, TELEGRAM_RESPONSE_LIMIT, controller.signal);
-    if (controller.signal.aborted) return "uncertain";
-    if (answer && typeof answer === "object" && !Array.isArray(answer) && answer.ok === true) return "accepted";
-    if (answer && typeof answer === "object" && !Array.isArray(answer) && answer.ok === false) return "refused";
-    return "uncertain";
-  } catch {
-    return "uncertain";
-  } finally {
-    clearTimeout(timer);
-  }
+  return (await botApiCallResult(env, "sendMessage", body)).state;
 }
 
 /** Existing callers need only acceptance; command delivery additionally consumes the tri-state above. */
 export async function sendMessage(env, chatId, text, options = {}) {
   return await sendMessageResult(env, chatId, text, options) === "accepted";
+}
+
+/**
+ * Answer one inline query. A stale/invalid query id is terminal and is durably completed; transient failures
+ * are retryable because answering the same query id again cannot create a duplicate chat message.
+ */
+export async function answerInlineQueryResult(env, value) {
+  const action = inlineActionOf(value);
+  if (!action) return "terminal";
+  const body = {
+    inline_query_id: action.inlineQueryId,
+    results: action.results.map(result => ({
+      type: "article",
+      id: result.id,
+      title: result.title,
+      description: result.description,
+      input_message_content: {
+        message_text: result.text,
+        parse_mode: "HTML",
+        link_preview_options: { is_disabled: true }
+      },
+      reply_markup: { inline_keyboard: [[{ text: result.openText, url: result.openUrl }]] }
+    })),
+    cache_time: action.cacheTime,
+    is_personal: false,
+    button: { text: action.buttonText, web_app: { url: action.buttonWebAppUrl } }
+  };
+  const result = await botApiCallResult(env, "answerInlineQuery", body);
+  if (result.state === "accepted") return "accepted";
+  const refusal = result.status === null || result.status === undefined ? result.errorCode : result.status;
+  if (result.state === "uncertain" || refusal === null || refusal === undefined || refusal === 408 || refusal === 429 || refusal >= 500) {
+    return "retryable";
+  }
+  return "terminal";
 }
 
 const cancelBestEffort = target => {
@@ -124,8 +226,9 @@ async function boundedJson(response, limit, signal) {
 export async function perform(env, actions) {
   let sent = 0;
   for (const a of actions || []) {
-    if (!a || a.kind !== "send") continue;
-    if (await sendMessage(env, a.chat, a.text, a)) sent++;
+    if (!a) continue;
+    if (a.kind === "send" && await sendMessage(env, a.chat, a.text, a)) sent++;
+    if (a.kind === "answer-inline" && await answerInlineQueryResult(env, a) === "accepted") sent++;
   }
   return sent;
 }

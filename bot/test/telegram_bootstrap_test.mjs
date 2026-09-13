@@ -41,7 +41,8 @@ const ME = {
   is_bot: true,
   username: "LintchaBot",
   can_join_groups: true,
-  can_read_all_group_messages: false
+  can_read_all_group_messages: false,
+  supports_inline_queries: true
 };
 
 const response = (result, init = {}) => new Response(JSON.stringify({ ok: true, result }), {
@@ -62,7 +63,7 @@ const generic = error => error && error.message === "telegram bootstrap failed" 
 t.ok(EXPECTED_BOT_USERNAME === "lintchabot" && DISCOVERY_CHAT === "@lintcha", "production identity constants are exact");
 t.ok(PRODUCTION_WEBHOOK_URL === "https://chain.lintcha.com/api/telegram", "the production webhook target is exact HTTPS");
 t.ok(PRODUCTION_TOKEN_JSON_URL === "https://chain.lintcha.com/token.json", "webhook activation reads only the fixed public token document");
-t.ok(JSON.stringify(PRODUCTION_ALLOWED_UPDATES) === JSON.stringify(["message", "edited_message"]), "only handled update kinds are requested");
+t.ok(JSON.stringify(PRODUCTION_ALLOWED_UPDATES) === JSON.stringify(["message", "edited_message", "inline_query"]), "only handled update kinds are requested");
 t.ok(validBotToken(TOKEN) && !validBotToken("") && !validBotToken("no-colon") && !validBotToken("0:suffix") &&
   !validBotToken("01:suffix") && !validBotToken("1:") && !validBotToken("1:two:colons") &&
   !validBotToken("1:bad/token"), "bot tokens require one colon, a nonzero decimal prefix and a nonempty path-safe suffix");
@@ -100,7 +101,8 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
   t.ok(JSON.parse(calls[0].init.body) && Object.keys(JSON.parse(calls[0].init.body)).length === 0,
     "getMe receives no accidental parameters");
   t.ok(JSON.stringify(JSON.parse(calls[1].init.body)) === JSON.stringify({ chat_id: "@lintcha" }), "getChat is fixed to the public room username");
-  t.ok(found.chat.id === -100 && found.chat.username === "@lintcha" && found.bot.username === "lintchabot", "discover returns only the verified numeric chat id and safe identity fields");
+  t.ok(found.chat.id === -100 && found.chat.username === "@lintcha" && found.bot.username === "lintchabot" &&
+    found.bot.supports_inline_queries === true, "discover returns only the verified numeric chat id and safe identity fields");
   t.ok(!JSON.stringify(found).includes(TOKEN), "discover output cannot contain the bot token");
 }
 
@@ -112,6 +114,19 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
       : response({ id: -100, type: "supergroup", username: "lintcha" })
   }));
   t.ok(generic(wrong), "discover fails generically when getMe is not the configured bot");
+}
+
+{
+  const me = { ...ME };
+  delete me.supports_inline_queries;
+  const found = await discoverProductionChat({
+    token: TOKEN,
+    fetchImpl: async url => url.endsWith("/getMe")
+      ? response(me)
+      : response({ id: -100, type: "supergroup", username: "lintcha" })
+  });
+  t.ok(found.bot.supports_inline_queries === null && found.chat.id === -100,
+    "discovery remains available and reports unknown inline status before BotFather enables it");
 }
 
 {
@@ -148,7 +163,7 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
   t.ok(calls.length === 2 && calls[0].url.endsWith("/getMe") && calls[1].url.endsWith("/setWebhook") &&
     JSON.stringify(body) === JSON.stringify({
       url: PRODUCTION_WEBHOOK_URL,
-      allowed_updates: ["message", "edited_message"],
+      allowed_updates: ["message", "edited_message", "inline_query"],
       drop_pending_updates: false,
       secret_token: SECRET
     }) && result.url === PRODUCTION_WEBHOOK_URL,
@@ -194,6 +209,33 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
 }
 
 {
+  for (const [mode, setWebhook, tokenFetchImpl] of [
+    ["active", setProductionWebhook, activeTokenFetch],
+    ["pre-token", setProductionPreTokenWebhook, dormantTokenFetch]
+  ]) {
+    for (const inlineState of [false, null]) {
+      let getMeCalls = 0;
+      let setCalls = 0;
+      const me = { ...ME };
+      if (inlineState === null) delete me.supports_inline_queries;
+      else me.supports_inline_queries = inlineState;
+      const error = await rejected(setWebhook({
+        token: TOKEN,
+        secret: SECRET,
+        tokenFetchImpl,
+        fetchImpl: async url => {
+          if (url.endsWith("/getMe")) { getMeCalls++; return response(me); }
+          if (url.endsWith("/setWebhook")) setCalls++;
+          return response(true);
+        }
+      }));
+      t.ok(generic(error) && getMeCalls === 1 && setCalls === 0,
+        `${mode} set mode refuses ${inlineState === null ? "missing" : "disabled"} inline support before setWebhook`);
+    }
+  }
+}
+
+{
   const calls = [];
   const tokenCalls = [];
   const result = await setProductionWebhook({
@@ -210,13 +252,13 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
   t.ok(calls.every(call => call.init.redirect === "error"), "every Bot API request refuses HTTP redirects");
   t.ok(JSON.stringify(body) === JSON.stringify({
     url: "https://chain.lintcha.com/api/telegram",
-    allowed_updates: ["message", "edited_message"],
+    allowed_updates: ["message", "edited_message", "inline_query"],
     drop_pending_updates: false,
     secret_token: SECRET
   }), "setWebhook sends the exact production URL, update list, preservation flag and secret");
   t.ok(JSON.stringify(result) === JSON.stringify({
     url: "https://chain.lintcha.com/api/telegram",
-    allowed_updates: ["message", "edited_message"],
+    allowed_updates: ["message", "edited_message", "inline_query"],
     drop_pending_updates: false
   }) && !JSON.stringify(result).includes(SECRET) && !JSON.stringify(result).includes(TOKEN), "set output contains safe fields only");
 }
@@ -285,7 +327,7 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
 {
   const result = await productionWebhookInfo({
     token: TOKEN,
-    fetchImpl: async url => url.endsWith("/getMe") ? response(ME) : response({
+    fetchImpl: async url => url.endsWith("/getMe") ? response({ ...ME, supports_inline_queries: false }) : response({
         url: PRODUCTION_WEBHOOK_URL + "?old=" + SECRET,
         has_custom_certificate: false,
         pending_update_count: 2,
@@ -296,8 +338,9 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
       })
   });
   const shown = JSON.stringify(result);
-  t.ok(result.configured === true && result.matches_production === false && result.has_last_error_message === true,
-    "webhook-info reports state without repeating a mismatched URL or Telegram error text");
+  t.ok(result.configured === true && result.matches_production === false && result.has_last_error_message === true &&
+    result.supports_inline_queries === false,
+    "webhook-info reports webhook and safe inline status without repeating a mismatched URL or Telegram error text");
   t.ok(!shown.includes(TOKEN) && !shown.includes(SECRET) && !shown.includes("remote text") && !shown.includes("?old="),
     "webhook-info output redacts token, secret, URL query and remote error body");
 }

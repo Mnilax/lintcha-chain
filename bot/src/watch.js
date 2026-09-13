@@ -31,7 +31,7 @@ import { check as engineCheck, engineSelfTest, LINKS, ENGINE_PATH } from "./engi
 import { Tally, rowOf, tallyHash, entryCounts } from "./tally.js";
 import { Rules, match, rifleOf, MAX_ARG } from "./rules.js";
 import { getSession, normalizeNonce, NONCE_TTL_SECONDS, SESSION_TTL_SECONDS } from "./verify.js";
-import { sendMessage, link, TELEGRAM_TEXT_LIMIT } from "./telegram.js";
+import { inlineActionOf, sendMessage, link, TELEGRAM_TEXT_LIMIT } from "./telegram.js";
 import * as TEXT from "./texts.js";
 import { validLaunchIndex, publishedManifestOf } from "../../lib/published-contract.mjs";
 import { requiredHttpsUrlOf } from "../../lib/config-contract.mjs";
@@ -2081,9 +2081,12 @@ const exactCount = rows => {
   return safeNonnegativeInteger(Number(rows[0].n));
 };
 const canonicalTelegramOwner = value => {
-  if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value)) return null;
-  const n = Number(value);
-  return Number.isSafeInteger(n) && n > 0 && String(n) === value ? value : null;
+  if (typeof value !== "string") return null;
+  const prefix = value.startsWith("inline:") ? "inline:" : "";
+  const raw = prefix ? value.slice(prefix.length) : value;
+  if (!/^[1-9][0-9]*$/.test(raw)) return null;
+  const n = Number(raw);
+  return Number.isSafeInteger(n) && n > 0 && String(n) === raw ? prefix + raw : null;
 };
 const parseTelegramEffect = value => {
   if (typeof value !== "string" || value.length > MAX_TELEGRAM_EFFECT_BYTES) return null;
@@ -2096,6 +2099,12 @@ const telegramActionsOf = value => {
   if (!Array.isArray(value) || value.length > MAX_TELEGRAM_RESPONSE_ACTIONS) return null;
   const out = [];
   for (const raw of value) {
+    if (raw && raw.kind === "answer-inline") {
+      const action = inlineActionOf(raw);
+      if (!action) return null;
+      out.push(action);
+      continue;
+    }
     if (!raw || typeof raw !== "object" || Array.isArray(raw) || raw.kind !== "send" ||
         !Object.keys(raw).every(key => ["kind", "chat", "text", "quiet", "preview", "replyTo"].includes(key)) ||
         typeof raw.text !== "string" || !raw.text.length || raw.text.length > TELEGRAM_TEXT_LIMIT) return null;

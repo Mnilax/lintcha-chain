@@ -30,7 +30,8 @@
 // that command carries the bot token, so it is not written here, not in the README and not in the repository.
 
 import { handleUpdate, commandOf, ourBotJoined, KNOWN_COMMANDS } from "./router.js";
-import { sendMessage, sendMessageResult } from "./telegram.js";
+import { answerInlineQueryResult, sendMessage, sendMessageResult } from "./telegram.js";
+import { inlineQueryOf } from "./inline.js";
 import { checkHold } from "./verify.js";
 import { readToken } from "./chain.js";
 import * as T from "./texts.js";
@@ -82,6 +83,14 @@ export function telegramUpdateIdOf(value) {
 
 /** Only an actual known command spends a user's durable bucket; unknown Telegram traffic is merely deduped. */
 export function telegramCommandClaimOf(update, botUsername = null) {
+  const inline = inlineQueryOf(update);
+  if (inline) return {
+    known: true,
+    owner: inline.owner,
+    meteredOwner: "inline:" + inline.owner,
+    metered: true,
+    inline: true
+  };
   const msg = (update && (update.message || update.edited_message)) || null;
   if (!msg || !msg.chat) return { known: false, owner: null, meteredOwner: null, metered: false };
   if (Array.isArray(msg.new_chat_members) && msg.new_chat_members.length) {
@@ -352,7 +361,7 @@ export default {
       const updates = telegramUpdateDep(env);
       if (!updates) return new Response(null, { status: 503 });
       const runnable = command.known && (command.owner !== null || command.service === true);
-      const claim = await updates.claim(updateId, command.owner, command.metered, runnable);
+      const claim = await updates.claim(updateId, command.meteredOwner, command.metered, runnable);
       if (claim === null) return new Response(null, { status: 503 });
       if (!claim.pending) return new Response(null, { status: 200 });
       // Render once into the durable response ledger, then acknowledge only after every action is accepted.
@@ -482,6 +491,20 @@ async function deliverTelegramUpdate(updateId, update, initial, updates, env) {
     const sending = await updates.send(updateId, state.nextAction);
     if (!sending || sending.send !== true || !Number.isSafeInteger(sending.leaseUntil)) return false;
     const action = state.actions[state.nextAction];
+    if (action.kind === "answer-inline") {
+      const delivery = await answerInlineQueryResult(env, action);
+      if (delivery === "retryable") {
+        // The same inline query id can be answered again without posting a duplicate message. Release the
+        // lease immediately so Telegram's retry can recover from a transient Bot API failure.
+        await updates.release(updateId, state.nextAction, sending.leaseUntil);
+        return false;
+      }
+      // A stale or otherwise terminal query id cannot recover. Completing it prevents a permanent webhook
+      // retry loop; accepted and terminal inline answers are both final for this update.
+      state = await updates.advance(updateId, state.nextAction, sending.leaseUntil);
+      if (!state) return false;
+      continue;
+    }
     const delivery = await sendMessageResult(env, action.chat, action.text, action);
     if (delivery !== "accepted") {
       // An explicit Bot API refusal is safe to retry immediately. A lost/invalid success response is

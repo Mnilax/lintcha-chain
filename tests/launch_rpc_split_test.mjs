@@ -190,6 +190,20 @@ try {
   check((workflow.match(/LINTCHA_CHAIN_RPC_URL: \$\{\{ secrets\.LINTCHA_CHAIN_RPC_URL \}\}/g) || []).length === 2, "the archive secret is scoped to exactly the two RPC-reading workflow steps");
   check((workflow.match(/node tools\/with-launch-rpc-split\.mjs -- node tools\/(?:launch-collect|collection-guard)\.mjs/g) || []).length === 2, "both and only the collector and strict guard run through the split wrapper");
   check(workflow.indexOf("Pin this run to the exact clean main revision") < workflow.indexOf("secrets.LINTCHA_CHAIN_RPC_URL"), "the workflow refuses a non-main or moved revision before either secret-bearing step");
+  const publicationArtifacts = [
+    "site/launch-index.json",
+    "site/launch-numbers.json",
+    "site/launch-manifest.json",
+    "site/index.html",
+    "site/app/index.html",
+    "site/es/index.html",
+    "site/pt/index.html",
+    "site/404.html"
+  ];
+  const allowlist = /if grep -v -x -E '([^']+)'/.exec(workflow)?.[1] || "";
+  const staged = /git add ([^\r\n]+)/.exec(workflow)?.[1].trim().split(/\s+/) || [];
+  check(allowlist === String.raw` M site/(launch-(index|numbers|manifest)\.json|404\.html|(app/|es/|pt/)?index\.html)`, "the refresh status allowlist names exactly the eight publication artifacts including the Mini App");
+  check(JSON.stringify([...staged].sort()) === JSON.stringify([...publicationArtifacts].sort()), "the refresh stages exactly the same eight publication artifacts");
 } finally {
   await proxy.close();
   await archive.close();
