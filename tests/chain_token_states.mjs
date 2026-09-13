@@ -108,6 +108,7 @@ ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are 
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
 ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 4, "the hero has one four-action start path");
 ok(/class="hero-actions"[\s\S]*?href="#s02"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?href="#s09"[\s\S]*?<\/nav>/.test(a), "the hero actions lead to read, live names, deployer history and the local run in that order");
+ok(count(a, /data-proof-loop/g) === 1 && count(a, /data-proof-step/g) === 5 && count(a, /data-proof-play/g) === 1, "one user-controlled five-stage proof loop sits in the hero");
 ok(/class="page-switch"[\s\S]*?page-switch-current[^>]*aria-current="page"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?<\/nav>/.test(a), "the persistent page switch names comparison, live and deployer in order");
 ok(count(a, /class="nav section-nav"/g) === 1, "the long-page section anchors remain a distinct secondary navigation");
 // The order gained the lore section in round B and the chain block in round C, and each moved every number after it

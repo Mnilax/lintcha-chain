@@ -69,6 +69,24 @@
       <a class="hero-action" href="/deployer/" data-i18n="hero.actions.deployer"></a>
       <a class="hero-action" href="#s09" data-i18n="hero.actions.run"></a>
     </nav>
+    <aside class="proof-loop" data-proof-loop data-proof-delay="900" aria-labelledby="proof-loop-title">
+      <div class="proof-loop-head">
+        <div>
+          <span class="proof-loop-kicker" data-i18n="proof.kicker"></span>
+          <h2 id="proof-loop-title" data-i18n="proof.h"></h2>
+        </div>
+        <button type="button" class="btn-quiet proof-loop-play" data-proof-play data-i18n="proof.play" data-i18n-attr="data-label-play:proof.play;data-label-pause:proof.pause;data-label-resume:proof.resume;data-label-replay:proof.replay"></button>
+      </div>
+      <p class="proof-loop-note" data-i18n="proof.note"></p>
+      <ol class="proof-loop-track">
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.paste.status"><span data-i18n="proof.paste.t"></span><small data-i18n="proof.paste.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.normalize.status"><span data-i18n="proof.normalize.t"></span><small data-i18n="proof.normalize.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.compare.status"><span data-i18n="proof.compare.t"></span><small data-i18n="proof.compare.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.read.status"><span data-i18n="proof.read.t"></span><small data-i18n="proof.read.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.receipt.status"><span data-i18n="proof.receipt.t"></span><small data-i18n="proof.receipt.d"></small></li>
+      </ol>
+      <span class="sr-only" data-proof-status></span>
+    </aside>
   </section>
 
 <!-- section:process -->
@@ -499,6 +517,7 @@
 <script src="{{root}}verified-specimen.js"></script>
 <script src="{{root}}refusal-gallery.js"></script>
 <script src="{{root}}fact-receipt-svg.js"></script>
+<script src="{{root}}proof-loop.js"></script>
 <script src="{{root}}chain.js"></script>
 </body>
 </html>

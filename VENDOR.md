@@ -117,6 +117,8 @@ A path is added here in the same commit that creates the file.
 - `site/proof.css`
 - `site/refusal-gallery.js`
 - `site/fact-receipt-svg.js`
+- `site/proof-loop.js`
 - `tests/verified_specimen_test.mjs`
 - `tests/refusal_gallery_test.mjs`
 - `tests/fact_receipt_svg_test.js`
+- `tests/proof_loop_test.js`
