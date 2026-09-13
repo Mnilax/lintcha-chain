@@ -29,7 +29,7 @@ body[data-page="chain"] a:hover { color:var(--ink); border-bottom-color:var(--ac
 body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, body[data-page="chain"] button:focus-visible, body[data-page="chain"] a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
 /* the type: mono, six hundred, uppercase for every heading, number, nav item, badge and label; Archivo for prose */
-.mono, .sec-h, .num, .nav, .cluster, .theme, .strip, .badge, .kicker, .sub, .dg-num, .dg-title, .dg-list > div, .dg-index-t, .dg-boundary-label, .dg-inlabel-1, .specimen-label, .st, .chart-title, .foot-links, .contract-label, .token-btn, .btn-quiet, .cmd-code { font-family:'IBM Plex Mono',monospace; }
+.mono, .sec-h, .num, .nav, .page-switch, .cluster, .theme, .strip, .badge, .kicker, .sub, .dg-num, .dg-title, .dg-list > div, .dg-index-t, .dg-boundary-label, .dg-inlabel-1, .specimen-label, .st, .chart-title, .foot-links, .contract-label, .token-btn, .btn-quiet, .cmd-code { font-family:'IBM Plex Mono',monospace; }
 .sec-h { font-size:22px; font-weight:600; letter-spacing:0.02em; text-transform:uppercase; margin:0; }
 .num { font-size:12px; font-weight:600; letter-spacing:0.14em; color:var(--accent); opacity:0.5; transition:opacity 300ms linear; }
 .num.is-active { opacity:1; }
@@ -55,9 +55,15 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
    colour is the theme's accent: the file's own acid on dark, the darker acid of the light palette on light */
 .brand .mark { display:block; width:30px; height:30px; background:var(--accent); -webkit-mask:url(mark-acid.png) center/contain no-repeat; mask:url(mark-acid.png) center/contain no-repeat; }
 .brand .wordmark { font-size:22px; font-weight:600; letter-spacing:-0.03em; }
+.page-switch { display:flex; align-items:center; gap:14px; margin:0; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; white-space:nowrap; }
+.topbar .page-switch a { color:var(--ink-2); border:0; padding:4px 0; }
+.topbar .page-switch a:hover { color:var(--ink); }
+.page-switch-current { color:var(--accent); padding:4px 0; }
 .nav { position:relative; display:flex; align-items:center; gap:14px; margin:0 auto; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; }   /* ten items since the bar became the page's own order */
 .topbar .nav a { color:var(--ink-2); border:0; padding:4px 0; }
 .topbar .nav a:hover { color:var(--ink); }
+.topbar[data-topbar] .section-nav { order:4; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; margin:0; padding-top:9px; border-top:1px solid var(--line-soft); flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }
+.topbar[data-topbar] .section-nav::-webkit-scrollbar { display:none; }
 .nav-bar { position:absolute; bottom:-2px; left:0; height:2px; width:0; background:var(--accent); opacity:0; transition:transform 420ms cubic-bezier(.3,.8,.3,1), width 420ms cubic-bezier(.3,.8,.3,1), opacity 200ms linear; }
 .cluster { display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; }
 .cluster .out { color:var(--ink-2); border:0; }
@@ -361,7 +367,6 @@ body[data-page="chain"] .hero-action-primary:hover { color:var(--accent-ink); op
 
 /* ---------------------------------------------------------------- live wall: a separate, read-only view of the
    publishable name/ticker suffix. API strings stay in isolated table cells; status and coverage remain global. */
-:is([data-live-page],[data-history-page]) .live-nav-current { color:var(--accent); }
 :is([data-live-page],[data-history-page]) .live-page { padding-bottom:72px; }
 :is([data-live-page],[data-history-page]) .live-hero { padding-bottom:12px; }
 :is([data-live-page],[data-history-page]) .wall-cells { grid-template-columns:repeat(4,minmax(0,1fr)); }
@@ -437,12 +442,11 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
 /* the roadmap line stands on its end below the width where eight stops stop fitting: the same ticks in the same
    order, read top to bottom instead of left to right, and the sprite still where shipped ends */
 @media (max-width:1180px) {
-  .topbar[data-topbar] .nav { order:3; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; margin:0; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }
-  .topbar[data-topbar] .nav::-webkit-scrollbar { display:none; }
+  .topbar[data-topbar] .section-nav { order:4; }
 }
 @media (max-width:980px) {
-  .topbar .nav { order:3; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; margin:0; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }
-  .topbar .nav::-webkit-scrollbar { display:none; }
+  .topbar .section-nav { flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; margin:0; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .topbar .section-nav::-webkit-scrollbar { display:none; }
   .road-line { grid-template-columns:minmax(0,1fr); margin-top:26px; }
   .road-line::before { left:6px; right:auto; top:0; bottom:0; width:1px; height:auto; }
   .road-group { padding-left:26px; }
@@ -462,8 +466,10 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .bar-in { gap:12px 16px; }
   .topbar[data-topbar] .cluster { order:2; flex:1 1 100%; justify-content:flex-end; }
   .topbar[data-topbar] .header-tools { order:1; }
-  .nav { margin:0; order:3; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; gap:9px; font-size:10px; letter-spacing:0.06em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* ten items since chain and run joined the bar; the narrowest rows scroll, and overflow-x is that guard */
-  .nav::-webkit-scrollbar { display:none; }
+  .page-switch { order:3; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; gap:12px; overflow-x:auto; scrollbar-width:none; }
+  .page-switch::-webkit-scrollbar { display:none; }
+  .section-nav { margin:0; order:4; flex:1 1 100%; width:100%; min-width:0; max-width:100%; box-sizing:border-box; gap:9px; font-size:10px; letter-spacing:0.06em; flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; scrollbar-width:none; }   /* the narrowest section rows scroll, and overflow-x is that guard */
+  .section-nav::-webkit-scrollbar { display:none; }
   .nav-bar { bottom:0; }
   .cmd-line { grid-template-columns:minmax(0,1fr); }
   .hero { padding-top:48px; }
@@ -478,7 +484,6 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .sprite-l { width:48px; height:48px; }
   .cells-run { grid-template-columns:minmax(0,1fr); }
   .cells-run .cmd-line code, .cells-run-wide .cmd-line code { font-size:13px; }
-  :is([data-live-page],[data-history-page]) .live-nav { order:initial; flex-basis:auto; margin-left:auto; width:auto; }
   :is([data-live-page],[data-history-page]) .wall-cells { grid-template-columns:minmax(0,1fr); }
   :is([data-live-page],[data-history-page]) .wall-table { min-width:520px; }
   :is([data-live-page],[data-history-page]) .wall-table th, :is([data-live-page],[data-history-page]) .wall-table td { padding-left:16px; padding-right:16px; }

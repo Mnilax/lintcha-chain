@@ -186,6 +186,26 @@ ${prose}  <code class="token-address" data-token-address>${escText(token.address
 `;
 }
 
+// The Telegram Mini App is a compact projection of the same public product. It has no second activation setting:
+// the one validated token document above decides whether an address and its already-approved venue links exist.
+function appToken() {
+  if (!token.address) return `<div class="app-token-state app-token-dormant">
+  <span class="badge badge-notdata">not active</span>
+  <h2>The token is not published yet.</h2>
+  <p>No contract or buy link is shown before this site carries one verified address.</p>
+</div>`;
+  const venue = (key, label, cls) => token[key]
+    ? `<a class="token-btn token-btn-${cls}" href="${esc(token[key])}" rel="noopener" target="_blank">${label}</a>`
+    : "";
+  return `<div class="app-token-state app-token-active">
+  <span class="badge badge-live">live</span>
+  <h2>The token</h2>
+  <code class="token-address" data-token-address>${escText(token.address)}</code>
+  <button type="button" class="btn-copy" data-copy-address data-label-copied="copied"><span data-copy-label>copy address</span></button>
+  <div class="token-btns">${venue("pons", "Buy on pons", "pons")}${venue("uniswap", "Buy on Uniswap", "uni")}</div>
+</div>`;
+}
+
 // ---------------------------------------------------------------- the nav: anchors on the one page, by section number
 // prefix "" on the page itself, "/" on the 404 page, whose anchors point back at the page
 const nav = prefix => NAV.filter(n => !PENDING.includes(n.sec)).map(n => `<a href="${prefix}#s${NUM[n.sec]}" data-nav="${NUM[n.sec]}" data-i18n="${n.key}"></a>`).join("");
@@ -273,6 +293,9 @@ for (const lang of EMIT) {
   fs.mkdirSync(destination, { recursive: true });
   fs.writeFileSync(path.join(destination, "index.html"), render("shell.html", lang));
 }
+const appDestination = path.join(OUT, "app");
+fs.mkdirSync(appDestination, { recursive: true });
+fs.writeFileSync(path.join(appDestination, "index.html"), render("app.html", "en", { url: abs("/app/"), app_token: appToken() }));
 if (fs.existsSync(path.join(SRC, "templates", "404.html"))) {
   fs.writeFileSync(path.join(OUT, "404.html"), render("404.html", "en", { url: abs("/404"), nav: nav("/"), anchor_method: "/#s" + NUM.method }));
 }

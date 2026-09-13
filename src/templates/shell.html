@@ -36,7 +36,12 @@
       <span class="mark" aria-hidden="true"></span>
       <span class="wordmark" data-i18n="site.wordmark"></span>
     </a>
-    <nav class="nav" data-i18n-attr="aria-label:nav.label">{{nav}}<span class="nav-bar" data-navbar aria-hidden="true"></span></nav>
+    <nav class="page-switch" data-i18n-attr="aria-label:nav.pages">
+      <span class="page-switch-current" aria-current="page" data-i18n="nav.comparison"></span>
+      <a href="/live/" data-i18n="nav.live"></a>
+      <a href="/deployer/" data-i18n="nav.deployer"></a>
+    </nav>
+    <nav class="nav section-nav" data-i18n-attr="aria-label:nav.label">{{nav}}<span class="nav-bar" data-navbar aria-hidden="true"></span></nav>
     <div class="cluster">{{cluster}}</div>
     <div class="header-tools">
       <button type="button" class="theme" data-theme-toggle data-i18n-attr="data-label-dark:theme.dark;data-label-light:theme.light" aria-pressed="false"><svg class="sprite sprite-s" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g class="sprite-g"><rect x="7" y="2" width="2" height="2"></rect><rect x="6" y="4" width="2" height="2"></rect><rect x="4" y="8" width="2" height="2"></rect><rect x="3" y="10" width="2" height="2"></rect><rect x="2" y="12" width="2" height="1"></rect><rect x="8" y="4" width="2" height="2"></rect><rect x="9" y="6" width="2" height="2"></rect><rect x="11" y="10" width="2" height="2"></rect><rect x="12" y="12" width="2" height="1"></rect><rect class="cut" x="5" y="6" width="2" height="2"></rect><rect class="cut" x="10" y="8" width="2" height="2"></rect></g></svg><span data-theme-label>{{t:theme.light}}</span></button>
@@ -59,6 +64,7 @@
     <nav class="hero-actions" data-i18n-attr="aria-label:hero.actions.label">
       <a class="hero-action hero-action-primary" href="#s02" data-i18n="hero.actions.read"></a>
       <a class="hero-action" href="/live/" data-i18n="hero.actions.live"></a>
+      <a class="hero-action" href="/deployer/" data-i18n="hero.actions.deployer"></a>
       <a class="hero-action" href="#s09" data-i18n="hero.actions.run"></a>
     </nav>
   </section>
@@ -427,7 +433,7 @@
 {{token_section}}
 <footer class="foot">
   <div class="foot-in">
-    <div class="foot-links"><a href="{{repo}}" rel="noopener" target="_blank" data-i18n="footer.repo"></a><span class="foot-licence" data-i18n="footer.licence"></span><a href="{{anchor_method}}" data-i18n="footer.method"></a></div>
+    <div class="foot-links"><a href="/live/" data-i18n="footer.live"></a><a href="/deployer/" data-i18n="footer.deployer"></a><a href="{{repo}}" rel="noopener" target="_blank" data-i18n="footer.repo"></a><span class="foot-licence" data-i18n="footer.licence"></span><a href="{{anchor_method}}" data-i18n="footer.method"></a></div>
     <p class="foot-p" data-i18n="footer.independence"></p>
     <p class="foot-p" data-i18n="footer.reads"></p>
   </div>
