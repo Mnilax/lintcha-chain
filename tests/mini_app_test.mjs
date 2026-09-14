@@ -17,7 +17,7 @@ const ok = (value, label) => { checks++; if (!value) { failures++; console.log("
 const count = (text, pattern) => (text.match(pattern) || []).length;
 
 ok(/<meta name="robots" content="noindex,nofollow">/.test(html) && !sitemap.includes("/app/"), "the duplicate Telegram surface is noindex and absent from the public sitemap");
-ok(count(html, /data-hero-lockup/g) === 1 && /class="hero-lockup-bat"[^>]+echo-bat-front\.png/.test(html) && /class="hero-lockup-word"[^>]*>LINTCHA</.test(html), "the compact surface carries the same Echo Bat hero lockup");
+ok(count(html, /data-hero-lockup/g) === 1 && /class="hero-lockup-bat"[^>]+echo-bat-front\.png/.test(html) && count(html, /class="hero-bat-wing hero-bat-wing-(?:left|right)"/g) === 2 && /class="hero-lockup-word"[^>]*>LINTCHA</.test(html), "the compact surface carries the same fixed-body, flapping-wing Echo Bat lockup");
 ok(count(html, /role="tab"/g) === 4 && count(html, /role="tabpanel"/g) === 4, "read, live, deployer and token are exactly four accessible tabs and panels");
 ok(/data-app-tab="read"[\s\S]*data-app-tab="live"[\s\S]*data-app-tab="deployer"[\s\S]*data-app-tab="token"/.test(html), "the compact navigation keeps the agreed feature order");
 ok(["name", "ticker", "description", "twitter", "telegram", "discord", "website", "farcaster", "logo", "recipient"].every(name => html.includes(`name="${name}"`)), "Read carries the existing identity fields");
