@@ -1,7 +1,7 @@
 body[data-app-page] { min-height:100vh; min-height:100dvh; padding:0 0 env(safe-area-inset-bottom); }
 body[data-app-page] .wash, body[data-app-page] .caret { display:none; }
 .app-topbar { position:sticky; top:0; z-index:40; min-height:58px; box-sizing:border-box; padding:calc(10px + env(safe-area-inset-top)) 18px 10px; display:flex; align-items:center; justify-content:space-between; gap:16px; background:color-mix(in srgb,var(--bg) 94%,transparent); border-bottom:1px solid var(--line); backdrop-filter:blur(14px); }
-.app-topbar .brand .mark { width:26px; height:26px; }
+.app-topbar .brand .mark { width:36px; height:26px; }
 .app-topbar .brand .wordmark { font-size:20px; }
 .app-context { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); }
 .app-tabs { position:sticky; top:var(--topbar-h,58px); z-index:35; display:grid; grid-template-columns:repeat(4,minmax(max-content,1fr)); gap:4px; padding:8px 12px; overflow-x:auto; background:var(--bg); border-bottom:1px solid var(--line); scrollbar-width:none; }

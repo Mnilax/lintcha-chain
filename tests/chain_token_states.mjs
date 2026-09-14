@@ -142,12 +142,12 @@ ok(a.lastIndexOf('data-i18n="roadmap.close"') > a.lastIndexOf('data-i18n="road.c
 ok(count(a, /class="cells cells-run">/g) === 1 && count(a, /class="cells cells-run-wide">/g) === 1, "the run section is three cards and one wide");
 ok(count(a, /class="cell-t"/g) === 4, "three step cards and the wide one, each with a title");
 ok(count(a, /<code>npm test<\/code>|<code>npm run build<\/code>|<code>npm run verify<\/code>/g) === 3 && count(a, /<code>git clone /g) === 1, "the same four commands, none added");
-// the sprite: three on the page and no fourth, the same eleven rectangles every time, and no file behind it
+// the caret survives only as the theme control; brand and roadmap carry the owned Echo Bat assets
 const sprites = a.match(/<svg class="sprite [^"]*"[\s\S]*?<\/svg>/g) || [];
-ok(sprites.length === 3, "the sprite is on the page three times");
-ok(new Set(sprites.map(s => s.replace(/ class="sprite [^"]*"/, ""))).size === 1, "the three are one sprite in three sizes: the same markup apart from the size");
-ok(sprites.every(s => count(s, /<rect /g) === 11 && count(s, /class="cut"/g) === 2) && sprites.every(s => !/href|src|url\(/.test(s)), "eleven rectangles each, two of them the cut strokes, and no file behind any of it");
-ok(count(a, /class="sprite sprite-s"/g) === 1 && count(a, /class="sprite sprite-m"/g) === 1 && count(a, /class="sprite sprite-l"/g) === 1, "one small, one medium, one large");
+ok(sprites.length === 1 && count(a, /class="sprite sprite-s"/g) === 1, "the caret sprite appears only in the theme control");
+ok(count(sprites[0] || "", /<rect /g) === 11 && count(sprites[0] || "", /class="cut"/g) === 2, "the theme caret keeps its eleven-cell shape and two cut strokes");
+ok(count(a, /class="lore-mascot"[^>]+echo-bat-front\.png/g) === 1, "the lore carries one front-facing Echo Bat");
+ok(count(a, /class="road-mascot"[^>]+echo-bat-flight\.gif/g) === 1 && count(a, /data-mascot-progress/g) === 1, "the roadmap and scroll rail carry Echo Bat flight assets");
 // the roadmap line: the three phase lists folded onto one rule, a tick for every item and not one item lost
 const road = a.slice(a.indexOf('id="s15"'), a.indexOf("<section", a.indexOf('id="s15"') + 1));
 const roadItems = count(road, /data-i18n="roadmap\.(shipped|next|later)\.l\d"/g);

@@ -3,8 +3,8 @@
  "short_name": "lintcha-chain",
  "start_url": "/",
  "display": "browser",
- "background_color": "#EFEAE0",
- "theme_color": "#EFEAE0",
+ "background_color": "#07150f",
+ "theme_color": "#08090a",
  "icons": [
   {
    "src": "/icon-512.png",
