@@ -84,6 +84,32 @@
     if (doc.fonts && doc.fonts.ready) doc.fonts.ready.then(publish);
   }
 
+  /* ---------------------------------------------------------------- Echo Bat: one user-controlled trip across the page */
+  function mascot() {
+    if (reduced) q("[data-mascot-flight]").forEach(function (image) { image.src = "/brand/echo-bat-side.png"; });
+    var rail = one("[data-mascot-progress]");
+    var track = one("[data-mascot-track]", rail);
+    var runner = one("[data-mascot-runner]", rail);
+    if (!rail || !track || !runner) return;
+    var queued = false;
+    var place = function () {
+      queued = false;
+      var rootHeight = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0);
+      var scrollable = Math.max(1, rootHeight - window.innerHeight);
+      var progress = Math.max(0, Math.min(1, window.scrollY / scrollable));
+      var distance = Math.max(0, track.clientWidth - runner.offsetWidth);
+      runner.style.transform = "translate3d(" + Math.round(distance * progress) + "px,0,0)";
+    };
+    var requestPlace = function () {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(place);
+    };
+    window.addEventListener("scroll", requestPlace, { passive:true });
+    window.addEventListener("resize", requestPlace);
+    place();
+  }
+
   /* ---------------------------------------------------------------- the process diagram (section one) */
   function layoutDiagram() {
     var wrap = one("[data-diagram]"), col = one("[data-idxcol]"), card = one('[data-stage="2"]'), box = one("[data-boundary]");
@@ -485,6 +511,6 @@
     });
   }
 
-  function init() { languageNavigation(); topbar(); diagram(); sections(); charts(); caret(); restoreSharedFields(); results(); resultTools(); copyButtons(); }
+  function init() { languageNavigation(); topbar(); mascot(); diagram(); sections(); charts(); caret(); restoreSharedFields(); results(); resultTools(); copyButtons(); }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();
 })();

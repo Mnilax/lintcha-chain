@@ -29,6 +29,7 @@
      stylesheet under site/. Nothing here is a colour of its own: every value is a token from chain.css. */
   body[data-page="chain"] { display:block; }
   .hold { max-width:640px; margin:0 auto; padding:56px 24px 72px; box-sizing:border-box; }
+  .hold > .brand { width:max-content; margin:0 0 36px; }
   .hold h1 { font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; letter-spacing:0.02em; text-transform:uppercase; margin:0 0 8px; color:var(--ink); }
   .hold-kicker { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); margin:0 0 28px; }
   .hold p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:0 0 14px; }
@@ -49,6 +50,7 @@
 </head>
 <body data-page="chain" data-lang="en" data-hold-page>
 <div class="hold">
+  <a class="brand" href="/" aria-label="lintcha comparison"><span class="mark" aria-hidden="true"></span><span class="wordmark">lintcha</span></a>
   <h1>Prove you hold $LINTCHA</h1>
   <p class="hold-kicker">One signature · nothing moves</p>
 

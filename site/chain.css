@@ -51,9 +51,7 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .bar-in { max-width:1080px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
 .topbar[data-topbar] .bar-in { max-width:1240px; gap:16px; }
 .brand { display:flex; align-items:center; gap:10px; border:0 !important; color:var(--ink) !important; }
-/* the mark: the delivered mark-acid.png (acid on a transparent ground) used as a mask, so the shape is the file's and the
-   colour is the theme's accent: the file's own acid on dark, the darker acid of the light palette on light */
-.brand .mark { display:block; width:30px; height:30px; background:var(--accent); -webkit-mask:url(mark-acid.png) center/contain no-repeat; mask:url(mark-acid.png) center/contain no-repeat; }
+.brand .mark { display:block; width:42px; height:30px; flex:0 0 auto; background:url('/brand/echo-bat-front.png') center/contain no-repeat; image-rendering:pixelated; }
 .brand .wordmark { font-size:22px; font-weight:600; letter-spacing:-0.03em; }
 .page-switch { display:flex; align-items:center; gap:14px; margin:0; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; white-space:nowrap; }
 .topbar .page-switch a { color:var(--ink-2); border:0; padding:4px 0; }
@@ -82,6 +80,11 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .strip-live .badge { font-size:8px; padding:2px 7px; }
 .strip-wall { color:var(--ink-2); border-bottom:1px solid var(--line); }
 .strip-wall:hover { color:var(--accent); border-color:var(--accent); }
+.mascot-progress { position:sticky; top:var(--topbar-h,60px); z-index:29; height:28px; box-sizing:border-box; overflow:hidden; pointer-events:none; background:color-mix(in srgb,var(--bg) 94%,transparent); border-bottom:1px solid var(--line-soft); backdrop-filter:blur(10px); }
+.mascot-progress-track { position:relative; max-width:1080px; height:100%; margin:0 auto; border-top:1px solid color-mix(in srgb,var(--accent) 35%,transparent); }
+.mascot-progress-track::after { content:""; position:absolute; left:0; right:0; top:13px; height:1px; background:repeating-linear-gradient(to right,var(--accent-line) 0 1px,transparent 1px 48px); opacity:.55; }
+.mascot-progress-runner { position:absolute; left:0; top:-10px; z-index:1; width:48px; height:48px; transform:translate3d(0,0,0); will-change:transform; }
+.mascot-progress-runner img { display:block; width:48px; height:48px; object-fit:contain; image-rendering:pixelated; }
 
 /* the token, header part: the contract row under the strip and the filled buy button in the cluster. Rendered by the
    build only when site/token.json carries an address (the row) and a pons link (the button); nothing otherwise. */
@@ -95,15 +98,9 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .btn-copy { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; padding:7px 13px; border-radius:999px; border:1px solid var(--accent-line); background:transparent; color:var(--accent); cursor:pointer; }
 .btn-quiet { font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; padding:8px 14px; border-radius:999px; border:1px solid var(--btn-quiet-line); background:transparent; color:var(--ink-2); cursor:pointer; }
 
-/* ---------------------------------------------------------------- the sprite: the mark on a cell grid, three sizes
-   Eleven rectangles, no file and no request: the same caret the header wears, drawn on a sixteen by sixteen grid, and
-   the two strokes the mark has cut out of it drawn as their own rectangles. Those two blink, which is the one thing a
-   caret does on its own and the only motion here that claims nothing about the chain. They rest hidden, so a still
-   sprite is the mark exactly as it is. */
+/* ---------------------------------------------------------------- the caret retained only inside the theme control */
 .sprite { display:block; fill:var(--accent); flex:0 0 auto; }
 .sprite-s { width:20px; height:20px; }
-.sprite-m { width:40px; height:40px; }
-.sprite-l { width:64px; height:64px; }
 .sprite .cut { opacity:0; animation:lc-blink 1.06s steps(1,end) infinite; }
 
 /* ---------------------------------------------------------------- the page column and the sections */
@@ -264,6 +261,7 @@ body[data-page="chain"] .hero-action-primary:hover { color:var(--accent-ink); op
 /* the sprite stands on the line where shipped ends and next begins: the left edge of the next group is that boundary,
    so the position is the markup's own and not a percentage fitted by eye */
 .road-sprite { position:absolute; left:0; top:calc(var(--ph-h) + var(--up-h) + var(--tick-h) / 2); transform:translate(-50%,-100%); z-index:1; }
+.road-mascot { display:block; width:56px; height:56px; object-fit:contain; image-rendering:pixelated; }
 .telegram-app-callout { max-width:720px; box-sizing:border-box; margin:20px 0 6px; padding:20px 22px; border:1px solid var(--accent-line); border-radius:14px; background:var(--panel); }
 .telegram-app-title { margin:0; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); }
 .telegram-app-callout .sec-p { margin:8px 0 0; }
@@ -301,7 +299,7 @@ body[data-page="chain"] .hero-action-primary:hover { color:var(--accent-ink); op
 .lore { margin:22px 0 0; display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:26px 34px; }   /* two columns at the page's width: these are paragraphs, not tiles, and a third column would make them a stack of narrow strips */
 .lore-card { border-left:2px solid var(--accent); padding-left:18px; }
 .lore-card[data-lore-mark] { display:grid; grid-template-columns:auto minmax(0,1fr); gap:0 20px; }
-.lore-card[data-lore-mark] .sprite { grid-row:span 2; align-self:start; margin-top:2px; }
+.lore-mascot { display:block; grid-row:span 2; align-self:start; width:96px; height:60px; margin-top:2px; object-fit:contain; image-rendering:pixelated; }
 .lore-t { font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; letter-spacing:0.04em; color:var(--ink); margin:0 0 8px; }
 .lore-p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:0; }
 
@@ -486,8 +484,7 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .lore { grid-template-columns:minmax(0,1fr); }
   .lore-card { padding-left:14px; }
   .lore-card[data-lore-mark] { grid-template-columns:minmax(0,1fr); gap:12px; }
-  .lore-card[data-lore-mark] .sprite { grid-row:auto; }
-  .sprite-l { width:48px; height:48px; }
+  .lore-mascot { grid-row:auto; width:80px; height:50px; }
   .cells-run { grid-template-columns:minmax(0,1fr); }
   .cells-run .cmd-line code, .cells-run-wide .cmd-line code { font-size:13px; }
   :is([data-live-page],[data-history-page]) .wall-cells { grid-template-columns:minmax(0,1fr); }
