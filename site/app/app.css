@@ -11,6 +11,9 @@ body[data-app-page] .wash, body[data-app-page] .caret { display:none; }
 .app-tabs button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
 .app-shell { position:relative; z-index:1; width:min(100%,760px); margin:0 auto; padding:28px 18px 56px; box-sizing:border-box; }
 .app-panel-head { display:grid; gap:10px; padding:12px 0 28px; }
+.hero-lockup-app { gap:16px; margin:0 0 12px; }
+.hero-lockup-app .hero-bat-stage { width:88px; }
+.hero-lockup-app .hero-lockup-word { font-size:clamp(38px,12vw,58px); letter-spacing:.025em; }
 .app-panel-head .kicker { margin:0; }
 .app-title { margin:0; font:600 clamp(28px,8vw,42px)/1.08 'IBM Plex Mono',monospace; letter-spacing:-.025em; text-transform:uppercase; color:var(--ink); }
 .app-panel-head > p:last-of-type { margin:0; max-width:620px; color:var(--ink-2); font-size:16px; line-height:1.55; }
