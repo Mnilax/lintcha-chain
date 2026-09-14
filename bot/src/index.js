@@ -70,10 +70,13 @@ function tapeDep(env) {
   return { stats: () => ask("stats") };
 }
 
-/** The one watcher, reached the same way. */
+/**
+ * The apex deployment starts a new watcher epoch. The previous named object remains intact and reversible,
+ * while a provider head discontinuity cannot leave the public wall trapped behind an unbounded historical scan.
+ */
 function watchStub(env) {
   if (!env.WATCH) return null;
-  return env.WATCH.get(env.WATCH.idFromName("watch"));
+  return env.WATCH.get(env.WATCH.idFromName("watch-apex"));
 }
 
 /** Telegram sends update_id as a positive JSON number; values JavaScript cannot represent exactly are refused. */
