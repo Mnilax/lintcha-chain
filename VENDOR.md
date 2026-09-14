@@ -18,7 +18,7 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `src/i18n-src/launch.en.json` | not in lintcha, from working tree | `a60c2dc9d44379c16e73b3eca2825a08ce5da2ace44af5b7c5645eb75adc3cf2` | not in lintcha, from working tree |
 | `src/i18n-src/launch.es.json` | not in lintcha, from working tree | `1debd265fb22aff39c6e150d3bd369628ae63a1b3714353b620305b7a277dc90` | not in lintcha, from working tree |
 | `src/i18n-src/launch.pt.json` | not in lintcha, from working tree | `a42b1b6c08eb43a24082b1583264ebede13e74be687ba5a449aa389dc490f696` | not in lintcha, from working tree |
-| `src/templates/launch.html` | not in lintcha, from working tree | `1854aa4c122fdb765d1ca94f52eaefbbf55d4d3d4264f2718d4242864542f04d` | not in lintcha, from working tree |
+| `src/templates/launch.html` | not in lintcha, from working tree | `9ca45c7d27c41c8c85b66dd0d2fa1d6162b7965bce4fa74b69a96fa5accd04c2` | not in lintcha, from working tree |
 | `src/tools/i18n_check.js` | `src/tools/i18n_check.js` | `6da44f81a71c05c737babe8959f194d5a009e031d33332a5e77c9f3c5caf2b87` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `tests/console_check.sh` | `tests/console_check.sh` | `b4d4483a4a8b50ce85a894f709718d454d5ba596ba2d5b8b64fa729b32bc66ac` | `6eb1b97cd2406f9cbc8b7c9caf03c1d0bb6cac52` |
 | `tests/launch_abi_test.mjs` | not in lintcha, from working tree | `f42c341a360e1156864a8122a3b5176d2f77ec3fb81fcf865385348275e601ed` | not in lintcha, from working tree |
@@ -79,6 +79,7 @@ A path is added here in the same commit that creates the file.
 - `tests/chain_token_states.mjs`
 - `tests/live_wall_test.mjs`
 - `site/icon-32.png`
+- `site/favicon-bat.png`
 - `site/icon-180.png`
 - `site/icon-512.png`
 - `site/og.png`

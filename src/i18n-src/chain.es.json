@@ -51,6 +51,8 @@
   "nav.chain": "cadena",
   "theme.dark": "Oscuro",
   "theme.light": "Claro",
+  "progress.prefix": "estás en",
+  "progress.top": "el inicio",
   "strip.chain": "Robinhood Chain",
   "strip.id": "ID {chain_id}",
   "strip.reads": "lee cadenas",

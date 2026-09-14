@@ -90,15 +90,31 @@
     var rail = one("[data-mascot-progress]");
     var track = one("[data-mascot-track]", rail);
     var runner = one("[data-mascot-runner]", rail);
-    if (!rail || !track || !runner) return;
+    var fill = one("[data-mascot-fill]", rail);
+    var sectionLabel = one("[data-mascot-section]", rail);
+    if (!rail || !track || !runner || !fill || !sectionLabel) return;
+    var topLabel = sectionLabel.textContent.trim();
+    var secs = q("section[data-sec]");
+    var shownLabel = topLabel;
     var queued = false;
+    var sectionName = function () {
+      var probe = Math.min(window.innerHeight * 0.42, 360), current = null;
+      secs.forEach(function (section) { if (section.getBoundingClientRect().top <= probe) current = section; });
+      if (!current) return topLabel;
+      var heading = one(".sec-h", current);
+      return heading && heading.textContent.trim() ? heading.textContent.trim() : topLabel;
+    };
     var place = function () {
       queued = false;
       var rootHeight = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0);
       var scrollable = Math.max(1, rootHeight - window.innerHeight);
       var progress = Math.max(0, Math.min(1, window.scrollY / scrollable));
       var distance = Math.max(0, track.clientWidth - runner.offsetWidth);
-      runner.style.transform = "translate3d(" + Math.round(distance * progress) + "px,0,0)";
+      var x = Math.round(distance * progress);
+      runner.style.transform = "translate3d(" + x + "px,0,0)";
+      fill.style.width = Math.round(x + runner.offsetWidth / 2) + "px";
+      var nextLabel = sectionName();
+      if (nextLabel !== shownLabel) { sectionLabel.textContent = nextLabel; shownLabel = nextLabel; }
     };
     var requestPlace = function () {
       if (queued) return;

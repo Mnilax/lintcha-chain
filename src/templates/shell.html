@@ -20,7 +20,7 @@
 <meta name="twitter:title" content="{{t:site.meta.title}}">
 <meta name="twitter:description" content="{{t:launch.meta.description}}">
 <meta name="twitter:image" content="{{og_image}}">
-<link rel="icon" type="image/png" href="{{root}}icon-32.png">
+<link rel="icon" type="image/png" sizes="32x32" href="{{root}}favicon-bat.png">
 <link rel="apple-touch-icon" href="{{root}}icon-180.png">
 <link rel="manifest" href="{{root}}manifest.webmanifest">
 <link rel="stylesheet" href="{{root}}style.css">
@@ -30,7 +30,7 @@
 <script id="i18n-data" type="application/json">{{i18n_json}}</script>
 <script id="launch-specimen-data" type="application/json">{{specimen_json}}</script>
 </head>
-<body data-lang="{{lang}}" data-root="{{root}}" data-alt-en="{{rel_en}}" data-alt-es="{{rel_es}}" data-alt-pt="{{rel_pt}}" data-page="chain">
+<body data-lang="{{lang}}" data-root="{{root}}" data-alt-en="{{rel_en}}" data-alt-es="{{rel_es}}" data-alt-pt="{{rel_pt}}" data-page="chain" data-mascot-rail>
 <div class="wash" aria-hidden="true"><div class="wash-l" data-wash></div><div class="wash-r" data-wash></div></div>
 <header class="topbar" data-topbar>
   <div class="bar-in">
@@ -59,7 +59,9 @@
 {{contract_row}}
 <div class="mascot-progress" data-mascot-progress aria-hidden="true">
   <div class="mascot-progress-track" data-mascot-track>
-    <span class="mascot-progress-runner" data-mascot-runner><img src="{{root}}brand/echo-bat-flight.gif" data-mascot-flight alt="" width="48" height="48" decoding="async"></span>
+    <span class="mascot-progress-fill" data-mascot-fill></span>
+    <span class="mascot-progress-copy"><span data-i18n="progress.prefix"></span> <strong data-mascot-section data-i18n="progress.top"></strong></span>
+    <span class="mascot-progress-runner" data-mascot-runner><img src="{{root}}brand/echo-bat-flight.gif" data-mascot-flight alt="" width="44" height="44" decoding="async"></span>
   </div>
 </div>
 <div id="top" class="page">
