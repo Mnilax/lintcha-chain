@@ -1,4 +1,4 @@
-// One guarded Hour-X switch. The command accepts only the public contract address and its primary pons HTTPS URL:
+// One guarded token activation switch. The command accepts only the public contract address and its primary pons HTTPS URL:
 //
 //   node tools/activate-token.mjs <CA> <PONS_HTTPS_URL>
 //
@@ -185,7 +185,7 @@ function copyPreflightTree(root, destination) {
 }
 
 function tempPreflight(root, config, readmeBytes) {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "lintcha-hour-x-"));
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "lintcha-token-activation-"));
   try {
     copyPreflightTree(root, temp);
     fs.writeFileSync(path.join(temp, README_REL), readmeBytes);
@@ -197,7 +197,7 @@ function tempPreflight(root, config, readmeBytes) {
     return new Map(BUILD_OUTPUTS.map(relative => [relative, bytes(path.join(temp, relative))]));
   } finally {
     const resolved = path.resolve(temp);
-    if (path.dirname(resolved) === path.resolve(os.tmpdir()) && path.basename(resolved).startsWith("lintcha-hour-x-")) {
+    if (path.dirname(resolved) === path.resolve(os.tmpdir()) && path.basename(resolved).startsWith("lintcha-token-activation-")) {
       fs.rmSync(resolved, { recursive: true, force: true });
     }
   }

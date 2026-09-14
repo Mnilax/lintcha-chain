@@ -1,8 +1,8 @@
-# hour-x: turn the dormant public token document into one chain-proved pons-only activation.
+# token-activation: turn the dormant public token document into one chain-proved pons-only activation.
 # The operator supplies only the two public values. The RPC endpoint remains a protected environment secret, is required rather
 # than allowed to fall back, and exists in the environment of the activation step only. The job never prints either
 # public input: they belong in the reviewed diff, not in workflow logs, commit metadata or PR prose.
-name: hour-x
+name: token-activation
 
 on:
   workflow_dispatch:
@@ -22,7 +22,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: hour-x
+  group: token-activation
   cancel-in-progress: false
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
-            echo "abort: Hour-X must be dispatched from main"
+            echo "abort: token activation must be dispatched from main"
             exit 1
           fi
           head_sha=$(git rev-parse HEAD)
@@ -55,11 +55,11 @@ jobs:
           fi
           git fetch --no-tags origin main
           if [ "${head_sha}" != "$(git rev-parse origin/main)" ]; then
-            echo "abort: main moved before Hour-X began; dispatch again from the new main"
+            echo "abort: main moved before token activation began; dispatch again from the new main"
             exit 1
           fi
           if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
-            echo "abort: checkout is not clean before Hour-X"
+            echo "abort: checkout is not clean before token activation"
             exit 1
           fi
           echo "sha=${head_sha}" >> "${GITHUB_OUTPUT}"
@@ -76,7 +76,7 @@ jobs:
           import { tokenConfigOf } from "./lib/config-contract.mjs";
 
           const fail = () => {
-            process.stderr.write("abort: Hour-X inputs do not match the public activation contract\n");
+            process.stderr.write("abort: token activation inputs do not match the public activation contract\n");
             process.exit(1);
           };
           let event;
@@ -90,8 +90,8 @@ jobs:
           for (const value of new Set([address, config.address, pons, config.pons])) {
             process.stdout.write(`::add-mask::${commandValue(value)}\n`);
           }
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "hour-x-ca.txt"), config.address + "\n", { flag: "wx", mode: 0o600 });
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "hour-x-pons.txt"), config.pons + "\n", { flag: "wx", mode: 0o600 });
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "token-activation-ca.txt"), config.address + "\n", { flag: "wx", mode: 0o600 });
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "token-activation-pons.txt"), config.pons + "\n", { flag: "wx", mode: 0o600 });
           NODE
 
       - name: Prove and prepare the pons-only activation without logging its inputs
@@ -100,16 +100,16 @@ jobs:
         shell: bash
         run: |
           cleanup_inputs() {
-            rm -f -- "${RUNNER_TEMP}/hour-x-ca.txt" "${RUNNER_TEMP}/hour-x-pons.txt"
+            rm -f -- "${RUNNER_TEMP}/token-activation-ca.txt" "${RUNNER_TEMP}/token-activation-pons.txt"
           }
           trap cleanup_inputs EXIT
           if [ -z "${LINTCHA_CHAIN_RPC_URL:-}" ]; then
             echo "abort: the LINTCHA_CHAIN_RPC_URL environment secret is not configured"
             exit 1
           fi
-          IFS= read -r HOUR_X_CA < "${RUNNER_TEMP}/hour-x-ca.txt"
-          IFS= read -r HOUR_X_PONS_URL < "${RUNNER_TEMP}/hour-x-pons.txt"
-          node tools/activate-token.mjs "${HOUR_X_CA}" "${HOUR_X_PONS_URL}" > /dev/null
+          IFS= read -r TOKEN_CA < "${RUNNER_TEMP}/token-activation-ca.txt"
+          IFS= read -r TOKEN_PONS_URL < "${RUNNER_TEMP}/token-activation-pons.txt"
+          node tools/activate-token.mjs "${TOKEN_CA}" "${TOKEN_PONS_URL}" > /dev/null
 
       - name: Recheck the product boundary after activation
         run: |
@@ -132,9 +132,9 @@ jobs:
             exit 1
           fi
 
-          status_file="${RUNNER_TEMP}/hour-x-status.txt"
-          paths_file="${RUNNER_TEMP}/hour-x-paths.txt"
-          staged_file="${RUNNER_TEMP}/hour-x-staged.txt"
+          status_file="${RUNNER_TEMP}/token-activation-status.txt"
+          paths_file="${RUNNER_TEMP}/token-activation-paths.txt"
+          staged_file="${RUNNER_TEMP}/token-activation-staged.txt"
           git status --porcelain=v1 --untracked-files=all > "${status_file}"
           if [ ! -s "${status_file}" ]; then
             echo "abort: activation produced no reviewable change"
@@ -167,16 +167,16 @@ jobs:
             echo "abort: the staged paths do not exactly equal the status-derived allowlist"
             exit 1
           fi
-          git commit -m "token: guarded Hour-X activation" > /dev/null
+          git commit -m "token: guarded activation" > /dev/null
           generated_sha=$(git rev-parse HEAD)
           if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
             echo "abort: the generated activation commit did not leave a clean tree"
             exit 1
           fi
 
-          branch="automation/hour-x-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          branch="automation/token-activation-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git push origin "HEAD:refs/heads/${branch}" > /dev/null
-          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "token: guarded Hour-X activation" --body "Manual Hour-X activation prepared by the repository guard. This draft contains only the public activation document, README line and deterministic localized build outputs. It becomes ready only after the explicitly dispatched test and vendor workflows pass for its unchanged head while main remains unchanged.")
+          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "token: guarded activation" --body "Manual token activation prepared by the repository guard. This draft contains only the public activation document, README line and deterministic localized build outputs. It becomes ready only after the explicitly dispatched test and vendor workflows pass for its unchanged head while main remains unchanged.")
 
           gh workflow run test.yml --ref "${branch}" > /dev/null
           gh workflow run vendor.yml --ref "${branch}" > /dev/null
@@ -234,4 +234,4 @@ jobs:
             echo "abort: the guarded PR did not become ready"
             exit 1
           fi
-          echo "hour-x: guarded PR ready; both required workflows passed for its unchanged head and main remained unchanged"
+          echo "token-activation: guarded PR ready; both required workflows passed for its unchanged head and main remained unchanged"

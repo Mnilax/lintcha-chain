@@ -1,4 +1,4 @@
-// Hour-X activation is exercised only in disposable repository copies against the real chain adapter and a fake
+// Token activation is exercised only in disposable repository copies against the real chain adapter and a fake
 // Gate. No case reaches the network, the working tree, Cloudflare, Telegram or git.
 import fs from "node:fs";
 import os from "node:os";
@@ -18,7 +18,7 @@ const ADDRESS = ADDRESS_INPUT.toLowerCase();
 const CURVE = "0x" + "2".repeat(40);
 const DEPLOYER = "0x" + "3".repeat(40);
 const PAIR = "0x" + "4".repeat(40);
-const PONS = "https://example.invalid/pons/" + ADDRESS + "?token=hour-x&view=buy";
+const PONS = "https://example.invalid/pons/" + ADDRESS + "?token=token-activation&view=buy";
 const RPC = "https://rpc.example.invalid/fixture";
 const COPY_DIRS = ["site", "src", "tools", "lib", "tests", "fixtures"];
 const DORMANT_TOKEN = { address: null, pons: null, uniswap: null };
@@ -118,10 +118,10 @@ try {
   ok(readme.includes(`<p align="center"><b>$LINTCHA</b> · <code>${ADDRESS}</code></p>`) && !readme.includes("<code>0x...</code>"), "the one README placeholder becomes the exact canonical address");
   ok(indexes.every(index => index.split("data-token-address>" + ADDRESS + "<").length - 1 === 3) && notFound.split("data-token-address>" + ADDRESS + "<").length - 1 === 1,
     "every generated comparison plus the root 404 carries the exact configured address in its designed slots");
-  ok(indexes.every(index => (index.match(/hour-x&amp;view=buy/g) || []).length === 2) && (notFound.match(/hour-x&amp;view=buy/g) || []).length === 1, "every generated comparison plus the root 404 carries the exact escaped primary destination");
+  ok(indexes.every(index => (index.match(/token-activation&amp;view=buy/g) || []).length === 2) && (notFound.match(/token-activation&amp;view=buy/g) || []).length === 1, "every generated comparison plus the root 404 carries the exact escaped primary destination");
   ok(!/token-btn-uni/.test(indexes.join("") + notFound), "the pons-only command cannot create a secondary venue button");
   ok(app.split("data-token-address>" + ADDRESS + "<").length - 1 === 1 &&
-    (app.match(/hour-x&amp;view=buy/g) || []).length === 1 && !/token-btn-uni/.test(app),
+    (app.match(/token-activation&amp;view=buy/g) || []).length === 1 && !/token-btn-uni/.test(app),
   "the generated Mini App carries the same exact pons-only activation state");
   const proofReads = liveGate.rawAsked.filter(call => call.method === "eth_getCode" || call.method === "eth_call");
   ok(liveGate.rawAsked.filter(call => call.method === "eth_getBlockByNumber").length === 1 &&
@@ -203,7 +203,7 @@ try {
   const failedRealBuild = fixture(); made.push(failedRealBuild);
   for (const lang of ["en", "es", "pt"]) fs.rmSync(path.join(failedRealBuild, "src", "i18n", lang + ".json"));
   const buildFile = path.join(failedRealBuild, "tools", "build.mjs");
-  fs.writeFileSync(buildFile, `if (!path.basename(process.cwd()).startsWith("lintcha-hour-x-")) {
+  fs.writeFileSync(buildFile, `if (!path.basename(process.cwd()).startsWith("lintcha-token-activation-")) {
   fs.writeFileSync(path.join(process.cwd(), "site", "index.html"), "deliberately broken real build");
   fs.writeFileSync(path.join(process.cwd(), "site", "app", "index.html"), "deliberately broken Mini App build");
   fs.writeFileSync(path.join(process.cwd(), "site", "es", "index.html"), "deliberately broken localized real build");

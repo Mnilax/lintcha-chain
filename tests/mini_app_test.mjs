@@ -43,7 +43,7 @@ fs.writeFileSync(tokenFile, JSON.stringify({ address, pons, uniswap }));
 const built = spawnSync(process.execPath, [path.join(root, "tools", "build.mjs"), "--token", tokenFile, "--out", out], { encoding: "utf8" });
 ok(built.status === 0, `an active-state app build succeeds (${(built.stderr || "").trim()})`);
 const active = built.status === 0 ? fs.readFileSync(path.join(out, "app", "index.html"), "utf8") : "";
-ok(count(active, new RegExp(address, "g")) === 1 && active.includes(`href="${pons}"`) && active.includes(`href="${uniswap}"`), "Hour X projects the one verified token state into the Mini App");
+ok(count(active, new RegExp(address, "g")) === 1 && active.includes(`href="${pons}"`) && active.includes(`href="${uniswap}"`), "token activation projects the one verified token state into the Mini App");
 
 console.log(`mini app static: ${checks} checks, ${failures} failure(s)`);
 process.exitCode = failures ? 1 : 0;
