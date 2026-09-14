@@ -12,8 +12,8 @@ import { TELEGRAM_RESPONSE_LIMIT, TELEGRAM_TIMEOUT_MS } from "../src/telegram.js
 
 export const EXPECTED_BOT_USERNAME = "lintchabot";
 export const DISCOVERY_CHAT = "@lintcha";
-export const PRODUCTION_WEBHOOK_URL = "https://chain.lintcha.com/api/telegram";
-export const PRODUCTION_TOKEN_JSON_URL = "https://chain.lintcha.com/token.json";
+export const PRODUCTION_WEBHOOK_URL = "https://lintcha.com/api/telegram";
+export const PRODUCTION_TOKEN_JSON_URL = "https://lintcha.com/token.json";
 export const PRODUCTION_ALLOWED_UPDATES = Object.freeze(["message", "edited_message", "inline_query"]);
 // This is an implementation safety ceiling, not a claim about BotFather's undocumented exact token length.
 export const BOT_TOKEN_INPUT_LIMIT = TELEGRAM_RESPONSE_LIMIT;

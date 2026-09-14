@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://chain.lintcha.com/">
+  <a href="https://lintcha.com/">
     <img src="assets/banner.png" width="100%" alt="lintcha — reads strings, not contracts">
   </a>
 </p>
@@ -16,11 +16,11 @@
 </p>
 
 <p align="center">
-  <a href="https://chain.lintcha.com/">Read a launch</a>
+  <a href="https://lintcha.com/">Read a launch</a>
   ·
-  <a href="https://chain.lintcha.com/live/">Live wall</a>
+  <a href="https://lintcha.com/live/">Live wall</a>
   ·
-  <a href="https://chain.lintcha.com/deployer/">Deployer history</a>
+  <a href="https://lintcha.com/deployer/">Deployer history</a>
   ·
   <a href="#run-in-sixty-seconds">Run locally</a>
   ·
@@ -70,12 +70,12 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 
 | Surface | What it does | Availability |
 | --- | --- | --- |
-| [Snapshot comparison](https://chain.lintcha.com/) | Compares self-declared launch identity fields with one exact finalized day | Published |
+| [Snapshot comparison](https://lintcha.com/) | Compares self-declared launch identity fields with one exact finalized day | Published |
 | Verified specimen | Loads synthetic checked-in fields and runs them through the same browser engine against the current published snapshot | Shipped |
 | Refusal gallery | Makes missing, too-short, unreadable, redirect and meaning boundaries visible without inventing a value or verdict | Shipped |
 | Proof loop | Shows the exact paste → normalize → compare → read → receipt path as a user-controlled explanatory sequence | Shipped |
-| [Live wall](https://chain.lintcha.com/live/) | Renders publishable names and tickers only when the watcher supplies a complete verified suffix | Static page shipped; runtime state fails closed |
-| [Deployer history](https://chain.lintcha.com/deployer/) | Renders bounded retained declarations for one public deployer address when watcher state is readable | Static page shipped; retained range only |
+| [Live wall](https://lintcha.com/live/) | Renders publishable names and tickers only when the watcher supplies a complete verified suffix | Static page shipped; runtime state fails closed |
+| [Deployer history](https://lintcha.com/deployer/) | Renders bounded retained declarations for one public deployer address when watcher state is readable | Static page shipped; retained range only |
 | Fact receipts | Exports the exact input, rendered result and snapshot context locally as JSON or SVG, then verifies or replays the JSON offline | Shipped |
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
@@ -175,10 +175,10 @@ node tools/identity.mjs receipt-replay --receipt ./lintcha-chain-fact-receipt.js
 
 ### Identity HTTP API
 
-`POST https://chain.lintcha.com/api/identity` accepts the same complete JSON input as `node tools/identity.mjs read` and returns the engine result with the verified corpus SHA-256, byte count and entry count. It requires `Content-Type: application/json`, stores nothing and never echoes submitted fields.
+`POST https://lintcha.com/api/identity` accepts the same complete JSON input as `node tools/identity.mjs read` and returns the engine result with the verified corpus SHA-256, byte count and entry count. It requires `Content-Type: application/json`, stores nothing and never echoes submitted fields.
 
 ```sh
-curl https://chain.lintcha.com/api/identity \
+curl https://lintcha.com/api/identity \
   --header 'content-type: application/json' \
   --data @identity.json
 ```

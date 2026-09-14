@@ -24,13 +24,13 @@
 import { esc, code, TELEGRAM_TEXT_LIMIT } from "./telegram.js";
 
 /** the site's own pages, and the repository the bot ships in */
-export const SITE = "https://chain.lintcha.com/";
-export const MINI_APP = "https://chain.lintcha.com/app/";
-export const LIVE = "https://chain.lintcha.com/live/";
-export const DEPLOYER = "https://chain.lintcha.com/deployer/";
+export const SITE = "https://lintcha.com/";
+export const MINI_APP = "https://lintcha.com/app/";
+export const LIVE = "https://lintcha.com/live/";
+export const DEPLOYER = "https://lintcha.com/deployer/";
 export const REPO = "https://github.com/Mnilax/lintcha-chain";
-export const TOKEN_JSON = "https://chain.lintcha.com/token.json";
-export const HOLD_PAGE = "https://chain.lintcha.com/hold";
+export const TOKEN_JSON = "https://lintcha.com/token.json";
+export const HOLD_PAGE = "https://lintcha.com/hold";
 
 // ---------------------------------------------------------------- section eight source, with the invariant edits above
 
@@ -135,8 +135,8 @@ export const VERIFY_INTRO = [
  * for this page cannot be replayed against a second /verify link or quietly moved to another site. The two
  * constants are mirrored by site/hold/hold.js and bot/test/texts_test.mjs fails on any drift.
  */
-export const HOLDER_ORIGIN = "https://chain.lintcha.com";
-export const SENTENCE_BEFORE_MARK = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://chain.lintcha.com and one-time mark ";
+export const HOLDER_ORIGIN = "https://lintcha.com";
+export const SENTENCE_BEFORE_MARK = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://lintcha.com and one-time mark ";
 export const SENTENCE_AFTER_MARK = ". This signature moves nothing, approves nothing and spends nothing.";
 export const sentenceFor = mark => SENTENCE_BEFORE_MARK + String(mark) + SENTENCE_AFTER_MARK;
 

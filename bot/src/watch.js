@@ -96,9 +96,9 @@ export const READ_ATTEMPTS = 3;
 /** Raw on-chain labels kept for the wall. Longer or control-bearing declarations are not published. */
 export const MAX_WALL_TEXT = MAX_ARG;
 
-export const INDEX_URL = "https://chain.lintcha.com/launch-index.json";
-export const NUMBERS_URL = "https://chain.lintcha.com/launch-numbers.json";
-export const MANIFEST_URL = "https://chain.lintcha.com/launch-manifest.json";
+export const INDEX_URL = "https://lintcha.com/launch-index.json";
+export const NUMBERS_URL = "https://lintcha.com/launch-numbers.json";
+export const MANIFEST_URL = "https://lintcha.com/launch-manifest.json";
 
 // The factory's launch log, and the three reads per token the collector makes. The signatures are hashed at
 // run time, exactly as tools/launch-collect.mjs hashes them, so a pinned selector cannot drift from a

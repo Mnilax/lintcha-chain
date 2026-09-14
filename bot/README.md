@@ -3,7 +3,7 @@
 The room's half of lintcha. It reads the chain and answers, and it does nothing else.
 
 The code is here because the page already promises it is. The roadmap on
-`chain.lintcha.com` carries this sentence in production:
+`lintcha.com` carries this sentence in production:
 
 > Everything the bot says is read from the chain, and its code ships in this repository
 > with the rest.
@@ -52,7 +52,7 @@ written here, and `src/chain.js` puts every call through this Gate.
 ## The address is the site's, and only the site's
 
 The bot does not store the token address. It reads
-`https://chain.lintcha.com/token.json` and keeps the answer in the isolate's memory for
+`https://lintcha.com/token.json` and keeps the answer in the isolate's memory for
 at most a minute. A cache miss has a five-second abort and streams at most one kilobyte;
 declared or chunked overflow, truncation, invalid UTF-8/JSON and non-success responses all
 produce the unreadable state and never leave a stale activation document in cache.
@@ -192,9 +192,9 @@ when what actually happened was a network fault.
         npm run telegram:set-webhook
         npm run telegram:webhook-info
 
-   Both modes set the webhook to `https://chain.lintcha.com/api/telegram`, with the same secret in `secret_token`.
+   Both modes set the webhook to `https://lintcha.com/api/telegram`, with the same secret in `secret_token`.
    Before contacting Telegram, the owned helper independently reads the fixed production
-   `https://chain.lintcha.com/token.json` with a hard deadline, byte ceiling, no redirects and no cache. Pre-token
+   `https://lintcha.com/token.json` with a hard deadline, byte ceiling, no redirects and no cache. Pre-token
    mode requires the complete three-null document and refuses an active one; active mode requires a valid non-null
    address and refuses the dormant document. A malformed or unavailable document is a hard stop in either mode.
    The helper fixes the webhook URL, requests only `message`, `edited_message` and `inline_query`, and
@@ -221,7 +221,7 @@ when what actually happened was a network fault.
    - enable inline mode for `@lintchabot` and use the placeholder `app · read · live · deployer · run · ca`.
      Both webhook-set commands verify `getMe.supports_inline_queries` and refuse to call `setWebhook`
      until BotFather reports it as enabled;
-   - configure the Mini App URL as `https://chain.lintcha.com/app/` and verify it opens inside Telegram;
+   - configure the Mini App URL as `https://lintcha.com/app/` and verify it opens inside Telegram;
    - keep adding the bot to groups enabled; confirm in Telegram that `@lintchabot` is actually a
      member of `@lintcha` and may send there, because `telegram:discover` cannot prove either fact;
    - leave [privacy mode](https://core.telegram.org/bots/features#privacy-mode) enabled. The current
@@ -282,7 +282,7 @@ per-isolate courtesy bucket can be tightened with `IDENTITY_PER_SECOND`.
 
     1  /verify in a direct message
     2  the bot atomically writes a random mark and telegram id to Watch SQLite for fifteen minutes, and sends
-       https://chain.lintcha.com/hold?t=<mark>
+       https://lintcha.com/hold?t=<mark>
     3  the page connects an injected wallet and builds the signed bytes from the exact production
        origin, that link's one-time mark, and the sentence that says nothing moves
     4  POST /api/hold { t, address, signature }; the worker recovers the address from the
@@ -291,7 +291,7 @@ per-isolate courtesy bucket can be tightened with `IDENTITY_PER_SECOND`.
     6  session:<telegram id> -> the address, for three days, and the bot answers in the chat
 
 This is a domain- and nonce-bound sentence, not one static reusable proof. Both the page and worker
-assemble it from the pinned production origin `https://chain.lintcha.com` and the dynamic mark in
+assemble it from the pinned production origin `https://lintcha.com` and the dynamic mark in
 that `/verify` link. A signature from one origin or link therefore cannot be moved to another. The
 mark is spent by an atomic SQLite take before signature and balance checks, not when the whole check
 succeeds. A second or concurrent post carrying the same mark is refused whatever happened to the first.

@@ -46,7 +46,7 @@ required = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"]
 # /api/* is intercepted before the assets worker; the root stays with the site, which is how the page and this
 # worker share one host. Confirmed by observation before the code was written.
 [[routes]]
-pattern = "chain.lintcha.com/api/*"
+pattern = "lintcha.com/api/*"
 zone_name = "lintcha.com"
 
 # Holder sessions only: session:<telegram id> -> signed address, with a three-day KV expiry. One-time marks do
@@ -97,8 +97,8 @@ BOT_USERNAME = "lintchabot"
 
 # The site is the one source of truth about the address, and this is the file it lives in. Authored code applies
 # a five-second abort and one-kilobyte streamed response ceiling before parsing this small three-field document.
-TOKEN_JSON_URL = "https://chain.lintcha.com/token.json"
-HOLD_PAGE = "https://chain.lintcha.com/hold"
+TOKEN_JSON_URL = "https://lintcha.com/token.json"
+HOLD_PAGE = "https://lintcha.com/hold"
 
 # the public endpoint and the vendored limiter's three pacing numbers, the same ones the collector runs with.
 # Unlike the offline collector, the Worker performs no within-call RPC retry: its durable next beat retries the
@@ -163,9 +163,9 @@ WATCH_DEPTH_DAYS = "7"
 # ranges meet or have a startup gap; /api/wall also uses
 # it to publish only the strict suffix and returns 503 rather than a stale or incomplete wall when the boundary
 # or current watcher state cannot establish that suffix.
-LAUNCH_INDEX_URL = "https://chain.lintcha.com/launch-index.json"
-LAUNCH_NUMBERS_URL = "https://chain.lintcha.com/launch-numbers.json"
-LAUNCH_MANIFEST_URL = "https://chain.lintcha.com/launch-manifest.json"
+LAUNCH_INDEX_URL = "https://lintcha.com/launch-index.json"
+LAUNCH_NUMBERS_URL = "https://lintcha.com/launch-numbers.json"
+LAUNCH_MANIFEST_URL = "https://lintcha.com/launch-manifest.json"
 # how long this isolate remembers them. The index changes only in a deliberate atomic publication, so this cache
 # stays short enough to pick up a replacement promptly.
 INDEX_TTL_MS = "600000"

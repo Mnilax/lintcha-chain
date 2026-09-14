@@ -108,12 +108,12 @@ const envWith = stub => ({ TAIL_CACHE_MS: "5000", TAIL_PER_SECOND: "100", HISTOR
 let forwarded = null;
 const stub = { async fetch(input) { forwarded = String(input); return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }); } };
 const ctx = { waitUntil() {} };
-let res = await worker.fetch(new Request("https://chain.lintcha.com/api/deployer?address=" + A), envWith(stub), ctx);
+let res = await worker.fetch(new Request("https://lintcha.com/api/deployer?address=" + A), envWith(stub), ctx);
 t.ok(res.status === 200 && forwarded === "https://watch/deployer?address=" + A, "the public route forwards the exact address query to the watcher");
 t.ok(/max-age=5/.test(res.headers.get("cache-control") || "") && JSON.stringify(await res.json()) === JSON.stringify(body), "the route preserves the exact response and matching short cache window");
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/deployer?address=" + A, { method: "POST" }), envWith(stub), ctx);
+res = await worker.fetch(new Request("https://lintcha.com/api/deployer?address=" + A, { method: "POST" }), envWith(stub), ctx);
 t.ok(res.status === 405, "writes to deployer history are refused");
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/deployer?address=" + A), {}, ctx);
+res = await worker.fetch(new Request("https://lintcha.com/api/deployer?address=" + A), {}, ctx);
 t.ok(res.status === 503 && (await res.json()).why === "no_watcher", "a missing watcher is not rewritten as an empty history");
 
 forgetHistoryBucket();
@@ -121,15 +121,15 @@ forgetTailBucket();
 const tight = envWith(stub);
 tight.HISTORY_PER_SECOND = "1";
 tight.TAIL_PER_SECOND = "1";
-const firstHistory = await worker.fetch(new Request("https://chain.lintcha.com/api/deployer?address=" + A), tight, ctx);
-const limitedHistory = await worker.fetch(new Request("https://chain.lintcha.com/api/deployer?address=" + A), tight, ctx);
+const firstHistory = await worker.fetch(new Request("https://lintcha.com/api/deployer?address=" + A), tight, ctx);
+const limitedHistory = await worker.fetch(new Request("https://lintcha.com/api/deployer?address=" + A), tight, ctx);
 const tailStub = { async fetch(input) { return String(input).endsWith("/tail") ? new Response("{}", { status: 200 }) : stub.fetch(input); } };
 tight.WATCH.get = () => tailStub;
-const separateTail = await worker.fetch(new Request("https://chain.lintcha.com/api/tail"), tight, ctx);
+const separateTail = await worker.fetch(new Request("https://lintcha.com/api/tail"), tight, ctx);
 t.ok(firstHistory.status === 200 && limitedHistory.status === 429 && separateTail.status === 200, "history has its own per-isolate bucket and cannot consume the tail bucket");
 forgetHistoryBucket();
 const objectLimited = envWith({ async fetch() { return new Response(JSON.stringify({ ok: false, why: "rate_limited" }), { status: 429 }); } });
-const propagated = await worker.fetch(new Request("https://chain.lintcha.com/api/deployer?address=" + A), objectLimited, ctx);
+const propagated = await worker.fetch(new Request("https://lintcha.com/api/deployer?address=" + A), objectLimited, ctx);
 t.ok(propagated.status === 429 && (await propagated.json()).why === "rate_limited", "the public route preserves the singleton object's bounded rate response");
 
 t.done();

@@ -61,8 +61,8 @@ const generic = error => error && error.message === "telegram bootstrap failed" 
   !JSON.stringify(error).includes(TOKEN) && !JSON.stringify(error).includes(SECRET);
 
 t.ok(EXPECTED_BOT_USERNAME === "lintchabot" && DISCOVERY_CHAT === "@lintcha", "production identity constants are exact");
-t.ok(PRODUCTION_WEBHOOK_URL === "https://chain.lintcha.com/api/telegram", "the production webhook target is exact HTTPS");
-t.ok(PRODUCTION_TOKEN_JSON_URL === "https://chain.lintcha.com/token.json", "webhook activation reads only the fixed public token document");
+t.ok(PRODUCTION_WEBHOOK_URL === "https://lintcha.com/api/telegram", "the production webhook target is exact HTTPS");
+t.ok(PRODUCTION_TOKEN_JSON_URL === "https://lintcha.com/token.json", "webhook activation reads only the fixed public token document");
 t.ok(JSON.stringify(PRODUCTION_ALLOWED_UPDATES) === JSON.stringify(["message", "edited_message", "inline_query"]), "only handled update kinds are requested");
 t.ok(validBotToken(TOKEN) && !validBotToken("") && !validBotToken("no-colon") && !validBotToken("0:suffix") &&
   !validBotToken("01:suffix") && !validBotToken("1:") && !validBotToken("1:two:colons") &&
@@ -251,13 +251,13 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
     "set mode verifies the production bot before its one setWebhook call");
   t.ok(calls.every(call => call.init.redirect === "error"), "every Bot API request refuses HTTP redirects");
   t.ok(JSON.stringify(body) === JSON.stringify({
-    url: "https://chain.lintcha.com/api/telegram",
+    url: "https://lintcha.com/api/telegram",
     allowed_updates: ["message", "edited_message", "inline_query"],
     drop_pending_updates: false,
     secret_token: SECRET
   }), "setWebhook sends the exact production URL, update list, preservation flag and secret");
   t.ok(JSON.stringify(result) === JSON.stringify({
-    url: "https://chain.lintcha.com/api/telegram",
+    url: "https://lintcha.com/api/telegram",
     allowed_updates: ["message", "edited_message", "inline_query"],
     drop_pending_updates: false
   }) && !JSON.stringify(result).includes(SECRET) && !JSON.stringify(result).includes(TOKEN), "set output contains safe fields only");

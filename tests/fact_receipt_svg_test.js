@@ -12,7 +12,7 @@ const copy = value => JSON.parse(JSON.stringify(value));
 const hash = "18cd4c4d6a3255f58b359f7d2c802888bb9d78f8f515f8b1c4d7013fb16ed665";
 const fixture = () => ({
   schema: "lintcha-chain/fact-receipt/v1",
-  source: "https://chain.lintcha.com/",
+  source: "https://lintcha.com/",
   language: "en",
   snapshot: {
     from_block: 59793981,

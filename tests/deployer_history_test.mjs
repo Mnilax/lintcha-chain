@@ -11,7 +11,7 @@ const sitemap = fs.readFileSync(path.join(root, "site", "sitemap.xml"), "utf8");
 let checks = 0, failures = 0;
 const ok = (value, label) => { checks++; if (!value) { failures++; console.log("  FAIL " + label); } };
 
-ok(/<link rel="canonical" href="https:\/\/chain\.lintcha\.com\/deployer\/">/.test(html), "canonical points at the public deployer page");
+ok(/<link rel="canonical" href="https:\/\/lintcha\.com\/deployer\/">/.test(html), "canonical points at the public deployer page");
 ok(/<nav class="page-switch"[\s\S]*?href="\/">comparison<\/a>[\s\S]*?href="\/live\/">live<\/a>[\s\S]*?aria-current="page">deployer<\/span>[\s\S]*?<\/nav>/.test(html), "the primary switch keeps comparison, live and deployer in one order");
 ok(/href="\/#s11">method<\/a>/.test(html), "the footer links to the actual method section");
 ok(/data-history-form/.test(html) && /data-history-address/.test(html) && /type="submit"[^>]*data-history-read/.test(html), "one labelled, explicit-submit address form exists");
@@ -22,7 +22,7 @@ ok(/exposes no token address or transaction/i.test(html) && /no verdict/i.test(h
 ok(/data-history-from/.test(html) && /data-history-to/.test(html) && /data-history-count/.test(html) && /data-history-freshness/.test(html), "coverage, count and freshness have separate visible fields");
 ok(/data-history-hash/.test(html) && /page rows sha-256/.test(html), "the exact page-row hash has a visible slot");
 ok(/<script src="\/deployer\/deployer\.js"><\/script>/.test(html) && !/<script(?![^>]*\ssrc=)/.test(html), "the page has one external script and no inline script");
-ok(/<meta property="og:url" content="https:\/\/chain\.lintcha\.com\/deployer\/">/.test(html) && /<meta property="og:image" content="https:\/\/chain\.lintcha\.com\/og\.png">/.test(html) && /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), "social preview and manifest metadata remain same-origin");
+ok(/<meta property="og:url" content="https:\/\/lintcha\.com\/deployer\/">/.test(html) && /<meta property="og:image" content="https:\/\/lintcha\.com\/og\.png">/.test(html) && /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), "social preview and manifest metadata remain same-origin");
 
 ok(/form\.addEventListener\("submit"[\s\S]*fetch\("\/api\/deployer\?" \+ params\.toString\(\)/.test(js), "the endpoint is reached only inside explicit form submission");
 ok(/params = new URLSearchParams\(\)/.test(js) && /params\.set\("address", address\)/.test(js), "the address query is encoded by URLSearchParams");
@@ -37,7 +37,7 @@ ok(/params\.set\("name", row\.name\); params\.set\("ticker", row\.ticker\)/.test
 ok(/filterInput\.addEventListener\("input", applyFilter\)/.test(js) && /makes no request/.test(js), "the loaded-page filter is local and says so");
 ok(!/localStorage|sessionStorage|indexedDB|document\.cookie/.test(js), "the page persists no searched address");
 ok(!/https?:\/\//.test(js) && !/fetch\([^)]*https?:/.test(js), "the page script names no third-party endpoint");
-ok(/<loc>https:\/\/chain\.lintcha\.com\/deployer\/<\/loc>/.test(sitemap), "the generated sitemap advertises the existing public page");
+ok(/<loc>https:\/\/lintcha\.com\/deployer\/<\/loc>/.test(sitemap), "the generated sitemap advertises the existing public page");
 
 console.log(`deployer history static: ${checks} checks, ${failures} failure(s)`);
 process.exitCode = failures ? 1 : 0;
