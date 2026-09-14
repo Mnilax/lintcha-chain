@@ -112,7 +112,15 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 
 /* ---------------------------------------------------------------- the page column and the sections */
 .page { position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 24px 40px; box-sizing:border-box; }
-.hero { padding:76px 0 4px; }
+.hero { padding:52px 0 4px; }
+.hero-lockup { display:flex; align-items:center; gap:clamp(22px,3.2vw,44px); min-width:0; margin:0 0 30px; }
+.hero-bat-stage { position:relative; display:block; width:clamp(132px,18vw,196px); flex:0 0 auto; transform-origin:50% 86%; animation:lc-hero-bat-idle 5.8s cubic-bezier(.45,0,.2,1) infinite; }
+.hero-bat-stage::after { content:""; position:absolute; left:16%; right:16%; bottom:2px; height:2px; background:var(--accent-line); box-shadow:0 0 9px color-mix(in srgb,var(--accent) 38%,transparent); opacity:.72; }
+.hero-lockup-bat { position:relative; z-index:1; display:block; width:100%; height:auto; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 0 9px color-mix(in srgb,var(--accent) 24%,transparent)); }
+.hero-lockup-word { min-width:0; color:var(--accent); font-family:'IBM Plex Mono',monospace; font-size:clamp(58px,8.2vw,104px); font-weight:600; line-height:.86; letter-spacing:.045em; text-transform:uppercase; white-space:nowrap; filter:drop-shadow(0 0 7px color-mix(in srgb,var(--accent) 28%,transparent)); }
+@supports ((background-clip:text) or (-webkit-background-clip:text)) {
+  .hero-lockup-word { background:repeating-linear-gradient(0deg,transparent 0 6px,var(--bg) 6px 8px),repeating-linear-gradient(90deg,transparent 0 6px,var(--bg) 6px 8px),var(--accent); background-clip:text; -webkit-background-clip:text; color:transparent; -webkit-text-fill-color:transparent; }
+}
 .hero-h1 { font-family:'IBM Plex Mono',monospace; color:var(--ink); font-size:clamp(28px,3.4vw,48px); line-height:1.12; font-weight:600; letter-spacing:-0.02em; text-transform:uppercase; margin:0 0 28px; max-width:1040px; text-wrap:pretty; }
 .hero-l2 { color:var(--ink-2); }
 .hero-intro { font-size:18px; line-height:1.6; color:var(--ink-2); margin:0 0 14px; max-width:700px; }
@@ -441,6 +449,13 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
 @keyframes lc-pulse { 0%,100% { opacity:0.35; } 50% { opacity:1; } }
 @keyframes lc-sweep { from { transform:translateY(0); opacity:0.9; } to { transform:translateY(var(--sweep,600px)); opacity:0; } }
 @keyframes lc-blink { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }
+@keyframes lc-hero-bat-idle {
+  0%,18%,100% { transform:translateY(0) scale(1); }
+  42% { transform:translateY(-2px) scale(1.012,.988); }
+  64% { transform:translateY(0) scale(.992,1.012); }
+  72% { transform:translateY(-4px) scale(1.025,.975); }
+  80% { transform:translateY(0) scale(.985,1.018); }
+}
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior:auto; }
   .orn span, [data-pulse], .caret, .sweep, [data-wash], [data-particle], .dg-inbound-dot, .sprite .cut { animation:none !important; }
@@ -448,6 +463,7 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .orn span { opacity:0.16 !important; }
   .chart-bar { transition:none !important; transform:scaleX(1) !important; }
   .nav-bar, .num, .dg-stage, .topbar, .mascot-progress-fill, .mascot-progress-runner { transition:none !important; }
+  .hero-bat-stage { animation:none !important; }
 }
 
 /* the roadmap line stands on its end below the width where eight stops stop fitting: the same ticks in the same
@@ -490,7 +506,10 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .section-nav::-webkit-scrollbar { display:none; }
   .nav-bar { bottom:0; }
   .cmd-line { grid-template-columns:minmax(0,1fr); }
-  .hero { padding-top:48px; }
+  .hero { padding-top:38px; }
+  .hero-lockup { gap:14px; margin-bottom:24px; }
+  .hero-bat-stage { width:84px; }
+  .hero-lockup-word { font-size:clamp(36px,12vw,52px); letter-spacing:.02em; }
   .sec-tool .launch-row { flex-direction:column; }
   .sec-tool .launch-check { flex-basis:auto; }
   .band-in { padding:13px 24px; gap:10px 12px; }
