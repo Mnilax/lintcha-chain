@@ -51,6 +51,8 @@
   "nav.chain": "chain",
   "theme.dark": "Dark",
   "theme.light": "Light",
+  "progress.prefix": "you are in",
+  "progress.top": "the top",
   "strip.chain": "Robinhood Chain",
   "strip.id": "ID {chain_id}",
   "strip.reads": "reads strings",

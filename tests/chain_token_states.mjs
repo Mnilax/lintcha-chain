@@ -82,7 +82,7 @@ const localePages = Object.fromEntries(Object.entries(LOCALES).map(([lang, local
 for (const [lang, locale] of Object.entries(LOCALES)) {
   const page = localePages[lang];
   const sourceStrings = JSON.parse(fs.readFileSync(path.join(root, "src", "i18n-src", `chain.${lang}.json`), "utf8"));
-  ok(page.startsWith(`<!doctype html>\n<html lang="${lang}">`) && page.includes(`<body data-lang="${lang}" data-root="/" data-alt-en="/" data-alt-es="/es/" data-alt-pt="/pt/" data-page="chain">`), `${lang}: URL locale is the document and content locale`);
+  ok(page.startsWith(`<!doctype html>\n<html lang="${lang}">`) && page.includes(`<body data-lang="${lang}" data-root="/" data-alt-en="/" data-alt-es="/es/" data-alt-pt="/pt/" data-page="chain" data-mascot-rail>`), `${lang}: URL locale is the document and content locale`);
   ok(count(page, new RegExp(`<link rel="canonical" href="${re(ORIGIN + locale.url)}">`, "g")) === 1 &&
     count(page, new RegExp(`<link rel="alternate" hreflang="en" href="${re(ORIGIN + "/")}">`, "g")) === 1 &&
     count(page, new RegExp(`<link rel="alternate" hreflang="es" href="${re(ORIGIN + "/es/")}">`, "g")) === 1 &&
@@ -148,6 +148,7 @@ ok(sprites.length === 1 && count(a, /class="sprite sprite-s"/g) === 1, "the care
 ok(count(sprites[0] || "", /<rect /g) === 11 && count(sprites[0] || "", /class="cut"/g) === 2, "the theme caret keeps its eleven-cell shape and two cut strokes");
 ok(count(a, /class="lore-mascot"[^>]+echo-bat-front\.png/g) === 1, "the lore carries one front-facing Echo Bat");
 ok(count(a, /class="road-mascot"[^>]+echo-bat-flight\.gif/g) === 1 && count(a, /data-mascot-progress/g) === 1, "the roadmap and scroll rail carry Echo Bat flight assets");
+ok(count(a, /data-mascot-fill/g) === 1 && count(a, /data-mascot-section/g) === 1 && /data-i18n="progress\.prefix">you are in</.test(a) && /href="\/favicon-bat\.png"/.test(a), "the bottom rail carries progress, its current-section label and the dedicated bat favicon");
 // the roadmap line: the three phase lists folded onto one rule, a tick for every item and not one item lost
 const road = a.slice(a.indexOf('id="s15"'), a.indexOf("<section", a.indexOf('id="s15"') + 1));
 const roadItems = count(road, /data-i18n="roadmap\.(shipped|next|later)\.l\d"/g);
