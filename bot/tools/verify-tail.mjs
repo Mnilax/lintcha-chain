@@ -8,7 +8,7 @@
 //     node tools/launch-collect.mjs --from <from_block> --to <to_block> --out build/tail-range.json
 //     node bot/tools/verify-tail.mjs --in build/tail-range.json
 //
-// The block numbers come from the tail itself: curl https://chain.lintcha.com/api/tail and read from_block and
+// The block numbers come from the tail itself: curl https://lintcha.com/api/tail and read from_block and
 // to_block. The tool fetches that first page again unless --tail <file> hands it one. For a later page, pass
 // its opaque --cursor; after a successful check this tool prints the next cursor when one remains.
 //
@@ -148,7 +148,7 @@ const opt = (name, dflt) => {
 
 const IN = path.resolve(root, opt("in", path.join("build", "tail-range.json")));
 const TAIL_FILE = opt("tail", null);
-const URL_ = opt("url", "https://chain.lintcha.com/api/tail");
+const URL_ = opt("url", "https://lintcha.com/api/tail");
 const CURSOR = opt("cursor", null);
 
 const say = (label, value) => console.log(label.padEnd(38) + value);

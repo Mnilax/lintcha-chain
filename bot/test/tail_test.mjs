@@ -301,35 +301,35 @@ let forwardedTail = null;
 const stub = { async fetch(input) { forwardedTail = String(input); return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }); } };
 const ctxOf = () => ({ waitUntil() {} });
 
-let res = await worker.fetch(new Request("https://chain.lintcha.com/api/tail"), envWith(stub), ctxOf());
+let res = await worker.fetch(new Request("https://lintcha.com/api/tail"), envWith(stub), ctxOf());
 t.ok(res.status === 200, "GET /api/tail answers");
 t.ok(res.headers.get("content-type") === "application/json", "as json");
 t.ok(/max-age=5/.test(res.headers.get("cache-control") || ""), "cached for the same few seconds the object holds it for");
 t.ok((await res.json()).hash === body.hash, "and hands out what the object built");
 
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/tail?cursor=opaque_page"), envWith(stub), ctxOf());
+res = await worker.fetch(new Request("https://lintcha.com/api/tail?cursor=opaque_page"), envWith(stub), ctxOf());
 t.ok(res.status === 200 && forwardedTail === "https://watch/tail?cursor=opaque_page",
   "the public route forwards one opaque cursor without interpreting or dropping it");
 
 const staleStub = { async fetch() { return new Response(JSON.stringify({ ok: false, why: "reset_required" }), { status: 409, headers: { "content-type": "application/json" } }); } };
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/tail?cursor=stale"), envWith(staleStub), ctxOf());
+res = await worker.fetch(new Request("https://lintcha.com/api/tail?cursor=stale"), envWith(staleStub), ctxOf());
 t.ok(res.status === 409 && (await res.json()).why === "reset_required" && res.headers.get("cache-control") === "no-store",
   "the public route preserves the cursor upgrade/reset response instead of masking it as no_tail");
 
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/tail", { method: "POST" }), envWith(stub), ctxOf());
+res = await worker.fetch(new Request("https://lintcha.com/api/tail", { method: "POST" }), envWith(stub), ctxOf());
 t.ok(res.status === 405, "posting to it is refused");
 
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/tail"), { TAIL_PER_SECOND: "100" }, ctxOf());
+res = await worker.fetch(new Request("https://lintcha.com/api/tail"), { TAIL_PER_SECOND: "100" }, ctxOf());
 t.ok(res.status === 503, "with no watcher bound it says so rather than answering an empty tail");
 
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/taily"), envWith(stub), ctxOf());
+res = await worker.fetch(new Request("https://lintcha.com/api/taily"), envWith(stub), ctxOf());
 t.ok(res.status === 404, "and nothing near it answers by accident");
 
 // the courtesy limit, which is per isolate and says so in the code
 forgetTailBucket();
 const tight = { TAIL_PER_SECOND: "1", WATCH: envWith(stub).WATCH };
-const first = await worker.fetch(new Request("https://chain.lintcha.com/api/tail"), tight, ctxOf());
-const second = await worker.fetch(new Request("https://chain.lintcha.com/api/tail"), tight, ctxOf());
+const first = await worker.fetch(new Request("https://lintcha.com/api/tail"), tight, ctxOf());
+const second = await worker.fetch(new Request("https://lintcha.com/api/tail"), tight, ctxOf());
 t.ok(first.status === 200 && second.status === 429, "past the limit one isolate answers too many requests rather than working through them");
 
 // The manual verifier treats the public endpoint as an external byte stream: one deadline and one fixed ceiling

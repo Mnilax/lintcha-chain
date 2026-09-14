@@ -80,7 +80,7 @@ const rendererFixture = {
 const fixtureRendered = renderFactReceiptResult(rendererFixture, en, "en");
 const receipt = {
   schema: FACT_RECEIPT_SCHEMA,
-  source: "https://chain.lintcha.com/",
+  source: "https://lintcha.com/",
   language: "en",
   snapshot: {
     from_block: numbers.window.from_block,
@@ -105,7 +105,7 @@ eq(renderFactReceiptResult(rendererFixture, es, "es")[0].heading, "Cómo se llam
 for (const [label, mutate] of [
   ["extra envelope field", value => { value.extra = true; }],
   ["language/source disagreement", value => { value.language = "es"; }],
-  ["noncanonical source", value => { value.source = "https://chain.lintcha.com/#fragment"; }],
+  ["noncanonical source", value => { value.source = "https://lintcha.com/#fragment"; }],
   ["backwards block window", value => { value.snapshot.from_block = value.snapshot.to_block + 1; }],
   ["noncanonical time", value => { value.snapshot.from_time = "not-a-time"; }],
   ["extra input field", value => { value.input.contract = "0x00"; }],

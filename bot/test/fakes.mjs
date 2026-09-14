@@ -241,8 +241,8 @@ export function launchRecordHex({
  */
 export const FIXTURE = {
   nonce: "5a17c9e32d4f60718293a4b5c6d7e8f9",
-  address: "0x44ddefb6d59de6523cd7ff06821d48847e95c176",
-  signature: "0x988a1973fb92b7091fc10cdde4cad524a001056561a59ad52f6a68140dd924ce34aeea607dabf021c59b00db750bdfaa167033a8d857d0fd1ab075dc0cadc8c71c"
+  address: "0x1236c1e9f9f5476e884ba606bd3b2f3a47b44bd2",
+  signature: "0xfffc2e6457e5ba5fc6920aadcf1904236eae9744822cc2e230c65d6a96da215105618b2b71795e72bab5ce208112b38d6b659a7fc5484f9b00f35185b362391b1b"
 };
 
 export const STAND_BOT_TOKEN = "a-stand-value-that-is-not-a-bot-token";

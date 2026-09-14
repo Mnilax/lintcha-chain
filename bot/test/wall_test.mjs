@@ -244,24 +244,24 @@ const envWith = stub => ({ TAIL_CACHE_MS: "5000", TAIL_PER_SECOND: "100", WALL_P
 let forwardedWall = null;
 const successStub = { async fetch(input) { forwardedWall = String(input); return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }); } };
 const ctx = { waitUntil() {} };
-let res = await worker.fetch(new Request("https://chain.lintcha.com/api/wall"), envWith(successStub), ctx);
+let res = await worker.fetch(new Request("https://lintcha.com/api/wall"), envWith(successStub), ctx);
 t.ok(res.status === 200 && /max-age=5/.test(res.headers.get("cache-control") || ""), "GET /api/wall returns the wall with the matching cache window");
 t.ok(JSON.stringify(await res.json()) === JSON.stringify(body), "the public route does not add wrapper keys");
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/wall?after=opaque_cursor"), envWith(successStub), ctx);
+res = await worker.fetch(new Request("https://lintcha.com/api/wall?after=opaque_cursor"), envWith(successStub), ctx);
 t.ok(res.status === 200 && forwardedWall === "https://watch/wall?after=opaque_cursor", "the public route forwards the one opaque cursor without interpreting it");
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/wall", { method: "HEAD" }), envWith(successStub), ctx);
+res = await worker.fetch(new Request("https://lintcha.com/api/wall", { method: "HEAD" }), envWith(successStub), ctx);
 t.ok(res.status === 200, "HEAD /api/wall is supported");
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/wall", { method: "POST" }), envWith(successStub), ctx);
+res = await worker.fetch(new Request("https://lintcha.com/api/wall", { method: "POST" }), envWith(successStub), ctx);
 t.ok(res.status === 405, "writes to /api/wall are refused");
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/wall"), {}, ctx);
+res = await worker.fetch(new Request("https://lintcha.com/api/wall"), {}, ctx);
 t.ok(JSON.stringify(await res.json()) === JSON.stringify({ ok: false, why: "no_watcher" }), "a missing watcher is an exact bounded 503 failure");
 
 const failStub = { async fetch() { return new Response(JSON.stringify({ ok: false, why: "stale" }), { status: 503, headers: { "content-type": "application/json" } }); } };
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/wall"), envWith(failStub), ctx);
+res = await worker.fetch(new Request("https://lintcha.com/api/wall"), envWith(failStub), ctx);
 t.ok(res.status === 503, "watcher failure remains 503 at the public route");
 t.ok(JSON.stringify(await res.json()) === JSON.stringify({ ok: false, why: "stale" }), "and its bounded reason is preserved exactly");
 const resetStub = { async fetch() { return new Response(JSON.stringify({ ok: false, why: "reset_required" }), { status: 409, headers: { "content-type": "application/json" } }); } };
-res = await worker.fetch(new Request("https://chain.lintcha.com/api/wall?after=old"), envWith(resetStub), ctx);
+res = await worker.fetch(new Request("https://lintcha.com/api/wall?after=old"), envWith(resetStub), ctx);
 t.ok(res.status === 409 && JSON.stringify(await res.json()) === JSON.stringify({ ok: false, why: "reset_required" }), "a stale or overflowing live cursor remains a bounded reset response through the public route");
 
 forgetTailBucket();
@@ -271,10 +271,10 @@ tight.TAIL_PER_SECOND = "1";
 tight.WALL_PER_SECOND = "1";
 const tailStub = { async fetch(url) { return String(url).endsWith("/tail") ? new Response(JSON.stringify(tail), { status: 200 }) : successStub.fetch(); } };
 tight.WATCH.get = () => tailStub;
-const tailRes = await worker.fetch(new Request("https://chain.lintcha.com/api/tail"), tight, ctx);
-const wallRes = await worker.fetch(new Request("https://chain.lintcha.com/api/wall"), tight, ctx);
+const tailRes = await worker.fetch(new Request("https://lintcha.com/api/tail"), tight, ctx);
+const wallRes = await worker.fetch(new Request("https://lintcha.com/api/wall"), tight, ctx);
 t.ok(tailRes.status === 200 && wallRes.status === 200, "wall and tail have separate per-isolate buckets");
-const limitedWall = await worker.fetch(new Request("https://chain.lintcha.com/api/wall"), tight, ctx);
+const limitedWall = await worker.fetch(new Request("https://lintcha.com/api/wall"), tight, ctx);
 t.ok(limitedWall.status === 429 && JSON.stringify(await limitedWall.json()) === JSON.stringify({ ok: false, why: "rate_limited" }), "wall rate limiting has a bounded machine-readable response");
 
 t.done();

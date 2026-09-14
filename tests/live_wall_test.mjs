@@ -27,11 +27,11 @@ ok(/type="search"[^>]*data-wall-search/.test(html) && /data-wall-filter-state/.t
 ok(["data-wall-snapshot", "data-wall-watcher", "data-wall-gap", "data-wall-freshness", "data-wall-hash"].every(marker => html.includes(marker)), "snapshot, watcher, gap, freshness and row hash each have a visible slot");
 ok(count(html, /<script\b/g) === 1 && /<script src="\/live\/live\.js"><\/script>/.test(html), "the only script is the page's same-origin external script");
 ok(/Factory-log chronology[\s\S]*not a ranking/.test(html), "factory chronology is explicitly not presented as a ranking");
-ok(/<meta property="og:url" content="https:\/\/chain\.lintcha\.com\/live\/">/.test(html) && /<meta property="og:image" content="https:\/\/chain\.lintcha\.com\/og\.png">/.test(html) && /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), "social preview and manifest metadata remain same-origin");
+ok(/<meta property="og:url" content="https:\/\/lintcha\.com\/live\/">/.test(html) && /<meta property="og:image" content="https:\/\/lintcha\.com\/og\.png">/.test(html) && /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), "social preview and manifest metadata remain same-origin");
 ok(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(html), "there is no inline script");
 ok(!/<(?:iframe|object|embed)\b/i.test(html), "there is no embedded third-party surface");
 const resourceUrls = [...html.matchAll(/<(?:script|link|img)\b[^>]*(?:src|href)="([^"]+)"/gi)].map(match => match[1]);
-ok(resourceUrls.length > 0 && resourceUrls.every(url => url.startsWith("/") || url.startsWith("https://chain.lintcha.com/")), "every script, stylesheet, icon, image and canonical resource is same-origin");
+ok(resourceUrls.length > 0 && resourceUrls.every(url => url.startsWith("/") || url.startsWith("https://lintcha.com/")), "every script, stylesheet, icon, image and canonical resource is same-origin");
 
 // The response shape is exact and data never becomes markup or an attribute.
 ok(/SUCCESS_KEYS\s*=\s*\["ok", "snapshot_to_block", "gap_blocks", "watcher_to_block", "read_at", "page_limit", "mode", "older_cursor", "live_cursor", "rows_hash", "view_hash", "rows"\]/.test(js), "the exact bounded page and delta success contract is pinned");

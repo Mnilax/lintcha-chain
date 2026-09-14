@@ -74,7 +74,7 @@ for (const c of ["ca", "price", "me", "verify", "stats", "rule", "rules", "unrul
 // the site is not the token: /site still answers, and says there is no chart rather than linking nothing
 forgetToken();
 body = textOf(await handleUpdate(msg("/site"), { env: {}, kv: fakeKV() }));
-t.ok(body.includes("chain.lintcha.com"), "/site names the site");
+t.ok(body.includes("lintcha.com"), "/site names the site");
 t.ok(body.includes("github.com/Mnilax/lintcha-chain"), "/site names the repository");
 t.ok(/no chart to link yet/.test(body), "/site says there is no chart yet");
 

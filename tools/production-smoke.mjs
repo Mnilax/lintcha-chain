@@ -1,4 +1,4 @@
-// Read-only production smoke for chain.lintcha.com. The target and probes are fixed deliberately: this tool
+// Read-only production smoke for lintcha.com. The target and probes are fixed deliberately: this tool
 // never reads credentials, never follows a redirect, and its only POST bodies are the inert two-byte JSON object
 // used to prove that every public route rejects a write before reaching stateful work.
 //
@@ -11,8 +11,8 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-export const PRODUCTION_ORIGIN = "https://chain.lintcha.com";
-export const PRODUCTION_HTTP_ORIGIN = "http://chain.lintcha.com";
+export const PRODUCTION_ORIGIN = "https://lintcha.com";
+export const PRODUCTION_HTTP_ORIGIN = "http://lintcha.com";
 export const NOT_FOUND_PATH = "/__lintcha_production_smoke_missing__";
 
 export const SMOKE_LIMITS = Object.freeze({
@@ -38,6 +38,7 @@ const REDIRECT_PATHS = Object.freeze(["/", "/hold/", "/api/tail"]);
 const STATIC_CONTENT_TYPES = Object.freeze({
   ".bin": "application/octet-stream",
   ".css": "text/css",
+  ".gif": "image/gif",
   ".html": "text/html",
   ".js": "text/javascript",
   ".json": "application/json",

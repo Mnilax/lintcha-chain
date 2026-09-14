@@ -29,9 +29,9 @@ const env = () => ({
   WATCH: watchBinding
 });
 
-const post = (path, body, headers = {}) => new Request("https://chain.lintcha.com" + path, {
+const post = (path, body, headers = {}) => new Request("https://lintcha.com" + path, {
   method: "POST",
-  headers: { "content-type": "application/json", Origin: "https://chain.lintcha.com", ...headers },
+  headers: { "content-type": "application/json", Origin: "https://lintcha.com", ...headers },
   body: JSON.stringify(body)
 });
 const oversizedPost = (path, limit, headers = {}) => {
@@ -45,7 +45,7 @@ const oversizedPost = (path, limit, headers = {}) => {
   });
   return {
     observed,
-    request: new Request("https://chain.lintcha.com" + path, {
+    request: new Request("https://lintcha.com" + path, {
       method: "POST",
       headers,
       body,
@@ -409,18 +409,18 @@ t.ok(nonceWatch.rules.list("4343").length === 0, "and its internal Watch request
 t.ok(String(net.sent[net.sent.length - 1].text || "") === T.FORGOTTEN, "the production path reports only the two acknowledgements it received");
 
 // ---------------------------------------------------------------- the method and the other paths
-r = await worker.fetch(new Request("https://chain.lintcha.com/api/telegram", { method: "GET" }), env(), ctx);
+r = await worker.fetch(new Request("https://lintcha.com/api/telegram", { method: "GET" }), env(), ctx);
 t.ok(r.status === 405, "a GET on the webhook is refused by method");
 
-r = await worker.fetch(new Request("https://chain.lintcha.com/api/anything", { method: "GET" }), env(), ctx);
+r = await worker.fetch(new Request("https://lintcha.com/api/anything", { method: "GET" }), env(), ctx);
 t.ok(r.status === 404, "an unknown path under the api is four hundred and four");
 t.ok((await r.text()) === "", "with nothing in the body");
 
-r = await worker.fetch(new Request("https://chain.lintcha.com/", { method: "GET" }), env(), ctx);
+r = await worker.fetch(new Request("https://lintcha.com/", { method: "GET" }), env(), ctx);
 t.ok(r.status === 404, "the root is not this worker's business");
 
 // a body that is not json, with the right header
-r = await worker.fetch(new Request("https://chain.lintcha.com/api/telegram", {
+r = await worker.fetch(new Request("https://lintcha.com/api/telegram", {
   method: "POST",
   headers: { "content-type": "application/json", "X-Telegram-Bot-Api-Secret-Token": STAND_WEBHOOK_SECRET },
   body: "not json at all"
@@ -439,7 +439,7 @@ const neverCancelObserved = { cancelled: 0 };
 const neverCancelBody = new ReadableStream({
   cancel() { neverCancelObserved.cancelled++; return new Promise(() => {}); }
 });
-const neverCancelRequest = new Request("https://chain.lintcha.com/api/telegram", {
+const neverCancelRequest = new Request("https://lintcha.com/api/telegram", {
   method: "POST",
   headers: {
     "content-type": "application/json",
@@ -469,11 +469,11 @@ try {
     pull() { hangingObserved.pulls++; return new Promise(() => {}); },
     cancel() { hangingObserved.cancelled++; return new Promise(() => {}); }
   });
-  const hangingRequest = new Request("https://chain.lintcha.com/api/hold", {
+  const hangingRequest = new Request("https://lintcha.com/api/hold", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      Origin: "https://chain.lintcha.com"
+      Origin: "https://lintcha.com"
     },
     body: hangingBody,
     duplex: "half"
@@ -500,24 +500,24 @@ r = await worker.fetch(post("/api/hold", { t: FIXTURE.nonce, address: FIXTURE.ad
 let body = await r.json();
 t.ok(r.status === 400 && body.ok === false && body.why === "nonce", "a mark that was never issued is refused by the hold route");
 
-r = await worker.fetch(new Request("https://chain.lintcha.com/api/hold", { method: "GET" }), env(), ctx);
+r = await worker.fetch(new Request("https://lintcha.com/api/hold", { method: "GET" }), env(), ctx);
 t.ok(r.status === 405, "a GET on the hold route is refused by method");
 
-r = await worker.fetch(new Request("https://chain.lintcha.com/api/hold", {
-  method: "POST", headers: { "content-type": "application/json", Origin: "https://chain.lintcha.com" }, body: "{"
+r = await worker.fetch(new Request("https://lintcha.com/api/hold", {
+  method: "POST", headers: { "content-type": "application/json", Origin: "https://lintcha.com" }, body: "{"
 }), env(), ctx);
 t.ok(r.status === 400, "a hold body that will not parse is four hundred");
 const holdBodyCalls = watchCalls;
 const oversizedHold = oversizedPost("/api/hold", HOLD_BODY_LIMIT, {
   "content-type": "application/json",
-  Origin: "https://chain.lintcha.com"
+  Origin: "https://lintcha.com"
 });
 r = await worker.fetch(oversizedHold.request, env(), ctx);
 t.ok(r.status === 400 && oversizedHold.observed.cancelled && watchCalls === holdBodyCalls,
   "an oversized streaming holder proof is cancelled before nonce or chain work");
-const declaredOversizedHold = new Request("https://chain.lintcha.com/api/hold", {
+const declaredOversizedHold = new Request("https://lintcha.com/api/hold", {
   method: "POST",
-  headers: { "content-type": "application/json", Origin: "https://chain.lintcha.com", "content-length": String(HOLD_BODY_LIMIT + 1) },
+  headers: { "content-type": "application/json", Origin: "https://lintcha.com", "content-length": String(HOLD_BODY_LIMIT + 1) },
   body: "{}"
 });
 r = await worker.fetch(declaredOversizedHold, env(), ctx);
@@ -526,8 +526,8 @@ t.ok(r.status === 400 && watchCalls === holdBodyCalls, "an oversized declared ho
 const beforeGuards = watchCalls;
 r = await worker.fetch(post("/api/hold", { t: FIXTURE.nonce, address: FIXTURE.address, signature: FIXTURE.signature }, { Origin: "https://other.example" }), env(), ctx);
 t.ok(r.status === 403 && (await r.text()) === "" && watchCalls === beforeGuards, "a cross-origin hold post is refused before its body reaches the holder check");
-r = await worker.fetch(new Request("https://chain.lintcha.com/api/hold", {
-  method: "POST", headers: { "content-type": "text/plain", Origin: "https://chain.lintcha.com" }, body: "{}"
+r = await worker.fetch(new Request("https://lintcha.com/api/hold", {
+  method: "POST", headers: { "content-type": "text/plain", Origin: "https://lintcha.com" }, body: "{}"
 }), env(), ctx);
 t.ok(r.status === 415 && (await r.text()) === "" && watchCalls === beforeGuards, "the hold route accepts only the page's JSON media type before Watch");
 

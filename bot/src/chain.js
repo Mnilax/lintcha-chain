@@ -2,7 +2,7 @@
 //
 // Three rules this file exists to keep:
 //
-//   The address is not stored here. It is fetched from the site, https://chain.lintcha.com/token.json, and held
+//   The address is not stored here. It is fetched from the site, https://lintcha.com/token.json, and held
 //   in this isolate's memory for at most a minute. The day the token exists, the same one file edit that lights
 //   the band on the page turns the bot on. There is no second place for the address to disagree.
 //

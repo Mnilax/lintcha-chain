@@ -15,8 +15,8 @@
   // THE SENTENCE. These bytes must match bot/src/texts.js character for character: the worker recovers the
   // address from the exact origin and one-time mark shown here. bot/test/texts_test.mjs reads both files and
   // fails when they drift, because this plain page deliberately has no bundler to keep them together.
-  var HOLDER_ORIGIN = "https://chain.lintcha.com";
-  var SENTENCE_BEFORE_MARK = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://chain.lintcha.com and one-time mark ";
+  var HOLDER_ORIGIN = "https://lintcha.com";
+  var SENTENCE_BEFORE_MARK = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://lintcha.com and one-time mark ";
   var SENTENCE_AFTER_MARK = ". This signature moves nothing, approves nothing and spends nothing.";
   function sentenceFor(mark) { return SENTENCE_BEFORE_MARK + String(mark) + SENTENCE_AFTER_MARK; }
 

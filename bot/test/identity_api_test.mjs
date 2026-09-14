@@ -72,16 +72,16 @@ const binding = {
   } })
 };
 const env = { WATCH: binding, IDENTITY_PER_SECOND: "4" };
-const post = (body, headers = {}) => new Request("https://chain.lintcha.com/api/identity", {
+const post = (body, headers = {}) => new Request("https://lintcha.com/api/identity", {
   method: "POST",
   headers: { "content-type": "application/json", ...headers },
   body: typeof body === "string" ? body : JSON.stringify(body)
 });
 
 forgetIdentityBucket();
-response = await worker.fetch(new Request("https://chain.lintcha.com/api/identity", { method: "OPTIONS" }), env, {});
+response = await worker.fetch(new Request("https://lintcha.com/api/identity", { method: "OPTIONS" }), env, {});
 t.ok(response.status === 204 && response.headers.get("access-control-allow-origin") === "*" && response.headers.get("access-control-allow-methods") === "POST, OPTIONS", "the endpoint answers a minimal public CORS preflight");
-response = await worker.fetch(new Request("https://chain.lintcha.com/api/identity"), env, {});
+response = await worker.fetch(new Request("https://lintcha.com/api/identity"), env, {});
 t.ok(response.status === 405 && response.headers.get("allow") === "POST, OPTIONS", "other methods are refused and the allowed methods are named");
 response = await worker.fetch(post("{}", { "content-type": "text/plain" }), env, {});
 t.ok(response.status === 415 && (await response.json()).why === "media_type", "only JSON media is accepted");
@@ -110,7 +110,7 @@ t.ok(first.status === 200 && limited.status === 429 && (await limited.json()).wh
 
 forgetIdentityBucket();
 const beforeOversize = watchCalls;
-response = await worker.fetch(new Request("https://chain.lintcha.com/api/identity", {
+response = await worker.fetch(new Request("https://lintcha.com/api/identity", {
   method: "POST",
   headers: { "content-type": "application/json", "content-length": String(IDENTITY_BODY_LIMIT + 1) },
   body: "{}"

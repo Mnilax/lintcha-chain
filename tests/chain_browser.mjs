@@ -111,7 +111,7 @@ const DEPLOYER_BODY = {
   rows: DEPLOYER_ROWS
 };
 const HOLD_MARK = "0123456789abcdef".repeat(2);
-const HOLD_SENTENCE = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://chain.lintcha.com and one-time mark " + HOLD_MARK + ". This signature moves nothing, approves nothing and spends nothing.";
+const HOLD_SENTENCE = "I am proving to the lintcha bot that this wallet is mine. This proof is only for https://lintcha.com and one-time mark " + HOLD_MARK + ". This signature moves nothing, approves nothing and spends nothing.";
 let liveWallRequests = 0;
 let deployerRequests = 0;
 const launchIndexRequests = new Map();
