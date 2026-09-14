@@ -229,7 +229,7 @@ Deployer history uses the same retained watcher data for one supplied public dep
 
 Runtime availability is part of the claim. A missing, stale, incomplete or mismatched suffix fails closed instead of being shown as complete data.
 
-## Telegram, holder proof and Hour X
+## Telegram, holder proof and token activation
 
 [`site/token.json`](site/token.json) is the single activation document shared by the static site and Worker. Its dormant form contains null values for the contract and buy routes; its active form requires one canonical nonzero address and a canonical HTTPS buy URL containing that address.
 
@@ -254,7 +254,7 @@ When the public contract and canonical buy link exist, the guarded local switch 
 npm run activate-token -- <CA> <PONS_HTTPS_URL>
 ```
 
-The companion [Hour-X workflow](.github/workflows/hour-x.yml) prepares the same review-only change. It validates the public inputs and configured chain reads before opening a draft pull request; it does not merge or deploy.
+The companion [Token activation workflow](.github/workflows/token-activation.yml) prepares the same review-only change. It validates the public inputs and configured chain reads before opening a draft pull request; it does not merge or deploy.
 
 ## Repository map
 

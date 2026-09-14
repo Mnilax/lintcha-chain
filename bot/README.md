@@ -186,7 +186,7 @@ when what actually happened was a network fault.
         npm run telegram:set-webhook-pretoken
         npm run telegram:webhook-info
 
-   After Hour X has independently verified, published and reproduced a non-null address, use the ordinary active
+   After token activation has independently verified, published and reproduced a non-null address, use the ordinary active
    command instead:
 
         npm run telegram:set-webhook

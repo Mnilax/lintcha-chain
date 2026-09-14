@@ -115,7 +115,7 @@ A path is added here in the same commit that creates the file.
 - `tests/launch_rpc_split_test.mjs`
 - `tests/production_smoke_test.mjs`
 - `tests/activate_token_test.mjs`
-- `tests/hour_x_workflow_test.mjs`
+- `tests/token_activation_workflow_test.mjs`
 - `fixtures/verified-specimen.json`
 - `site/verified-specimen.js`
 - `site/proof.css`
