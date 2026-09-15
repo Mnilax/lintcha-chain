@@ -54,7 +54,7 @@ site/ui-controls.js                    theme toggle and language select; the two
 site/fonts/archivo.woff2
 site/fonts/ibm-plex-mono-400.woff2
 site/fonts/ibm-plex-mono-600.woff2
-site/icon-32.png  site/icon-180.png  site/icon-512.png  site/og.png
+site/icon-32.png  site/icon-180.png  site/icon-512.png  site/og.png  site/og-lintcha.png
 manifest.webmanifest                   written by the build
 site/i18n/<lang>.json chrome keys      app.name, nav.tool, nav.method, nav.library, nav.checker, nav.soon, nav.label,
                                        theme.dark, theme.light, lang.label, footer.rules ({rules} from rules.js), footer.privacy,

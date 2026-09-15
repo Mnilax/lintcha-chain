@@ -32,7 +32,7 @@ lintcha is the source. This repository only receives copies. A fix is made in li
 | `tools/launch-collect.mjs` | `tools/launch-collect.mjs` | `e095873dd55b3f00f26df13bfa1e3e3a1f9c3dcbef1509bf0f19807d79958e87` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
 | `tools/launch-index-schema.json` | not in lintcha, from working tree | `c0b1b2bba26ebd7e6e4c4b86bac3346804f24471c33c3f969c889e551e88ea03` | not in lintcha, from working tree |
 | `tools/launch-index.mjs` | `tools/launch-index.mjs` | `fe14373fd74bf417afa250ff81feeb44110b78373ead2054516a57d90e4629ef` | `2a5b9c3c776a15619bf329a0082873e8e50fcd26` |
-| `tools/launch/MANIFEST.md` | not in lintcha, from working tree | `51b8122e1fb88953440565aefa0f95142d8621204be77fea95a10106f1168d3e` | not in lintcha, from working tree |
+| `tools/launch/MANIFEST.md` | not in lintcha, from working tree | `4081d5b9a6360149468f1ba2064cc2ea00f9a34fe305192ea5c21b1077e86227` | not in lintcha, from working tree |
 | `tools/launch/abi.mjs` | not in lintcha, from working tree | `c81920315d4a5c99a891f0bd2d093b4914a0722a2ec422b306a90ea45e4601ba` | not in lintcha, from working tree |
 | `tools/launch/keccak.mjs` | not in lintcha, from working tree | `bef0295971781ce2e8afdf4f22e3f85ca639c13f6e460bbe4faf957dfaa8de5d` | not in lintcha, from working tree |
 | `tools/launch/rpc.mjs` | `tools/launch/rpc.mjs` | `ee4700340bc9f605ea0ffb85f02e42d3bda6758ad5dc6fa22fdf0e431bc99583` | `9da077a18c310bab7c1d0321f8f543d5701d89c9` |
@@ -83,6 +83,7 @@ A path is added here in the same commit that creates the file.
 - `site/icon-180.png`
 - `site/icon-512.png`
 - `site/og.png`
+- `site/og-lintcha.png`
 - `site/launch-site.json`
 - `site/launch-manifest.json`
 - `site/brand/echo-bat-front.png`
