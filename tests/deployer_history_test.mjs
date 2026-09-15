@@ -22,7 +22,7 @@ ok(/exposes no token address or transaction/i.test(html) && /no verdict/i.test(h
 ok(/data-history-from/.test(html) && /data-history-to/.test(html) && /data-history-count/.test(html) && /data-history-freshness/.test(html), "coverage, count and freshness have separate visible fields");
 ok(/data-history-hash/.test(html) && /page rows sha-256/.test(html), "the exact page-row hash has a visible slot");
 ok(/<script src="\/deployer\/deployer\.js"><\/script>/.test(html) && !/<script(?![^>]*\ssrc=)/.test(html), "the page has one external script and no inline script");
-ok(/<meta property="og:url" content="https:\/\/lintcha\.com\/deployer\/">/.test(html) && /<meta property="og:image" content="https:\/\/lintcha\.com\/og\.png">/.test(html) && /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), "social preview and manifest metadata remain same-origin");
+ok(/<meta property="og:url" content="https:\/\/lintcha\.com\/deployer\/">/.test(html) && /<meta property="og:image" content="https:\/\/lintcha\.com\/og-lintcha\.png">/.test(html) && /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), "social preview and manifest metadata remain same-origin");
 
 ok(/form\.addEventListener\("submit"[\s\S]*fetch\("\/api\/deployer\?" \+ params\.toString\(\)/.test(js), "the endpoint is reached only inside explicit form submission");
 ok(/params = new URLSearchParams\(\)/.test(js) && /params\.set\("address", address\)/.test(js), "the address query is encoded by URLSearchParams");

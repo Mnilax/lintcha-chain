@@ -285,7 +285,7 @@ function render(tplName, lang, extra) {
   const localePath = LOCALE_PATHS[lang];
   if (!localePath) abort(`no public path for language ${lang}`);
   const tokens = Object.assign({
-    lang, root: "/", url: abs(localePath), og_image: abs("/og.png"), theme_script: themeScript, main, fixed, nav: nav(""), cluster: cluster(),
+    lang, root: "/", url: abs(localePath), og_image: abs("/og-lintcha.png"), theme_script: themeScript, main, fixed, nav: nav(""), cluster: cluster(),
     alt_en: abs(LOCALE_PATHS.en), alt_es: abs(LOCALE_PATHS.es), alt_pt: abs(LOCALE_PATHS.pt),
     rel_en: LOCALE_PATHS.en, rel_es: LOCALE_PATHS.es, rel_pt: LOCALE_PATHS.pt,
     contract_row: contractRow(), token_section: tokenSection(lang), launch_band: launchBand(), repo: REPO, anchor_method: "#s" + NUM.method,
