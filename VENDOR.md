@@ -89,6 +89,7 @@ A path is added here in the same commit that creates the file.
 - `site/brand/echo-bat-front.png`
 - `site/brand/echo-bat-side.png`
 - `site/brand/echo-bat-flight.gif`
+- `site/brand/echo-bat-front-flight.gif`
 - `site/sitemap.xml`
 - `site/links.json`
 - `site/hold/index.html`

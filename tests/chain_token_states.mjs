@@ -147,7 +147,7 @@ const sprites = a.match(/<svg class="sprite [^"]*"[\s\S]*?<\/svg>/g) || [];
 ok(sprites.length === 1 && count(a, /class="sprite sprite-s"/g) === 1, "the caret sprite appears only in the theme control");
 ok(count(sprites[0] || "", /<rect /g) === 11 && count(sprites[0] || "", /class="cut"/g) === 2, "the theme caret keeps its eleven-cell shape and two cut strokes");
 ok(count(a, /class="lore-mascot"[^>]+echo-bat-front\.png/g) === 1, "the lore carries one front-facing Echo Bat");
-ok(count(a, /data-hero-lockup/g) === 1 && /class="hero-lockup-bat"[^>]+echo-bat-front\.png/.test(a) && count(a, /class="hero-bat-wing hero-bat-wing-(?:left|right)"/g) === 2 && /class="hero-lockup-word"[^>]*>LINTCHA</.test(a), "the hero opens with the fixed Echo Bat body, two animated wings and LINTCHA lockup");
+ok(count(a, /data-hero-lockup/g) === 1 && /class="hero-lockup-bat"[^>]+echo-bat-front-flight\.gif/.test(a) && count(a, /class="hero-bat-wing/g) === 0 && /class="hero-lockup-word"[^>]*>LINTCHA</.test(a), "the hero opens with the front-facing Echo Bat flight loop and LINTCHA lockup");
 ok(count(a, /class="road-mascot"[^>]+echo-bat-flight\.gif/g) === 1 && count(a, /data-mascot-progress/g) === 1, "the roadmap and scroll rail carry Echo Bat flight assets");
 ok(count(a, /data-mascot-fill/g) === 1 && count(a, /data-mascot-section/g) === 1 && /data-i18n="progress\.prefix">you are in</.test(a) && /href="\/favicon-bat\.png"/.test(a), "the bottom rail carries progress, its current-section label and the dedicated bat favicon");
 // the roadmap line: the three phase lists folded onto one rule, a tick for every item and not one item lost
