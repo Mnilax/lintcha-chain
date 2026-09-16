@@ -42,8 +42,74 @@
     root.setAttribute("lang", pageLang);
     root.setAttribute("dir", "ltr");
     var select = one("[data-lang-select]");
-    if (select) select.value = pageLang;
+    if (select) { select.value = pageLang; enhanceLanguageMenu(select); }
     localeNavigationReady = true;
+  }
+
+  function enhanceLanguageMenu(select) {
+    var host = select.parentNode;
+    if (!host || host.querySelector("[data-language-menu]")) return;
+    var shell = doc.createElement("span"), button = doc.createElement("button"), menu = doc.createElement("span");
+    shell.className = "lc-language";
+    shell.setAttribute("data-language-menu", "");
+    button.type = "button";
+    button.className = "lc-language-button";
+    button.setAttribute("aria-haspopup", "listbox");
+    button.setAttribute("aria-expanded", "false");
+    menu.className = "lc-language-list";
+    menu.setAttribute("role", "listbox");
+    menu.hidden = true;
+    var options = Array.prototype.slice.call(select.options);
+    var close = function () { menu.hidden = true; button.setAttribute("aria-expanded", "false"); };
+    var open = function () { menu.hidden = false; button.setAttribute("aria-expanded", "true"); };
+    var sync = function () {
+      var current = options.filter(function (option) { return option.value === select.value; })[0] || options[0];
+      button.innerHTML = '<span>' + current.textContent + '</span><span class="lc-language-chevron" aria-hidden="true"></span>';
+      q("[role=option]", menu).forEach(function (item) { item.setAttribute("aria-selected", item.getAttribute("data-lang-value") === select.value ? "true" : "false"); });
+    };
+    options.forEach(function (option) {
+      var item = doc.createElement("button");
+      item.type = "button";
+      item.className = "lc-language-option";
+      item.setAttribute("role", "option");
+      item.setAttribute("data-lang-value", option.value);
+      item.textContent = option.textContent;
+      item.addEventListener("click", function () {
+        select.value = option.value;
+        sync();
+        close();
+        select.dispatchEvent(new Event("change", { bubbles:true }));
+      });
+      menu.appendChild(item);
+    });
+    button.addEventListener("click", function () { if (menu.hidden) open(); else close(); });
+    button.addEventListener("keydown", function (event) {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      open();
+      var items = q("[role=option]", menu);
+      if (items.length) (event.key === "ArrowUp" ? items[items.length - 1] : items[0]).focus();
+    });
+    menu.addEventListener("keydown", function (event) {
+      var items = q("[role=option]", menu), index = items.indexOf(doc.activeElement);
+      if (event.key === "Escape") { event.preventDefault(); close(); button.focus(); return; }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      index = event.key === "ArrowDown" ? (index + 1) % items.length : (index - 1 + items.length) % items.length;
+      items[index].focus();
+    });
+    if (window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches) {
+      shell.addEventListener("mouseenter", open);
+      shell.addEventListener("mouseleave", close);
+    }
+    doc.addEventListener("pointerdown", function (event) { if (!shell.contains(event.target)) close(); });
+    select.classList.add("lc-select-native");
+    select.setAttribute("aria-hidden", "true");
+    select.tabIndex = -1;
+    shell.appendChild(button);
+    shell.appendChild(menu);
+    host.appendChild(shell);
+    sync();
   }
 
   // launch-page.js is vendored and stays byte-for-byte intact. Its one lazy fetch is wrapped here so a
@@ -86,7 +152,10 @@
 
   /* ---------------------------------------------------------------- Echo Bat: one user-controlled trip across the page */
   function mascot() {
-    if (reduced) q("[data-mascot-flight]").forEach(function (image) { image.src = "/brand/echo-bat-side.png"; });
+    if (reduced) {
+      q("[data-mascot-flight]").forEach(function (image) { image.src = "/brand/echo-bat-side.png"; });
+      q("[data-hero-bat-animated]").forEach(function (image) { image.src = image.getAttribute("data-static-src") || "/brand/echo-bat-front.png"; });
+    }
     var rail = one("[data-mascot-progress]");
     var track = one("[data-mascot-track]", rail);
     var runner = one("[data-mascot-runner]", rail);
