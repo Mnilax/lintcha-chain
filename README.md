@@ -80,7 +80,8 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
-| [Telegram Mini App and bot](https://t.me/lintchabot) | Packs Read, Live, Deployer and token state into a compact view; publishes a safe inline share palette; routes commands, holder proofs and finalized feed events | May run in explicit pre-token mode; token-dependent paths stay dormant before activation |
+| [Lintcha Core in Telegram](https://t.me/lintchabot) | Keeps the existing Read, Live, Deployer, token-state, holder-proof and finalized-feed commands read-only | Existing Core surface; unchanged |
+| Lintcha Copy in `@lintchabot` | Opens a separately labelled, opt-in `/copy/` Mini App route for notify-only or confirm-each self-custody trading | Separate service and database; activate only after its own beta gate |
 
 The live path never mutates the comparison index. The snapshot stays pinned to its recorded state and window until a guarded refresh publishes a replacement.
 
@@ -279,9 +280,9 @@ Files owned by this repository are listed separately. CI refuses missing, modifi
 
 If the site computes something this repository cannot reproduce, the repository has stopped being the source. That is a product failure, not a documentation problem.
 
-## The eight never lines
+## Lintcha Core: the eight never lines
 
-These are the product constraints verbatim:
+These are the Lintcha Core product constraints verbatim. The lines themselves remain unchanged:
 
 - no score, no probability, no rating, no ordering, and no colour that means good or bad
 - no private index and no paid tier that reads more than this page reads
@@ -292,7 +293,13 @@ These are the product constraints verbatim:
 - no closed core: if the site computes something the repository cannot, the repository is decoration
 - no licence change
 
-A proposal that weakens one of these lines changes the product rather than extending it.
+A proposal that weakens one of these lines changes Lintcha Core rather than extending it.
+
+`@lintchabot` may also expose **Lintcha Copy**, a separately labelled and voluntary trading module. It is not Lintcha Core: it has a separate package/service, `/copy/` Mini App route and origin, database namespace, configuration, audit log and kill switches. Core commands, Core data and the eight lines above remain read-only and unchanged.
+
+Lintcha Copy never receives a seed or private key through Telegram or the backend. Wallet creation, import, recovery and export stay in the protected client secure sheet. In Basic mode the backend prepares and simulates an unsigned transaction, and the user's self-custody wallet reviews, signs and submits every BUY or manual SELL separately. Auto-SELL is not available.
+
+Therefore statements such as “the bot never trades” or “no signature anywhere moves funds” refer to **Lintcha Core**, not to the whole `@lintchabot` identity. Every transition from Core to Copy must say so before a wallet or transaction control appears.
 
 ## Contributing
 

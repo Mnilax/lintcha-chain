@@ -127,7 +127,23 @@ export async function sendMessageResult(env, chatId, text, options = {}) {
     disable_notification: options.quiet === true
   };
   if (options.replyTo) body.reply_parameters = { message_id: options.replyTo, allow_sending_without_reply: true };
+  // Only the Lintcha Copy seam sets these: its text is plain and is escaped here, and its keyboard was already
+  // constrained to namespaced callbacks and the exact Copy origin before it reached this Worker.
+  if (options.escape === true) body.text = esc(text);
+  if (options.reply_markup && typeof options.reply_markup === "object") body.reply_markup = options.reply_markup;
   return (await botApiCallResult(env, "sendMessage", body)).state;
+}
+
+/**
+ * Dismiss the spinner on a Lintcha Copy button. Answering the same callback id twice is harmless, a stale id is
+ * terminal, and Telegram posts nothing on this call, so a retry can never duplicate a message.
+ */
+export async function answerCallbackQueryResult(env, value) {
+  if (!env || !env.TELEGRAM_BOT_TOKEN || !value || typeof value.callbackQueryId !== "string" || !/^[0-9]{1,32}$/.test(value.callbackQueryId)) return "terminal";
+  const { state, errorCode } = await botApiCallResult(env, "answerCallbackQuery", { callback_query_id: value.callbackQueryId });
+  if (state === "accepted") return "accepted";
+  if (state === "refused" && errorCode === 400) return "terminal";
+  return "retryable";
 }
 
 /** Existing callers need only acceptance; command delivery additionally consumes the tri-state above. */
@@ -229,6 +245,7 @@ export async function perform(env, actions) {
     if (!a) continue;
     if (a.kind === "send" && await sendMessage(env, a.chat, a.text, a)) sent++;
     if (a.kind === "answer-inline" && await answerInlineQueryResult(env, a) === "accepted") sent++;
+    if (a.kind === "answer-callback" && await answerCallbackQueryResult(env, a) === "accepted") sent++;
   }
   return sent;
 }

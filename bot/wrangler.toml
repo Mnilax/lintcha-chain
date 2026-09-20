@@ -40,8 +40,21 @@ compatibility_flags = ["nodejs_compat"]
 
 # Names only, never values. On the supported production deploy Wrangler inherits these bindings from the latest
 # staged version and refuses the upload if either one is absent.
+#
+# A third secret is optional and belongs to the Lintcha Copy seam (src/copy.js):
+#
+#     COPY_GATEWAY_SECRET       shared HMAC secret between this Worker and the separate Copy Worker
+#
+# It is deliberately not in the required list: without it, `/copy` and Copy buttons stay silent and Core is
+# exactly what it was. The bot token is never shared with Copy in either direction.
 [secrets]
 required = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"]
+
+# The Copy Worker, reached by a service binding rather than the public internet. Uncomment when it exists.
+# Copy must never be reached through this Worker's own route or bindings; it has its own D1, object and secrets.
+# [[services]]
+# binding = "COPY_SERVICE"
+# service = "lintcha-copy"
 
 # /api/* is intercepted before the assets worker; the root stays with the site, which is how the page and this
 # worker share one host. Confirmed by observation before the code was written.
@@ -203,6 +216,14 @@ RULE_DELIVERY_TOTAL = "1000"
 # One retry pass reads only this many durable rule notifications. Rows rotate by their last attempt, so a
 # dormant holder at the front cannot permanently hide later live work.
 RULE_DELIVERY_BATCH = "20"
+# ---------------------------------------------------------------- Lintcha Copy seam
+# Both empty on purpose: with either empty (or the COPY_GATEWAY_SECRET secret absent) Lintcha Copy is disabled and
+# this Worker answers `/copy` with silence. The origin is the exact HTTPS origin of the separate Copy Mini App,
+# used only to validate the buttons Copy sends back; the URL is used only when no COPY_SERVICE binding exists.
+# Neither value is a secret. Filling them is a separate owner decision after the Copy Worker is deployed.
+COPY_APP_ORIGIN = ""
+COPY_SERVICE_URL = ""
+
 # Known commands share one durable fixed window per Telegram user. Unknown updates are deduped without
 # spending it, and /forget bypasses it so deleting stored session/rule data remains available.
 TELEGRAM_COMMANDS_PER_WINDOW = "20"

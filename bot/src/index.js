@@ -29,8 +29,10 @@
 // The webhook path is this worker's choice, not Telegram's. Vlad sets the webhook himself from a browser, and
 // that command carries the bot token, so it is not written here, not in the README and not in the repository.
 
-import { handleUpdate, commandOf, ourBotJoined, KNOWN_COMMANDS } from "./router.js";
-import { answerInlineQueryResult, sendMessage, sendMessageResult } from "./telegram.js";
+import { handleUpdate, commandOf, ourBotJoined, KNOWN_COMMANDS, COPY_COMMANDS } from "./router.js";
+import { answerCallbackQueryResult, answerInlineQueryResult, sendMessage, sendMessageResult } from "./telegram.js";
+import { copyRoute } from "./copy-gateway.js";
+import { copyConfigOf, drainCopyOutboxFor } from "./copy.js";
 import { inlineQueryOf } from "./inline.js";
 import { checkHold } from "./verify.js";
 import { readToken } from "./chain.js";
@@ -85,7 +87,7 @@ export function telegramUpdateIdOf(value) {
 }
 
 /** Only an actual known command spends a user's durable bucket; unknown Telegram traffic is merely deduped. */
-export function telegramCommandClaimOf(update, botUsername = null) {
+export function telegramCommandClaimOf(update, botUsername = null, { copy = false } = {}) {
   const inline = inlineQueryOf(update);
   if (inline) return {
     known: true,
@@ -94,6 +96,15 @@ export function telegramCommandClaimOf(update, botUsername = null) {
     metered: true,
     inline: true
   };
+  // A Lintcha Copy button press is a known, metered action of the user who pressed it. Any other callback query
+  // is not ours and is merely deduped. Nothing here reads the callback payload beyond its namespace.
+  const callback = update && update.callback_query;
+  if (callback && typeof callback === "object") {
+    if (!copy || copyRoute(update, botUsername) !== "COPY_CALLBACK") return { known: false, owner: null, meteredOwner: null, metered: false };
+    const id = callback.from ? telegramUpdateIdOf(callback.from.id) : null;
+    const owner = id === null ? null : String(id);
+    return { known: true, owner, meteredOwner: owner, metered: true };
+  }
   const msg = (update && (update.message || update.edited_message)) || null;
   if (!msg || !msg.chat) return { known: false, owner: null, meteredOwner: null, metered: false };
   if (Array.isArray(msg.new_chat_members) && msg.new_chat_members.length) {
@@ -103,7 +114,7 @@ export function telegramCommandClaimOf(update, botUsername = null) {
     return { known: true, owner, meteredOwner: null, metered: false, service: true };
   }
   const command = commandOf(msg.text, botUsername);
-  if (!command || !KNOWN_COMMANDS.includes(command)) return { known: false, owner: null, meteredOwner: null, metered: false };
+  if (!command || !(KNOWN_COMMANDS.includes(command) || (copy && COPY_COMMANDS.includes(command)))) return { known: false, owner: null, meteredOwner: null, metered: false };
   const id = msg.from ? telegramUpdateIdOf(msg.from.id) : null;
   const owner = id === null ? null : String(id);
   // /forget is the deletion path promised to work independently of the rest of the service. It is still
@@ -360,7 +371,7 @@ export default {
       if (!update) return new Response(null, { status: 400 });
       const updateId = telegramUpdateIdOf(update && update.update_id);
       if (updateId === null) return new Response(null, { status: 400 });
-      const command = telegramCommandClaimOf(update, env.BOT_USERNAME);
+      const command = telegramCommandClaimOf(update, env.BOT_USERNAME, { copy: copyConfigOf(env) !== null });
       const updates = telegramUpdateDep(env);
       if (!updates) return new Response(null, { status: 503 });
       const runnable = command.known && (command.owner !== null || command.service === true);
@@ -476,6 +487,12 @@ export default {
     if (tape) ctx.waitUntil(tape.fetch("https://tape/watchdog").catch(() => {}));
     const watch = watchStub(env);
     if (watch) ctx.waitUntil(watch.fetch("https://watch/watchdog").catch(() => {}));
+    // Lintcha Copy's queued lines (a review is ready) are delivered with this Worker's token, because Copy has
+    // none. Disabled Copy means this is a no-op; a Copy failure is swallowed here and never touches the two loops.
+    if (copyConfigOf(env)) {
+      ctx.waitUntil(drainCopyOutboxFor(env, ({ chatId, response }) =>
+        sendMessageResult(env, chatId, response.text, { reply_markup: response.reply_markup, escape: true })).catch(() => {}));
+    }
   }
 };
 
@@ -494,6 +511,18 @@ async function deliverTelegramUpdate(updateId, update, initial, updates, env) {
     const sending = await updates.send(updateId, state.nextAction);
     if (!sending || sending.send !== true || !Number.isSafeInteger(sending.leaseUntil)) return false;
     const action = state.actions[state.nextAction];
+    if (action.kind === "answer-callback") {
+      // Same shape as an inline answer: a retryable failure releases the lease, a terminal one is completed,
+      // and answering a callback id can never post a duplicate message.
+      const delivery = await answerCallbackQueryResult(env, action);
+      if (delivery === "retryable") {
+        await updates.release(updateId, state.nextAction, sending.leaseUntil);
+        return false;
+      }
+      state = await updates.advance(updateId, state.nextAction, sending.leaseUntil);
+      if (!state) return false;
+      continue;
+    }
     if (action.kind === "answer-inline") {
       const delivery = await answerInlineQueryResult(env, action);
       if (delivery === "retryable") {

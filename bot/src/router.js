@@ -28,11 +28,14 @@ import { formatUnits, shortAddress } from "./texts.js";
 import { requiredHttpsUrlOf } from "../../lib/config-contract.mjs";
 import { botUsernameOf } from "./config.js";
 import { inlineActionFor, inlineKindsFor, inlineQueryOf } from "./inline.js";
+import { copyActionsFor } from "./copy.js";
 
 /** the commands that answer anywhere, and the ones that only answer in a direct message */
 export const PUBLIC_COMMANDS = ["start", "ca", "price", "stats", "site"];
 export const PRIVATE_COMMANDS = ["verify", "me", "forget", "rule", "rules", "unrule"];
 export const KNOWN_COMMANDS = [...PUBLIC_COMMANDS, ...PRIVATE_COMMANDS];
+/** Lintcha Copy's one command. Not a Core command: it is claimed only while the seam is configured and is answered by ./copy.js, never here. */
+export const COPY_COMMANDS = ["copy"];
 
 const send = (chat, text, options = {}) => ({ kind: "send", chat, text, ...options });
 
@@ -102,6 +105,12 @@ export async function handleUpdate(update, deps) {
     const token = await readToken(env);
     return [send(update.message.chat.id, T.greetingText(tokenStateOf(token)), { quiet: true })];
   }
+
+  // Lintcha Copy: `/copy` and the namespaced callback buttons go through the seam and nowhere else. Every other
+  // callback query is not ours and stays silent; every other command is untouched by this block.
+  const copyActions = await copyActionsFor(update, env);
+  if (copyActions !== null) return copyActions;
+  if (update && update.callback_query) return [];
 
   const msg = (update && (update.message || update.edited_message)) || null;
   if (!msg || !msg.chat) return [];

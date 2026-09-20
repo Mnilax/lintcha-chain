@@ -1,6 +1,6 @@
 # bot
 
-The room's half of lintcha. It reads the chain and answers, and it does nothing else.
+This folder is **Lintcha Core**, the read-only room half of lintcha. It reads the chain and answers, and it does nothing else.
 
 The code is here because the page already promises it is. The roadmap on
 `lintcha.com` carries this sentence in production:
@@ -598,7 +598,7 @@ out loud what holding does buy:
 the code is what keeps it true: a rule reads `launch-index.json`, the file the page reads, over the network,
 like anyone else.
 
-## What the bot never does
+## What Lintcha Core never does
 
 - It never messages anyone first.
 - It never asks for a key, a seed or an approval to spend.
@@ -607,6 +607,16 @@ like anyone else.
   nothing.
 - It sets no score, predicts nothing and advises nothing.
 - Everything it says is read from the chain.
+
+These statements describe Lintcha Core, not every feature reachable through the shared `@lintchabot` identity.
+
+## Lintcha Copy boundary
+
+`/copy` may route a private-chat user through a minimal gateway to the separately deployed Lintcha Copy service. The gateway forwards only a signed minimal identity envelope and namespaced Copy action; it does not give the Copy service the bot token or the raw Telegram update. All existing commands stay in Core.
+
+Lintcha Copy has its own Mini App route/origin, database, configuration, audit log and kill switches. Its Basic mode is notify-only or confirm-each. Every BUY and every manual SELL is reviewed and signed by the user's self-custody wallet in the secure sheet. Seed, private key, recovery material, wallet vault and signed raw transaction never enter Telegram, Bot API, this Worker, either database, analytics, logs or Git. Auto-SELL is disabled.
+
+A screen or message must name either “Lintcha Core — read-only” or “Lintcha Copy — trading” before showing the next action.
 
 That last one is load bearing rather than decorative: it is why there is no price API in
 here and why there will not be one. A dollar figure from a third party would make the

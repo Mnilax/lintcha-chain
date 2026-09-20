@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#08090a">
+<meta name="description" content="Lintcha Copy — trading. The secure sheet for confirm-each BUY and manual SELL. Separate from read-only Lintcha Core.">
+<title>Lintcha Copy — trading</title>
+<link rel="stylesheet" href="/copy/copy-app.css">
+</head>
+<body>
+<main class="sheet" data-copy-sheet>
+  <!-- The module label is static markup. The script never selects, rewrites or hides it. -->
+  <header class="module-label" data-module-label>
+    <span class="module-name">Lintcha Copy — trading</span>
+    <span class="module-boundary">This is Lintcha Copy, a separate voluntary trading module. It is not read-only Lintcha Core. Every BUY and manual SELL is confirmed here by your own wallet. Nothing is signed or sent automatically.</span>
+  </header>
+
+  <section data-view="loading">
+    <p class="notice">Reading your Telegram identity from this Mini App…</p>
+  </section>
+
+  <section data-view="unauthenticated" class="hidden">
+    <h1>Open from Telegram</h1>
+    <p class="notice">This sheet works only when opened from a private chat with @lintchabot. No Telegram identity was found in this page.</p>
+  </section>
+
+  <section data-view="error" class="hidden">
+    <h1>Stopped</h1>
+    <p class="error" data-error></p>
+    <p class="small">Nothing was signed or submitted. Open /copy in Telegram again to retry.</p>
+  </section>
+
+  <section data-view="home" class="hidden">
+    <h1>Your Lintcha Copy</h1>
+    <p><span class="small">Mode:</span> <span data-mode></span> · <span class="small">Status:</span> <span data-status></span></p>
+    <p class="small">Change mode or pause from the /copy message in Telegram. This sheet only reviews and confirms.</p>
+    <h2>Wallet</h2>
+    <p class="wallets" data-wallets>No public address registered yet.</p>
+    <div class="actions">
+      <button type="button" data-action="connect-wallet">Connect wallet (EIP-1193)</button>
+    </div>
+    <p class="small" data-wallet-note>Connecting shares only your public address. Seed phrases and private keys never enter this page or the server.</p>
+    <h2>Open reviews</h2>
+    <ul class="intents" data-intents></ul>
+    <p class="notice hidden" data-no-intents>Nothing is waiting for your confirmation.</p>
+  </section>
+
+  <section data-view="review" class="hidden">
+    <h1>Review before your wallet opens</h1>
+    <div class="review">
+      <p class="direction" data-review-direction></p>
+      <dl data-review-fields></dl>
+    </div>
+    <p class="small">Simulated by two independent RPC providers at one common block. The wallet will show the same target, value and calldata; if it differs, reject in the wallet.</p>
+    <div class="confirm-box">
+      <p><strong>Separate confirmation.</strong> Confirming here opens your wallet with exactly this transaction. Your wallet asks you again. Either step can be cancelled.</p>
+      <div class="actions">
+        <button type="button" class="primary" data-action="confirm">Confirm and open wallet</button>
+        <button type="button" data-action="cancel">Cancel — submit nothing</button>
+      </div>
+      <p class="small" data-expiry></p>
+    </div>
+  </section>
+
+  <section data-view="result" class="hidden">
+    <h1 data-result-title></h1>
+    <p data-result-text></p>
+    <p class="small" data-result-hash></p>
+    <div class="actions"><button type="button" data-action="home">Back</button></div>
+  </section>
+
+  <footer>
+    Lintcha Copy keeps your funds in your own wallet. It never asks for a seed phrase or private key, never signs on your behalf and never sells automatically. SELL is manual: approval and trade are two separate confirmations.
+  </footer>
+</main>
+<script type="module" src="/copy/copy-app.js"></script>
+</body>
+</html>
