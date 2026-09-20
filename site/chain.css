@@ -58,6 +58,8 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .page-switch { display:flex; align-items:center; gap:14px; margin:0; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; white-space:nowrap; }
 .topbar .page-switch a { color:var(--ink-2); border:0; padding:4px 0; }
 .topbar .page-switch a:hover { color:var(--ink); }
+.topbar .page-switch .page-switch-copy { padding:7px 12px; border-radius:999px; background:var(--accent); color:var(--accent-ink); }
+.topbar .page-switch .page-switch-copy:hover { color:var(--accent-ink); opacity:.88; }
 .page-switch-current { color:var(--accent); padding:4px 0; }
 .nav { position:relative; display:flex; align-items:center; gap:14px; margin:0 auto; font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; }   /* ten items since the bar became the page's own order */
 .topbar .nav a { color:var(--ink-2); border:0; padding:4px 0; }
@@ -128,6 +130,7 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .hero-bat-stage { position:relative; display:block; width:clamp(132px,18vw,196px); aspect-ratio:432/280; flex:0 0 auto; }
 .hero-lockup-bat { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 0 11px color-mix(in srgb,var(--accent) 31%,transparent)); }
 .hero-lockup-word { min-width:0; color:var(--accent); font-family:'IBM Plex Mono',monospace; font-size:clamp(58px,8.2vw,104px); font-weight:600; line-height:.86; letter-spacing:.045em; text-transform:uppercase; white-space:nowrap; filter:drop-shadow(0 0 8px color-mix(in srgb,var(--accent) 25%,transparent)); }
+.copy-kicker { margin:0 0 14px; color:var(--accent); font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; }
 .hero-h1 { font-family:'IBM Plex Mono',monospace; color:var(--ink); font-size:clamp(28px,3.4vw,48px); line-height:1.12; font-weight:600; letter-spacing:-0.02em; text-transform:uppercase; margin:0 0 28px; max-width:1040px; text-wrap:pretty; }
 .hero-l2 { color:var(--ink-2); }
 .hero-intro { font-size:18px; line-height:1.6; color:var(--ink-2); margin:0 0 14px; max-width:700px; }
@@ -138,6 +141,18 @@ body[data-page="chain"] input:focus, body[data-page="chain"] textarea:focus, bod
 .hero-action:hover { border-color:var(--accent); color:var(--accent); }
 body[data-page="chain"] .hero-action-primary { border-color:var(--accent); background:var(--accent); color:var(--accent-ink); }
 body[data-page="chain"] .hero-action-primary:hover { color:var(--accent-ink); opacity:0.88; }
+.copy-availability { max-width:720px; margin:14px 0 0; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.55; letter-spacing:.04em; }
+.copy-modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin-top:34px; overflow:hidden; border:1px solid var(--line); border-radius:18px; background:var(--line); }
+.copy-mode { min-width:0; padding:22px; background:var(--panel); }
+.copy-mode-primary { background:color-mix(in srgb,var(--accent) 8%,var(--panel)); }
+.copy-mode h2 { margin:0; color:var(--ink); font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:.13em; text-transform:uppercase; }
+.copy-mode-primary h2 { color:var(--accent); }
+.copy-mode p { margin:10px 0 0; color:var(--ink-2); font-size:14px; line-height:1.55; }
+.core-entry { margin-top:42px; padding:22px 24px; border:1px solid var(--line); border-left:3px solid var(--accent-line); border-radius:14px; background:var(--panel); }
+.core-entry-kicker { color:var(--ink-3); font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; }
+.core-entry h2 { margin:9px 0 0; color:var(--ink); font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; line-height:1.35; }
+.core-entry p { max-width:760px; margin:10px 0 0; color:var(--ink-2); font-size:14px; line-height:1.6; }
+.core-entry .core-entry-privacy { color:var(--ink-3); }
 .sec { padding:52px 0; border-top:1px solid var(--line); scroll-margin-top:calc(var(--topbar-h, 60px) + 8px); }
 .sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:8px; }
 .sec-p { font-size:15px; line-height:1.6; color:var(--ink-2); margin:14px 0 6px; max-width:720px; }
@@ -510,6 +525,9 @@ body[data-page="chain"] .band-copy:focus-visible { outline:2px solid #08090a; ou
   .hero-lockup { gap:14px; margin-bottom:24px; }
   .hero-bat-stage { width:84px; }
   .hero-lockup-word { font-size:clamp(36px,12vw,52px); letter-spacing:.02em; }
+  .copy-modes { grid-template-columns:minmax(0,1fr); }
+  .copy-mode { padding:18px; }
+  .core-entry { margin-top:30px; padding:18px; }
   .sec-tool .launch-row { flex-direction:column; }
   .sec-tool .launch-check { flex-basis:auto; }
   .band-in { padding:13px 24px; gap:10px 12px; }

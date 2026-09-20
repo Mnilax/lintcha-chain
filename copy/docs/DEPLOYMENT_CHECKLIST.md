@@ -4,7 +4,7 @@ All boxes remain unchecked locally. Items marked (local ✓) have local test evi
 
 - [ ] Integration pull request reviewed and merged; Core and Copy regression suites green on the exact merge candidate.
 - [ ] Owner approved the section-eight text amendment included in the integration pull request.
-- [ ] Copy origin chosen (preferred `https://copy.lintcha.com/`), DNS/TLS created; `_headers` CSP verified on the live origin (local ✓ contract test).
+- [ ] Copy-first entry and Telegram CTA published on `https://lintcha.com/`; isolated secure-sheet origin `https://copy.lintcha.com/` has DNS/TLS and its `_headers` CSP verified live (local ✓ contract test).
 - [ ] Existing Core webhook owns the Telegram token; Copy Worker environment proven token-free (runtime refuses token bindings: local ✓).
 - [ ] `COPY_GATEWAY_SECRET` generated in the secret store and staged on both Workers; `COPY_CONFIRMATION_SECRET` (64 hex) staged on Copy; optional `COPY_ADMIN_SECRET`; rotation procedure in `copy/docs/RUNBOOK.md`.
 - [ ] `COPY_TELEGRAM_BOT_ID` set to @lintchabot's numeric id (public); Telegram third-party public key re-verified against core.telegram.org.
