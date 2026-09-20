@@ -1,0 +1,66 @@
+# Lintcha Copy — example Worker configuration. Copy to wrangler.toml only inside the isolated Copy deployment.
+# No value below is a secret and no id is real. Names are the contract; ids/routes are owner actions (cp14/OWNER_ACTIONS.md).
+name = "lintcha-copy"
+main = "src/cloudflare/worker.mjs"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+preview_urls = false
+
+# The Mini App static files. Every /copy/api/* request is answered by the Worker; everything else is a file or 404.
+[assets]
+directory = "../copy-app"
+not_found_handling = "404-page"
+run_worker_first = ["/copy/api/*"]
+
+# Preferred isolation: its own origin. `lintcha.com/copy/*` is the weaker alternative and needs an explicit owner decision.
+[[routes]]
+pattern = "copy.lintcha.com/*"
+zone_name = "lintcha.com"
+# custom_domain = true   # set when the owner creates the origin
+
+# Staged with `wrangler versions secret put`, never written here. Names only.
+[secrets]
+required = ["COPY_GATEWAY_SECRET", "COPY_CONFIRMATION_SECRET", "COPY_RPC_PRIMARY_URL", "COPY_RPC_SECONDARY_URL"]
+# optional: COPY_ADMIN_SECRET (operator kill-switch/reconcile channel)
+# forbidden: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET — the runtime refuses to start if either is bound.
+
+[[d1_databases]]
+binding = "COPY_DB"
+database_name = "lintcha-copy"
+database_id = "00000000-0000-0000-0000-000000000000"   # placeholder; created by the owner, never the Core database
+
+[[durable_objects.bindings]]
+name = "COPY_USER"
+class_name = "CopyUserCoordinator"
+
+[[migrations]]
+tag = "copy-v1"
+new_classes = ["CopyUserCoordinator"]
+
+[triggers]
+crons = ["* * * * *"]   # expiry sweep + reconciliation pass; no broadcast, no retry of user transactions
+
+[vars]
+COPY_ENVIRONMENT = "preproduction"
+COPY_CHAIN_ID = "4663"
+COPY_DB_NAMESPACE = "lintcha_copy"
+COPY_APP_ORIGIN = "https://copy.example.invalid"     # exact production origin is an owner decision
+COPY_APP_PATH = "/copy/"
+COPY_TELEGRAM_BOT_ID = ""                            # public numeric id of @lintchabot (from getMe), not the token
+COPY_TELEGRAM_ENV = "production"
+COPY_RPC_PRIMARY_PROVIDER = "alchemy"
+COPY_RPC_SECONDARY_PROVIDER = "quicknode"
+COPY_RPC_MAX_HEAD_SKEW_BLOCKS = "2"
+COPY_RPC_MAX_GAS_SKEW_BPS = "1500"
+COPY_GLOBAL_KILL_SWITCH = "true"
+COPY_BROADCAST_ENABLED = "false"
+COPY_AUTO_COPY_ENABLED = "false"
+COPY_ALLOW_CHAINS = "[4663]"
+COPY_ALLOW_ROUTERS = "[]"        # from the verified venue manifest only
+COPY_ALLOW_SPENDERS = "[]"
+COPY_ALLOW_SELECTORS = "[]"
+COPY_MAX_TRANSACTION_WEI = "0"
+COPY_MAX_DAILY_SPEND_WEI = "0"
+COPY_MAX_SLIPPAGE_BPS = "0"
+COPY_MAX_SELL_AMOUNT_BY_TOKEN = "{}"

@@ -1,0 +1,7 @@
+{
+  "name": "@lintcha/copy-app",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "test": "node --test test/*.test.mjs", "sync-sheet": "node tools/sync-sheet.mjs" }
+}

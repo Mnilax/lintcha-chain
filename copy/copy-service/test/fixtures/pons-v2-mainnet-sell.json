@@ -1,0 +1,45 @@
+{
+  "source": {
+    "file": "cp9/evidence/pons-v2-mainnet-sell.json",
+    "chainId": 4663,
+    "venue": "Pons V2 Bonding Curve",
+    "capturedAt": "2026-09-18T01:35:00.000Z",
+    "curve": "0x52067DcE3CFEC3621b88D4DE3cC77374F8A44494",
+    "token": "0x02498066411904F466d037570511a48B67BE1611",
+    "factory": "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e"
+  },
+  "transaction": {
+    "hash": "0x7d56b582f9ac5fb15487c4b61a7584b939b654af3c75977e81446b21684e4d33",
+    "from": "0x8b216cc896f32bcabca3649ca918d532f72010ef",
+    "to": "0x52067dce3cfec3621b88d4de3cc77374f8a44494",
+    "value": "0",
+    "input": "0xd04c69830000000000000000000000000000000000000000000db91655330e2f16995335000000000000000000000000000000000000000000000000007364d9b2fd617e0000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef",
+    "blockNumber": "0x3ea9628",
+    "blockHash": "0x7f49fa6c6b18a8dc8c17258a58958f4ba74fee83f7d9a2b4df14b94993d31646",
+    "nonce": "0x0"
+  },
+  "receipt": {
+    "transactionHash": "0x7d56b582f9ac5fb15487c4b61a7584b939b654af3c75977e81446b21684e4d33",
+    "from": "0x8b216cc896f32bcabca3649ca918d532f72010ef",
+    "to": "0x52067dce3cfec3621b88d4de3cc77374f8a44494",
+    "status": "0x1",
+    "blockNumber": "0x3ea9628",
+    "blockHash": "0x7f49fa6c6b18a8dc8c17258a58958f4ba74fee83f7d9a2b4df14b94993d31646",
+    "gasUsed": "0x12833",
+    "logs": [
+      {},
+      {}
+    ]
+  },
+  "block": {
+    "number": "0x3ea9628",
+    "hash": "0x7f49fa6c6b18a8dc8c17258a58958f4ba74fee83f7d9a2b4df14b94993d31646",
+    "parentHash": "0x3cf2fbf06de03e4b9dd754d23497d5e933251884046cd227c9f2b7cbeb65b1e5",
+    "timestamp": "2026-09-17T21:56:03Z"
+  },
+  "simulation": {
+    "note": "eth_call output and estimate are deterministic fixture values, not recorded mainnet responses",
+    "ethCall": "0x",
+    "estimateGas": "0x12833"
+  }
+}
