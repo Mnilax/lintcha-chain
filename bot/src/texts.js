@@ -35,7 +35,7 @@ export const HOLD_PAGE = "https://lintcha.com/hold";
 // ---------------------------------------------------------------- section eight source, with the invariant edits above
 
 const START_AS_GIVEN = [
-  "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is the room's half of that: it reads the chain and answers, and it does nothing else.",
+  "Lintcha Core is the read-only room half of lintcha. It reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with.",
   "",
   "/ca — the contract",
   "/price — price and market cap, when the venue can be read",
@@ -46,7 +46,9 @@ const START_AS_GIVEN = [
   "/verify — sign once, nothing moves",
   "/me — your holding and what it is worth",
   "",
-  "It never messages you first. It never asks for a key, a seed or an approval. It never holds funds and never trades. Everything it says is read from the chain, and its code is in the repository with the rest."
+  "Lintcha Core never messages you first, asks for a key, seed or spending approval, holds funds or trades. Everything Core says is read from the chain, and its code is in the repository with the rest.",
+  "",
+  "/copy opens Lintcha Copy, a separately labelled voluntary trading module. In Basic mode every BUY and manual SELL is reviewed and signed in the secure sheet; never send a seed or private key in Telegram."
 ].join("\n");
 
 // The one addition. The feed shows buys and not sells, which is a choice about which facts reach the reader,
@@ -75,7 +77,7 @@ const START_PRETOKEN_AS_GIVEN = [
   "",
   "$LINTCHA does not exist yet. Until it does, those token commands say so and publish no placeholder. There is no presale and no list to join.",
   "",
-  "It never messages you first. It never asks for a key, a seed or an approval. It never holds funds and never trades."
+  "Lintcha Core never messages you first, asks for a key, seed or spending approval, holds funds or trades. /copy, when enabled, is a separate voluntary module."
 ].join("\n");
 export const START_PRETOKEN = START_PRETOKEN_AS_GIVEN + "\n\n" + INLINE_DISCOVERY;
 
@@ -86,7 +88,7 @@ const START_TOKEN_STATE_UNREADABLE_AS_GIVEN = [
   "",
   "I will not say from memory whether the token-dependent half is active. Try the token commands again after the site can be read.",
   "",
-  "It never messages you first. It never asks for a key, a seed or an approval. It never holds funds and never trades."
+  "Lintcha Core never messages you first, asks for a key, seed or spending approval, holds funds or trades. /copy, when enabled, is a separate voluntary module."
 ].join("\n");
 export const START_TOKEN_STATE_UNREADABLE = START_TOKEN_STATE_UNREADABLE_AS_GIVEN + "\n\n" + INLINE_DISCOVERY;
 
@@ -175,14 +177,15 @@ export const VERIFY_FAILED_SIGNATURE = "That signature does not belong to the ad
 
 export const VERIFY_FAILED_NONCE = "That link is used or expired. Send /verify for a new one.";
 
-/** What the bot does not do, section seven, for the README and for anyone who asks. */
+/** What Lintcha Core does not do, section seven, for the README and for anyone who asks. */
 export const NEVER = [
-  "It never messages anyone first.",
-  "It never asks for a key, a seed or an approval to spend.",
-  "It never holds funds and never trades.",
-  "The check signs a sentence, with no gas, and the sentence says in words that it moves nothing.",
-  "It sets no score, predicts nothing and advises nothing.",
-  "Everything it says is read from the chain."
+  "Lintcha Core never messages anyone first.",
+  "Lintcha Core never asks for a key, a seed or an approval to spend.",
+  "Lintcha Core never holds funds and never trades.",
+  "The Core holder check signs a sentence, with no gas, and the sentence says in words that it moves nothing.",
+  "Lintcha Core sets no score, predicts nothing and advises nothing.",
+  "Everything Lintcha Core says is read from the chain.",
+  "Lintcha Copy is a separate voluntary trading module; every Basic transaction is confirmed in its secure sheet."
 ];
 
 /** /site. The chart is only named when the site names it, which is the same rule the page follows. */

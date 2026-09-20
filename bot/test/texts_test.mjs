@@ -30,9 +30,10 @@ t.ok(T.siteText({ pons: "https://example.invalid/?x=&lt;tag&gt;", uniswap: null 
 
 // ---------------------------------------------------------------- section eight, word for word
 const GIVEN = {
-  start: `lintcha reads what a launch on Robinhood Chain wrote about itself and says
-    what those strings are shared with. This bot is the room's half of that:
-    it reads the chain and answers, and it does nothing else.
+  // Section eight, as amended for the shared identity: the read-only half is named Lintcha Core, and the one
+  // line about Lintcha Copy names the separate module before any control appears. Owner-approved wording.
+  start: `Lintcha Core is the read-only room half of lintcha. It reads what a launch on
+    Robinhood Chain wrote about itself and says what those strings are shared with.
 
     /ca — the contract
     /price — price and market cap, when the venue can be read
@@ -43,9 +44,13 @@ const GIVEN = {
     /verify — sign once, nothing moves
     /me — your holding and what it is worth
 
-    It never messages you first. It never asks for a key, a seed or an
-    approval. It never holds funds and never trades. Everything it says is
-    read from the chain, and its code is in the repository with the rest.`,
+    Lintcha Core never messages you first, asks for a key, seed or spending
+    approval, holds funds or trades. Everything Core says is read from the chain,
+    and its code is in the repository with the rest.
+
+    /copy opens Lintcha Copy, a separately labelled voluntary trading module. In
+    Basic mode every BUY and manual SELL is reviewed and signed in the secure sheet;
+    never send a seed or private key in Telegram.`,
   greeting: `This room is the tape. Every buy the feed can prove lands here as it clears the venue the bot can read.
     Nobody here will message you first, and nobody will ever ask you for
     your seed. One contract; any other address with this name is not ours.
@@ -82,7 +87,7 @@ t.ok(sameWords(T.NO_TOKEN_YET, GIVEN.noToken), "the no token text is word for wo
 
 // the shape of the two that are lists as well as prose
 t.ok(T.START.includes("/ca — the contract"), "/start keeps each command on its own line");
-t.ok(T.START.split("\n").filter(l => l.startsWith("/")).length === 6, "six command lines in /start: four for the room and two for a holder");
+t.ok(T.START.split("\n").filter(l => l.startsWith("/")).length === 7, "seven command lines in /start: four for the room, two for a holder, one naming Lintcha Copy");
 t.ok(T.GREETING.includes("\n\n/ca for the contract"), "the greeting keeps its last line apart");
 t.ok(T.startText("active") === T.START && T.greetingText("active") === T.GREETING,
   "active status retains the full feed and holder texts");
@@ -143,7 +148,7 @@ const watcherState = T.watcherStateText({ lastBlock: 10, launches: 2, depthDays:
 t.ok(/pruning age floor/.test(watcherState) && /until the published snapshot covers their block/.test(watcherState), "watcher state does not mistake an age floor for guaranteed retention");
 
 // ---------------------------------------------------------------- what the bot does not do
-t.ok(T.NEVER.length === 6, "six absences, as section seven lists them");
+t.ok(T.NEVER.length === 7 && T.NEVER.slice(0, 6).every(l => /Lintcha Core|Core holder check/.test(l)) && /Lintcha Copy is a separate voluntary trading module/.test(T.NEVER[6]), "six Core absences, each naming Lintcha Core, plus the one line that names Lintcha Copy as separate");
 t.ok(T.NEVER.some(s => /never messages anyone first/.test(s)), "it never writes first");
 t.ok(T.NEVER.some(s => /key, a seed or an approval/.test(s)), "it never asks for a key, a seed or an approval");
 t.ok(T.NEVER.some(s => /never holds funds/.test(s)), "it never holds funds");
