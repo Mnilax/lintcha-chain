@@ -13,7 +13,7 @@ directory = "../copy-app"
 not_found_handling = "404-page"
 run_worker_first = ["/copy/api/*"]
 
-# Preferred isolation: its own origin. `lintcha.com/copy/*` is the weaker alternative and needs an explicit owner decision.
+# The homepage markets Copy on lintcha.com; the signing sheet keeps this separate origin.
 [[routes]]
 pattern = "copy.lintcha.com/*"
 zone_name = "lintcha.com"
@@ -45,7 +45,7 @@ crons = ["* * * * *"]   # expiry sweep + reconciliation pass; no broadcast, no r
 COPY_ENVIRONMENT = "preproduction"
 COPY_CHAIN_ID = "4663"
 COPY_DB_NAMESPACE = "lintcha_copy"
-COPY_APP_ORIGIN = "https://copy.example.invalid"     # exact production origin is an owner decision
+COPY_APP_ORIGIN = "https://copy.lintcha.com"
 COPY_APP_PATH = "/copy/"
 COPY_TELEGRAM_BOT_ID = ""                            # public numeric id of @lintchabot (from getMe), not the token
 COPY_TELEGRAM_ENV = "production"

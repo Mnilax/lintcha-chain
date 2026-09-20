@@ -80,8 +80,8 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
+| [Lintcha Copy in `@lintchabot`](https://t.me/lintchabot?start=copy) | Leads the `lintcha.com` homepage and opens the voluntary notify-only or confirm-each self-custody trading flow | Separate service and database; activate only after its own beta gate |
 | [Lintcha Core in Telegram](https://t.me/lintchabot) | Keeps the existing Read, Live, Deployer, token-state, holder-proof and finalized-feed commands read-only | Existing Core surface; unchanged |
-| Lintcha Copy in `@lintchabot` | Opens a separately labelled, opt-in `/copy/` Mini App route for notify-only or confirm-each self-custody trading | Separate service and database; activate only after its own beta gate |
 
 The live path never mutates the comparison index. The snapshot stays pinned to its recorded state and window until a guarded refresh publishes a replacement.
 

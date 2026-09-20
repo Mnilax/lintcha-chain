@@ -2,6 +2,8 @@
 
 Lintcha Copy is the separately labelled, opt-in trading module inside the existing `@lintchabot` identity. Lintcha Core remains read-only. Nothing in this directory is deployed merely by merging it.
 
+`lintcha.com` presents Copy first and sends both its first navigation tab and primary call to action to the existing bot. The transaction sheet remains on the isolated `copy.lintcha.com` origin so public positioning does not collapse the Core/Copy security boundary.
+
 ## Boundary
 
 `@lintchabot`'s Core webhook owns the bot token. Its minimal Copy gateway recognizes only `/copy` and the `copy.*`, `trade.*`, or `sell.*` callback namespaces, then forwards a signed envelope containing the Telegram user ID, private chat ID, update ID, locale, route and namespaced callback data. It never forwards the raw update, arbitrary message text or bot token. All other updates remain in Core.

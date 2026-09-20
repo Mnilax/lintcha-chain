@@ -5,7 +5,7 @@
 // launch-index.json was fetched at load, the full run on the tool page (paste every field, read, read again, clear,
 // toggle theme), the index fetched once on the first read and not on the second, the storage keys after the run,
 // the hosts contacted, and every console error.
-//   node tests/chain_browser.mjs [served-dir] [--pages /,/es/,/pt/,/live/,/deployer/,/hold/?t=MARK] [--viewport 390x844] [--port PORT] [--cdp-port PORT] [--browser PATH] [--out build/chain-browser.json]
+//   node tests/chain_browser.mjs [served-dir] [--pages /,/es/,/pt/,/live/,/deployer/,/hold/?t=MARK] [--viewport 390x844] [--port PORT] [--cdp-port PORT] [--browser PATH] [--out build/chain-browser.json] [--screenshot build/home.png]
 // Exit 1 on: a host other than the served origin, the index fetched at load, the first read fetching it other than
 // once, the second read fetching anything, a storage key outside lintcha:theme and lintcha:lang, a session key, a
 // cookie, a database, a cache, a service worker, or a console error. The pasted values are made up and name nobody.
@@ -22,6 +22,7 @@ const opt = (name, dflt) => { const i = argv.indexOf("--" + name); return i >= 0
 const positional = argv.filter((a, i) => !a.startsWith("--") && !(i > 0 && argv[i - 1].startsWith("--")));
 const DIR = path.resolve(positional[0] || path.join(HERE, "..", "site"));
 const OUT = path.resolve(opt("out", path.join(HERE, "..", "build", "chain-browser.json")));
+const SCREENSHOT = opt("screenshot", "") ? path.resolve(opt("screenshot", "")) : "";
 // default "/": passing a bare "/" on the command line under Git Bash on Windows gets rewritten into a Windows path
 // (MSYS path conversion), so the acceptance script leaves the default alone; pass --pages only for a list
 const PAGES = opt("pages", "/").split(",").map(s => s.trim()).filter(Boolean);
@@ -42,9 +43,11 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 const PUBLIC_ORIGIN = JSON.parse(fs.readFileSync(path.join(HERE, "..", "site", "launch-site.json"), "utf8")).origin;
 const COMPARISON_LOCALES = Object.freeze({ "/": "en", "/es/": "es", "/pt/": "pt" });
 const LOCALE_PATHS = Object.freeze({ en: "/", es: "/es/", pt: "/pt/" });
-const LOCALE_STRINGS = Object.fromEntries(Object.keys(LOCALE_PATHS).map(lang => [lang,
-  JSON.parse(fs.readFileSync(path.join(HERE, "..", "src", "i18n-src", `launch.${lang}.json`), "utf8"))
-]));
+const LOCALE_STRINGS = Object.fromEntries(Object.keys(LOCALE_PATHS).map(lang => [lang, Object.assign(
+  {},
+  JSON.parse(fs.readFileSync(path.join(HERE, "..", "src", "i18n-src", `launch.${lang}.json`), "utf8")),
+  JSON.parse(fs.readFileSync(path.join(HERE, "..", "src", "i18n-src", `chain.${lang}.json`), "utf8"))
+)]));
 const ALLOWED_KEYS = ["lintcha:theme", "lintcha:lang"];
 const INPUT = {
   name: "pons", ticker: "pons",
@@ -295,6 +298,11 @@ async function main() {
     const onLoad = new Promise(res => { loaded = res; });
     await cdp.send("Page.navigate", { url: pageTarget });
     await onLoad; await settle();
+    if (SCREENSHOT && p === PAGES[0]) {
+      const shot = await cdp.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
+      fs.mkdirSync(path.dirname(SCREENSHOT), { recursive: true });
+      fs.writeFileSync(SCREENSHOT, Buffer.from(shot.data, "base64"));
+    }
     const loadReqs = since(m0);
     r.load = { requests: loadReqs.length, hosts: hosts(loadReqs), urls: loadReqs.map(x => x.url.replace(ORIGIN, "")), index_fetched: indexFetches(loadReqs), title: await cdp.eval("document.title") };
     r.viewport = await cdp.eval(`({ client_width: document.documentElement.clientWidth, scroll_width: document.documentElement.scrollWidth, body_scroll_width: document.body.scrollWidth })`);
@@ -324,7 +332,7 @@ async function main() {
         ["en", PUBLIC_ORIGIN + "/"], ["es", PUBLIC_ORIGIN + "/es/"], ["pt", PUBLIC_ORIGIN + "/pt/"], ["x-default", PUBLIC_ORIGIN + "/"]
       ];
       if (!expectedLocale || r.locale.html !== expectedLocale || r.locale.body !== expectedLocale || r.locale.selected !== expectedLocale ||
-          r.locale.island !== expectedLocale || r.locale.intro !== LOCALE_STRINGS[expectedLocale]["launch.intro"]) {
+          r.locale.island !== expectedLocale || r.locale.intro !== LOCALE_STRINGS[expectedLocale]["hero.intro"]) {
         r.violations.push("the explicit comparison URL is not authoritative for document, selector and rendered-copy locale");
       }
       if (r.locale.canonical !== PUBLIC_ORIGIN + LOCALE_PATHS[expectedLocale] || JSON.stringify(r.locale.alternates) !== JSON.stringify(expectedAlternates)) {
