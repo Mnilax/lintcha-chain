@@ -1,4 +1,4 @@
-# Lintcha copy-trading — device QA matrix (to be executed before beta; nothing executed yet)
+# Lintcha copy-trading — device QA matrix (to be executed before public resume; nothing executed yet)
 
 Preconditions: Copy Worker deployed with `COPY_GLOBAL_KILL_SWITCH=true` then resumed for the QA user only; a QA wallet with dust; Pons V2 curve or Uniswap V2 router in the allowlist; caps set to dust values.
 

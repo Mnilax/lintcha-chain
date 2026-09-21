@@ -31,6 +31,6 @@ broadcast/auto/delegation flag remains false.
 - [ ] Reconciliation requires two-provider agreement and safe-block inclusion; no path automatically repeats a delegated submission (local ✓).
 - [ ] `COPY_AUTO_BUY_ENABLED` and `COPY_DELEGATED_SUBMISSION_ENABLED` remain false until every preceding gate passes; generic `COPY_BROADCAST_ENABLED` stays false; auto-SELL has no flag or path.
 - [ ] Rate limits, audit monitoring, alerting, support and incident rollback exercised (`copy/docs/RUNBOOK.md`).
-- [ ] Core seam staged disabled first; `/copy` silent in production confirmed; then enabled for the beta chat only.
+- [ ] Core seam staged disabled first; `/copy` silent in production confirmed; then enabled while trading remains globally paused.
 - [ ] Deployment approved separately.
-- [ ] Closed beta approved separately after deployment evidence.
+- [ ] One owner-controlled dust-wallet BUY and revocation test passes while public trading remains paused; public resume approved separately.

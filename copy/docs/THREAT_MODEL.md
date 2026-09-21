@@ -37,11 +37,11 @@ Assets: user funds (never held), user wallet key material (never seen), the Tele
 | Copy outage affecting Core | fixed unavailable line; cron drain failure swallowed; disabled seam = silence | seam test |
 | Storage confusion with Core | separate D1 binding and DO class; schema comment forbids Core DB; `SESSIONS/TAPE/WATCH` never referenced by Copy | runtime |
 
-## Residual risks (must be closed before beta)
+## Residual risks (must be closed before public resume)
 
-- Telegram third-party public key: confirmed against tma.js platform docs; must be re-read from core.telegram.org by the owner (or the first credentialed run) before beta.
+- Telegram third-party public key: confirmed against tma.js platform docs; must be re-read from core.telegram.org by the owner (or the first credentialed run) before public resume.
 - Cloudflare runtime specifics (D1 batch semantics, DO eviction under load, Ed25519 in `crypto.subtle`, assets `run_worker_first`) are proven only against the node:sqlite shim and fakes.
 - Wallet availability inside Telegram clients: an injected EIP-1193 provider is not typical; the bridge vendor (WalletConnect/Reown, a wallet's Telegram SDK) is an owner decision and will change the Mini App CSP (`connect-src`).
-- The production delegation architecture and executor provider are not selected. Both supported adapter shapes remain disabled until provider capability, audited scope enforcement, revocation and device behavior are verified.
+- The selected direction is a user-owned Privy embedded wallet with a revocable TEE signer restricted to the immutable BUY-only wrapper. The adapter and policy envelope are local; real Privy credentials, policy proof, revocation and device behavior remain unverified until the owner-controlled acceptance run.
 - Same-nonce replacement transactions cannot be tied to the reported hash; they land in manual review by design.
 - Hash-only submission means the service trusts the wallet's reported hash only after two-provider reconciliation; a wallet that lies about the hash delays but cannot fake a CONFIRMED state.

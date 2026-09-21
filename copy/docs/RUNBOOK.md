@@ -10,8 +10,8 @@ The website uses the exact Telegram payload `copy_site`. Each verified `/start c
 2. **Mini App**: served by the same Worker's assets binding from `copy-app/`; verify `_headers` CSP on the live origin (`default-src 'none'`, `script-src 'self'`), and that `/copy/` opens from a private-chat button only.
 3. **Core seam** (`lintcha-chain-api`): stage `COPY_GATEWAY_SECRET` (same value), add the `COPY_SERVICE` service binding (or `COPY_SERVICE_URL`), set `COPY_APP_ORIGIN`. Until all three are set, `/copy` is silence. Deploy Core; `npm run check-config:production` first.
 4. **Credentialed RPC acceptance**: `node copy-service/tools/rpc-acceptance.mjs` with the two URLs in the environment of the runner only. The default profile requires a 10-block log agreement from both providers and a separate 2,000-block backfill from paid dRPC; broad dRPC results never replace two-provider transaction/simulation quorum. Keep the sanitized report as evidence. Not accepted → do not resume.
-5. **Delegated executor**: after the provider and architecture review, bind the separately controlled executor, verify it holds no user funds or Lintcha bot/RPC secrets, exercise its own cap and kill switch, then enable both auto-BUY flags together. A one-flag deployment must fail closed.
-6. **Resume for beta users only**: `admin/kill-switch` `GLOBAL RESUME` with a reason, then per-user pause remains the user's own control. Global resume is the beta activation and is a separate owner decision.
+5. **Delegated executor and wrapper**: independently review and deploy the immutable `LintchaPonsAutoBuy` contract, pin its address and `0xa59ac6dd` selector in Copy, the private executor and the Privy policy, then bind the separately controlled executor. Verify it holds no user funds or Lintcha bot/RPC secrets, exercise its own cap and kill switch, then enable both auto-BUY flags together while global pause stays active. A one-flag deployment must fail closed.
+6. **Dust acceptance, then public resume**: with global pause still active for ordinary users, execute one owner-controlled dust BUY and permission-revocation test. After reconciliation and rollback evidence pass, `admin/kill-switch` `GLOBAL RESUME` with a reason. Per-user pause remains the user's own control. There is no named-user closed-beta gate.
 
 ## Rollback
 
@@ -36,4 +36,4 @@ The website uses the exact Telegram payload `copy_site`. Each verified `/start c
 
 - Cron every minute: expiry sweep + reconciliation pass (Copy), outbox drain (Core). Both idempotent.
 - Before merge and on every release candidate: run the Core and Copy suites. Keep `copy/copy-app/tools/sync-sheet.mjs` plus its test as the guard for the sheet controller, and compare `copy/copy-gateway/src/gateway.mjs` with `bot/src/copy-gateway.js` to prevent vendored gateway drift.
-- Backups: D1 export of `lintcha-copy` before every schema change; restore drill before beta (checklist item).
+- Backups: D1 export of `lintcha-copy` before every schema change; restore drill before public resume (checklist item).

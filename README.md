@@ -50,13 +50,13 @@
 -->
 
 > [!IMPORTANT]
-> Copy-trading is internally isolated from read-only Lintcha Core. Auto-BUY is local/pre-production code and remains disabled until the delegation, provider, simulation and beta gates pass. Funds stay in the user's self-custody wallet; seed and private key never enter Telegram or the Lintcha backend. SELL is manual only.
+> Copy-trading is internally isolated from read-only Lintcha Core. Auto-BUY remains disabled until the delegated-wallet, provider, simulation, contract-review and activation gates pass. Funds stay in the user's user-owned wallet; seed and private key never enter Telegram or the Lintcha backend. SELL is manual only.
 
 ## Copy-trading
 
 Copy supports notifications and a bounded auto-BUY path. An automatic BUY must match a selected source, pass two-provider simulation, fit both project and user caps, use an allowlisted chain, router and selector, and fit an active expiring delegation. Submission is one-shot: an uncertain result is reconciled manually and never broadcast again automatically.
 
-The local implementation supports provider-dependent scoped session delegation through either an account-abstraction adapter or a delegated-account adapter. Choosing and funding the real production provider, creating a real delegation, signing, broadcasting, deployment and closed beta remain separate owner-approved actions.
+The implementation uses a user-owned Privy embedded wallet with a revocable TEE signer plus an immutable Lintcha BUY-only Pons wrapper. The wrapper independently enforces factory provenance, per-trade and daily limits, slippage, expiry and pause state. Provider setup, independent contract review, the first dust acceptance transaction, deployment and public activation remain separate owner-approved actions; there is no closed-beta requirement.
 
 ## What lintcha-chain does
 
@@ -88,7 +88,7 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
-| [Copy-trading in `@lintchabot`](https://t.me/lintchabot?start=copy_site) | Notifications or bounded auto-copy BUY; SELL remains an explicit manual wallet action | Local/pre-production service and database; activate only after its own beta gate |
+| [Copy-trading in `@lintchabot`](https://t.me/lintchabot?start=copy_site) | Notifications or bounded auto-copy BUY; SELL remains an explicit manual wallet action | Local/pre-production service and database; activate only after its contract, provider and dust-acceptance gates |
 | [Lintcha Core in Telegram](https://t.me/lintchabot) | Keeps the existing Read, Live, Deployer, token-state, holder-proof and finalized-feed commands read-only | Existing Core surface; unchanged |
 
 The live path never mutates the comparison index. The snapshot stays pinned to its recorded state and window until a guarded refresh publishes a replacement.

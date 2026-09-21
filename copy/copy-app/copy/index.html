@@ -36,13 +36,15 @@
   <section data-view="home" class="hidden">
     <h1>Your Lintcha trading</h1>
     <p><span class="small">Mode:</span> <span data-mode></span> · <span class="small">Status:</span> <span data-status></span></p>
-    <p class="small">Change mode or pause from the /copy message in Telegram. This sheet only reviews and confirms.</p>
+    <p class="small" data-home-note>Change mode or pause from the /copy message in Telegram.</p>
     <h2>Wallet</h2>
     <p class="wallets" data-wallets>No public address registered yet.</p>
     <div class="actions">
       <button type="button" data-action="connect-wallet">Connect wallet (EIP-1193)</button>
     </div>
     <p class="small" data-wallet-note>Connecting shares only your public address. Seed phrases and private keys never enter this page or the server.</p>
+    <h2>Auto-BUY permission</h2>
+    <p class="notice" data-delegation>Not active.</p>
     <h2>Open reviews</h2>
     <ul class="intents" data-intents></ul>
     <p class="notice hidden" data-no-intents>Nothing is waiting for your confirmation.</p>
