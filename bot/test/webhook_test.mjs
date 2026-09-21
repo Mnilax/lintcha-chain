@@ -136,6 +136,42 @@ r = await worker.fetch(post("/api/telegram", update, { "X-Telegram-Bot-Api-Secre
 t.ok(r.status === 200 && waited.length === 0 && net.sent.length === sentAfterFirst,
   "a duplicate update is acknowledged without scheduling or repeating its command");
 
+// Exercise Copy through the production webhook, the real Watch ledger and the Telegram transport. The
+// router-only seam test cannot prove that its keyboard survives durable storage and reaches sendMessage.
+const copyCtx = fakeWatchCtx();
+const copyWatch = new Watch(copyCtx, { COPY_APP_ORIGIN: "https://lintcha.com" });
+const copyBinding = {
+  idFromName: () => "watch",
+  get: () => ({ fetch: (input, init) => copyWatch.fetch(input instanceof Request ? input : new Request(input, init)) })
+};
+const copyEnv = {
+  ...env(),
+  WATCH: copyBinding,
+  BOT_USERNAME: "lintchabot",
+  COPY_GATEWAY_SECRET: "s".repeat(40),
+  COPY_APP_ORIGIN: "https://lintcha.com",
+  COPY_SERVICE: { async fetch() {
+    return Response.json({ ok: true, response: { text: "Lintcha Copy & trading", inlineKeyboard: [
+      [{ text: "Open Copy", webAppUrl: "https://lintcha.com/copy/" }],
+      [{ text: "Pause", callbackData: "copy.pause" }]
+    ] } });
+  } }
+};
+const copyUpdate = { update_id: 1101, message: { chat: { id: 11, type: "private" }, from: { id: 11 }, text: "/copy" } };
+const beforeCopyAttempt = net.attempted.length;
+r = await worker.fetch(post("/api/telegram", copyUpdate, { "X-Telegram-Bot-Api-Secret-Token": STAND_WEBHOOK_SECRET }), copyEnv, ctx);
+const copyTelegramBody = net.attempted.at(-1);
+t.ok(r.status === 200 && net.attempted.length === beforeCopyAttempt + 1 && copyTelegramBody.text === "Lintcha Copy &amp; trading" &&
+  copyTelegramBody.reply_markup.inline_keyboard[0][0].web_app.url === "https://lintcha.com/copy/" &&
+  copyTelegramBody.reply_markup.inline_keyboard[1][0].callback_data === "copy.pause",
+  "a production-shape /copy update reaches Telegram with escaped text and its exact validated keyboard");
+const copyCallback = { update_id: 1102, callback_query: { id: "cb_A-42", data: "copy.pause", from: { id: 11 }, message: { chat: { id: 11, type: "private" } } } };
+const beforeCopyCallback = net.attempted.length;
+r = await worker.fetch(post("/api/telegram", copyCallback, { "X-Telegram-Bot-Api-Secret-Token": STAND_WEBHOOK_SECRET }), copyEnv, ctx);
+t.ok(r.status === 200 && net.attempted.length === beforeCopyCallback + 2 && net.attempted[beforeCopyCallback].callback_query_id === "cb_A-42" &&
+  net.attempted[beforeCopyCallback + 1].reply_markup.inline_keyboard[1][0].callback_data === "copy.pause",
+  "a Copy button press is acknowledged first and its reply advances through the same durable action ledger");
+
 const joinedBefore = net.sent.length;
 r = await worker.fetch(post("/api/telegram", ordinaryJoinedUpdate, { "X-Telegram-Bot-Api-Secret-Token": STAND_WEBHOOK_SECRET }), env(), ctx);
 t.ok(r.status === 200 && net.sent.length === joinedBefore,
