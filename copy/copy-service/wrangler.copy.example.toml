@@ -36,7 +36,7 @@ class_name = "CopyUserCoordinator"
 
 [[migrations]]
 tag = "copy-v1"
-new_classes = ["CopyUserCoordinator"]
+new_sqlite_classes = ["CopyUserCoordinator"]
 
 [triggers]
 crons = ["* * * * *"]   # expiry sweep + reconciliation pass; no broadcast, no retry of user transactions
