@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const BASE_KEYS = new Set(["schema", "route", "updateId", "telegramUserId", "privateChatId", "locale", "receivedAt", "callbackData"]);
+const BASE_KEYS = new Set(["schema", "route", "updateId", "telegramUserId", "privateChatId", "locale", "receivedAt", "callbackData", "referralSource"]);
 export const COPY_CALLBACK = /^(?:copy|trade|sell)\.[a-z0-9._-]{1,96}$/;
 
 /**
@@ -39,6 +39,7 @@ export class GatewayRequestVerifier {
     if (envelope.schema !== "lintcha.copy.gateway.v1" || !["COPY_COMMAND", "COPY_CALLBACK"].includes(envelope.route)) throw new Error("INVALID_GATEWAY_ENVELOPE");
     if (!/^\d{1,20}$/.test(envelope.updateId) || !/^-?\d{1,20}$/.test(envelope.telegramUserId) || !/^-?\d{1,20}$/.test(envelope.privateChatId)) throw new Error("INVALID_GATEWAY_IDENTITY");
     if (typeof envelope.locale !== "string" || envelope.locale.length > 16) throw new Error("INVALID_GATEWAY_ENVELOPE");
+    if (envelope.referralSource !== undefined && (envelope.route !== "COPY_COMMAND" || envelope.referralSource !== "SITE")) throw new Error("INVALID_GATEWAY_ENVELOPE");
     if (!Number.isSafeInteger(envelope.receivedAt) || Math.abs(nowSeconds - envelope.receivedAt) > this.maxAgeSeconds) throw new Error("STALE_GATEWAY_ENVELOPE");
     if (envelope.route === "COPY_CALLBACK" && !COPY_CALLBACK.test(envelope.callbackData || "")) throw new Error("INVALID_COPY_CALLBACK");
     if (envelope.route === "COPY_COMMAND" && envelope.callbackData !== undefined) throw new Error("NON_MINIMAL_GATEWAY_ENVELOPE");

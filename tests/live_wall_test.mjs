@@ -16,7 +16,8 @@ const ok = (condition, what) => {
 const count = (text, pattern) => (text.match(pattern) || []).length;
 
 // The page is a static, semantic two-column wall. Nothing executable is inline.
-ok(/<nav class="page-switch"[\s\S]*?href="\/">comparison<\/a>[\s\S]*?aria-current="page">live<\/span>[\s\S]*?href="\/deployer\/">deployer<\/a>[\s\S]*?<\/nav>/.test(html), "the primary switch keeps comparison, live and deployer in one order");
+ok(/<nav class="page-switch"[\s\S]*?start=copy_site"[\s\S]*?href="\/">comparison<\/a>[\s\S]*?aria-current="page">live<\/span>[\s\S]*?href="\/deployer\/">deployer<\/a>[\s\S]*?<\/nav>/.test(html), "the primary switch leads with tracked Copy, then keeps comparison, live and deployer in one order");
+ok(/<div class="cluster">[\s\S]*?>GitHub<[\s\S]*?>Founder<[\s\S]*?aria-label="X"[\s\S]*?aria-label="Telegram"[\s\S]*?start=copy_site"[\s\S]*?>BOT</.test(html), "the full project link cluster is present and BOT uses the tracked Copy deep link");
 ok(/href="\/#s11">method<\/a>/.test(html) && !/href="\/#s10">method<\/a>/.test(html), "the method link points to the actual method section");
 ok(/<main\b[^>]*data-wall\b[^>]*aria-busy="true"/.test(html), "the wall is the page main and begins busy");
 ok(/<table\b[\s\S]*?<caption\b[\s\S]*?<thead><tr><th scope="col">Self-declared name<\/th><th scope="col">Self-declared ticker<\/th><\/tr><\/thead>[\s\S]*?<tbody data-wall-rows>/.test(html), "the declarations are a captioned two-column table");
@@ -25,7 +26,7 @@ ok(/data-wall-status[^>]*>/.test(html) && /role="status"/.test(html) && /aria-li
 ok(/data-wall-pause/.test(html) && /aria-pressed="false"/.test(html) && /data-wall-retry/.test(html) && /data-wall-older/.test(html), "pause/resume, retry and earlier-page actions are native button controls");
 ok(/type="search"[^>]*data-wall-search/.test(html) && /data-wall-filter-state/.test(html), "the current verified page has a labelled local filter and its own status");
 ok(["data-wall-snapshot", "data-wall-watcher", "data-wall-gap", "data-wall-freshness", "data-wall-hash"].every(marker => html.includes(marker)), "snapshot, watcher, gap, freshness and row hash each have a visible slot");
-ok(count(html, /<script\b/g) === 1 && /<script src="\/live\/live\.js"><\/script>/.test(html), "the only script is the page's same-origin external script");
+ok(count(html, /<script\b/g) === 2 && /<script src="\/live\/live\.js"><\/script>/.test(html) && /<script src="\/swarm-transition\.js"><\/script>/.test(html), "the page has only its wall controller and the shared same-origin tab transition");
 ok(/Factory-log chronology[\s\S]*not a ranking/.test(html), "factory chronology is explicitly not presented as a ranking");
 ok(/<meta property="og:url" content="https:\/\/lintcha\.com\/live\/">/.test(html) && /<meta property="og:image" content="https:\/\/lintcha\.com\/og-lintcha\.png">/.test(html) && /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), "social preview and manifest metadata remain same-origin");
 ok(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(html), "there is no inline script");

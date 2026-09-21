@@ -12,7 +12,8 @@ let checks = 0, failures = 0;
 const ok = (value, label) => { checks++; if (!value) { failures++; console.log("  FAIL " + label); } };
 
 ok(/<link rel="canonical" href="https:\/\/lintcha\.com\/deployer\/">/.test(html), "canonical points at the public deployer page");
-ok(/<nav class="page-switch"[\s\S]*?href="\/">comparison<\/a>[\s\S]*?href="\/live\/">live<\/a>[\s\S]*?aria-current="page">deployer<\/span>[\s\S]*?<\/nav>/.test(html), "the primary switch keeps comparison, live and deployer in one order");
+ok(/<nav class="page-switch"[\s\S]*?start=copy_site"[\s\S]*?href="\/">comparison<\/a>[\s\S]*?href="\/live\/">live<\/a>[\s\S]*?aria-current="page">deployer<\/span>[\s\S]*?<\/nav>/.test(html), "the primary switch leads with tracked Copy, then keeps comparison, live and deployer in one order");
+ok(/<div class="cluster">[\s\S]*?>GitHub<[\s\S]*?>Founder<[\s\S]*?aria-label="X"[\s\S]*?aria-label="Telegram"[\s\S]*?start=copy_site"[\s\S]*?>BOT</.test(html), "the full project link cluster is present and BOT uses the tracked Copy deep link");
 ok(/href="\/#s11">method<\/a>/.test(html), "the footer links to the actual method section");
 ok(/data-history-form/.test(html) && /data-history-address/.test(html) && /type="submit"[^>]*data-history-read/.test(html), "one labelled, explicit-submit address form exists");
 ok(/Nothing has been requested\./.test(html), "loading the page claims no lookup and starts from a no-request state");
@@ -21,7 +22,7 @@ ok(/factory-log chronology; this is not a ranking/i.test(html), "the visible ord
 ok(/exposes no token address or transaction/i.test(html) && /no verdict/i.test(html), "the public projection and non-judgment boundary are visible");
 ok(/data-history-from/.test(html) && /data-history-to/.test(html) && /data-history-count/.test(html) && /data-history-freshness/.test(html), "coverage, count and freshness have separate visible fields");
 ok(/data-history-hash/.test(html) && /page rows sha-256/.test(html), "the exact page-row hash has a visible slot");
-ok(/<script src="\/deployer\/deployer\.js"><\/script>/.test(html) && !/<script(?![^>]*\ssrc=)/.test(html), "the page has one external script and no inline script");
+ok((html.match(/<script\b/g) || []).length === 2 && /<script src="\/deployer\/deployer\.js"><\/script>/.test(html) && /<script src="\/swarm-transition\.js"><\/script>/.test(html) && !/<script(?![^>]*\ssrc=)/.test(html), "the page has only its history controller and the shared same-origin tab transition, with no inline script");
 ok(/<meta property="og:url" content="https:\/\/lintcha\.com\/deployer\/">/.test(html) && /<meta property="og:image" content="https:\/\/lintcha\.com\/og-lintcha\.png">/.test(html) && /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html), "social preview and manifest metadata remain same-origin");
 
 ok(/form\.addEventListener\("submit"[\s\S]*fetch\("\/api\/deployer\?" \+ params\.toString\(\)/.test(js), "the endpoint is reached only inside explicit form submission");

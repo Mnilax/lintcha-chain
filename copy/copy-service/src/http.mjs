@@ -14,7 +14,7 @@ const STATUS = Object.freeze({
   CONFIRMATION_REVISION_MISMATCH: 409, CONFIRMATION_REPLAYED: 409, SUBMISSION_REPLAYED: 409, NOT_CANCELLABLE: 409, NOT_RECONCILABLE: 409, QUOTE_ALREADY_USED: 409,
   CONFIRMATION_EXPIRED: 410, SUBMISSION_TOO_LATE: 410, STALE_QUOTE: 410,
   INVALID_CONFIRMATION_TOKEN: 400, INVALID_TRANSACTION_HASH: 400, INVALID_PUBLIC_ADDRESS: 400, INVALID_WALLET_KIND: 400, INVALID_UNSIGNED_TRANSACTION: 400, INVALID_QUOTE: 400, INVALID_BODY: 400, INVALID_ROUTE: 404,
-  GLOBAL_BROADCAST_KILL_SWITCH: 423, USER_BROADCAST_KILL_SWITCH: 423, USER_PAUSED: 423, USER_NOT_CONFIRM_EACH: 409, WALLET_NOT_REGISTERED: 409, WALLET_LIMIT_REACHED: 409,
+  GLOBAL_BROADCAST_KILL_SWITCH: 423, USER_BROADCAST_KILL_SWITCH: 423, USER_PAUSED: 423, USER_NOT_CONFIRM_EACH: 409, USER_NOT_AUTO_BUY: 409, AUTO_BUY_DISABLED: 423, ACTIVE_DELEGATION_REQUIRED: 409, WALLET_NOT_REGISTERED: 409, WALLET_LIMIT_REACHED: 409,
   RATE_LIMITED: 429, ORIGIN_FORBIDDEN: 403, METHOD_NOT_ALLOWED: 405, UNSUPPORTED_MEDIA_TYPE: 415, BODY_TOO_LARGE: 413,
   SIGNED_OR_SECRET_MATERIAL_FORBIDDEN: 400,
 });
@@ -25,7 +25,7 @@ function json(body, status = 200, extra = {}) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", ...extra } });
 }
 
-const POLICY_CODE = /^(?:AUTO_SELL_FORBIDDEN|BUY_APPROVAL_FORBIDDEN|EXPLICIT_CLIENT_CONFIRMATION_REQUIRED|[A-Z_]+_NOT_ALLOWLISTED|[A-Z_]+_CAP_EXCEEDED|[A-Z_]+_CAP_REQUIRED|NON_EXACT_APPROVAL_FORBIDDEN|VALUE_BEARING_[A-Z_]+_FORBIDDEN|QUOTE_VALUE_MISMATCH|APPROVAL_TOKEN_MISMATCH|SELL_ALLOWANCE_[A-Z_]+|INVALID_SOURCE_TRADE|INVALID_DIRECTION|INVALID_OPERATION|INVALID_APPROVAL_CALL)$/;
+const POLICY_CODE = /^(?:AUTO_SELL_FORBIDDEN|AUTO_BUY_TRADE_ONLY|BUY_APPROVAL_FORBIDDEN|EXPLICIT_CLIENT_CONFIRMATION_REQUIRED|DELEGATION_[A-Z_]+|[A-Z_]+_NOT_ALLOWLISTED|[A-Z_]+_CAP_EXCEEDED|[A-Z_]+_CAP_REQUIRED|NON_EXACT_APPROVAL_FORBIDDEN|VALUE_BEARING_[A-Z_]+_FORBIDDEN|QUOTE_VALUE_MISMATCH|APPROVAL_TOKEN_MISMATCH|SELL_ALLOWANCE_[A-Z_]+|INVALID_SOURCE_TRADE|INVALID_DIRECTION|INVALID_OPERATION|INVALID_APPROVAL_CALL)$/;
 const DEPENDENCY_CODE = /^(?:SIMULATION_|RPC_)[A-Z_]+$/;
 
 export function statusForCode(code) {
@@ -94,7 +94,7 @@ export class SignedServiceRequestVerifier {
  *   Operator      → HMAC(admin secret): /admin/kill-switch, /admin/reconcile
  * There is no route that signs, broadcasts, or accepts key material.
  */
-export function createCopyHttpHandler({ config, service, surface, userStore, outbox, killSwitches, gatewayVerifier, serviceVerifier, adminVerifier = null, initDataVerifier, clock = () => Math.floor(Date.now() / 1000), rateLimiter = new FixedWindowRateLimiter(), persistKillSwitches = async () => {} }) {
+export function createCopyHttpHandler({ config, service, surface, userStore, delegationStore = null, outbox, killSwitches, gatewayVerifier, serviceVerifier, adminVerifier = null, initDataVerifier, clock = () => Math.floor(Date.now() / 1000), rateLimiter = new FixedWindowRateLimiter(), persistKillSwitches = async () => {} }) {
   const base = `${config.appPath.replace(/\/$/, "")}/api`;
 
   async function clientIdentity(request) {
@@ -122,7 +122,7 @@ export function createCopyHttpHandler({ config, service, surface, userStore, out
 
     if (route[0] === "health" && route.length === 1) {
       if (method !== "GET") throw new HttpError("METHOD_NOT_ALLOWED");
-      return json({ ok: true, service: config.serviceName, mode: config.mode, chainId: config.chainId, appPath: config.appPath, globallyPaused: killSwitches.globallyPaused, providerIds: config.rpc.endpoints.map((item) => item.id), rpcReady: config.rpc.ready, broadcastEnabled: false, autoCopyEnabled: false });
+      return json({ ok: true, service: config.serviceName, mode: config.mode, chainId: config.chainId, appPath: config.appPath, globallyPaused: killSwitches.globallyPaused, providerIds: config.rpc.endpoints.map((item) => item.id), rpcReady: config.rpc.ready, broadcastEnabled: false, autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled });
     }
 
     if (route[0] === "gateway") {
@@ -170,11 +170,29 @@ export function createCopyHttpHandler({ config, service, surface, userStore, out
       return json({ ok: true, intent: publicView });
     }
 
+    if (route[0] === "auto-buy" && route.length === 1) {
+      if (method !== "POST") throw new HttpError("METHOD_NOT_ALLOWED");
+      const payload = await gatewaySigned(request, serviceVerifier.autoBuy);
+      const user = await userStore.get(payload.userId);
+      if (!user) throw new HttpError("WALLET_NOT_REGISTERED", 409);
+      if (user.mode !== "AUTO_BUY") throw new HttpError("USER_NOT_AUTO_BUY");
+      if (user.paused) throw new HttpError("USER_PAUSED");
+      const wallets = await userStore.wallets(user.telegramUserId);
+      if (!wallets.some((row) => row.publicAddress === String(payload.walletAddress || "").toLowerCase())) throw new HttpError("WALLET_NOT_REGISTERED");
+      const view = await service.executeAutomaticBuy({ userId: user.telegramUserId, walletAddress: payload.walletAddress, sourceTradeId: payload.sourceTradeId, quote: payload.quote, transaction: payload.transaction, operation: payload.operation });
+      if (!view.duplicate && view.state === "SUBMITTED_PENDING_RECONCILIATION" && user.privateChatId) {
+        await outbox.enqueue({ telegramUserId: user.telegramUserId, privateChatId: user.privateChatId, text: `${COPY_TEXTS.HEADER}\nA matched BUY was submitted inside your active limits. Reconciliation is pending; it will not be broadcast again automatically.`, dedupeKey: `auto-buy:${view.intentId}` });
+      }
+      return json({ ok: true, intent: view });
+    }
+
     if (route[0] === "me" && route.length === 1) {
       if (method !== "GET") throw new HttpError("METHOD_NOT_ALLOWED");
       const identity = await clientIdentity(request);
       const user = await userStore.upsert({ telegramUserId: identity.telegramUserId });
-      return json({ ok: true, label: COPY_TEXTS.HEADER, user: { mode: user.mode, paused: Boolean(user.paused) }, globallyPaused: killSwitches.globallyPaused, chainId: config.chainId, wallets: await userStore.wallets(user.telegramUserId), intents: await service.listUserIntents(user.telegramUserId, 10).then((rows) => rows.map(({ confirmationToken, ...row }) => row)) });
+      const wallets = await userStore.wallets(user.telegramUserId);
+      const activeDelegations = delegationStore ? (await Promise.all(wallets.map((wallet) => delegationStore.getActive(user.telegramUserId, wallet.publicAddress)))).filter(Boolean).map((row) => ({ walletAddress: row.walletAddress, architecture: row.architecture, expiresAt: row.expiresAt })) : [];
+      return json({ ok: true, label: COPY_TEXTS.HEADER, user: { mode: user.mode, paused: Boolean(user.paused) }, globallyPaused: killSwitches.globallyPaused, autoBuyAvailable: config.autoBuyEnabled, chainId: config.chainId, wallets, activeDelegations, intents: await service.listUserIntents(user.telegramUserId, 10).then((rows) => rows.map(({ confirmationToken, ...row }) => row)) });
     }
 
     if (route[0] === "wallet" && route.length === 1) {
@@ -230,6 +248,9 @@ export function createCopyHttpHandler({ config, service, surface, userStore, out
       if (route[1] === "reconcile" && route.length === 2) {
         await service.expireStale({ now: clock() });
         return json({ ok: true, results: await service.reconcilePending({ now: clock() }) });
+      }
+      if (route[1] === "referrals" && route.length === 2) {
+        return json({ ok: true, referrals: await userStore.referralStats("SITE") });
       }
       throw new HttpError("INVALID_ROUTE");
     }

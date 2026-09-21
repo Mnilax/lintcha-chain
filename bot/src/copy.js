@@ -1,7 +1,7 @@
 // The Lintcha Copy seam, Core side. Copy is a separate Worker with its own database, secrets and origin; the
 // only things Core knows are a shared HMAC secret (staged as a secret, never in this file), the Copy Worker
 // (a service binding or an HTTPS URL) and the exact Copy origin for Mini App buttons. With any of the three
-// absent, `/copy` and Copy callbacks stay silent and nothing else in Core changes.
+// absent, `/copy`, `/start copy_site` and Copy callbacks stay silent and nothing else in Core changes.
 //
 // What crosses the seam is decided in ./copy-gateway.js, vendored byte-for-byte from the Copy repository:
 // a signed minimal identity envelope out, a validated text-plus-namespaced-buttons reply back. The bot token

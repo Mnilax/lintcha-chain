@@ -40,9 +40,10 @@ export function loadCopyConfig(env = {}) {
     { id: secondaryId, url: env.COPY_RPC_SECONDARY_URL || null },
   ];
   const broadcastEnabled = flag(env.COPY_BROADCAST_ENABLED, false);
-  const autoCopyEnabled = flag(env.COPY_AUTO_COPY_ENABLED, false);
+  const autoBuyEnabled = flag(env.COPY_AUTO_BUY_ENABLED ?? env.COPY_AUTO_COPY_ENABLED, false);
+  const delegatedSubmissionEnabled = flag(env.COPY_DELEGATED_SUBMISSION_ENABLED, false);
   if (broadcastEnabled) throw new Error("SERVER_BROADCAST_FORBIDDEN");
-  if (autoCopyEnabled) throw new Error("AUTO_COPY_NOT_BASIC");
+  if (autoBuyEnabled !== delegatedSubmissionEnabled) throw new Error("AUTO_BUY_FLAGS_MUST_MATCH");
   if (mode === "production" && endpoints.some((item) => !item.url)) throw new Error("TWO_RPC_ENDPOINTS_REQUIRED");
   const appPath = env.COPY_APP_PATH || "/copy/";
   if (!/^\/copy(?:\/|$)/.test(appPath)) throw new Error("COPY_ROUTE_MUST_BE_ISOLATED");
@@ -54,7 +55,8 @@ export function loadCopyConfig(env = {}) {
     appOrigin: origin(env.COPY_APP_ORIGIN, mode),
     appPath,
     broadcastEnabled: false,
-    autoCopyEnabled: false,
+    autoBuyEnabled,
+    delegatedSubmissionEnabled,
     startsGloballyPaused: flag(env.COPY_GLOBAL_KILL_SWITCH, true),
     rpc: Object.freeze({
       endpoints: Object.freeze(endpoints.map(Object.freeze)),
@@ -90,6 +92,7 @@ export function publicConfig(config) {
     rpcReady: config.rpc.ready,
     providerIds: config.rpc.endpoints.map(({ id }) => id),
     broadcastEnabled: false,
-    autoCopyEnabled: false,
+    autoBuyEnabled: config.autoBuyEnabled,
+    delegatedSubmissionEnabled: config.delegatedSubmissionEnabled,
   });
 }

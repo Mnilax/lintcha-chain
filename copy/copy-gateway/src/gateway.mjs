@@ -31,8 +31,10 @@ export function copyRoute(update, botUsername = "lintchabot") {
   const message = update?.message;
   const callback = update?.callback_query;
   const text = String(message?.text || "").trim();
-  const [command, suffix] = text.split(/\s+/, 1)[0].toLowerCase().split("@");
+  const parts = text.split(/\s+/);
+  const [command, suffix] = parts[0].toLowerCase().split("@");
   if (command === "/copy" && (!suffix || suffix === String(botUsername).toLowerCase())) return "COPY_COMMAND";
+  if (command === "/start" && (!suffix || suffix === String(botUsername).toLowerCase()) && parts.length === 2 && parts[1] === "copy_site") return "COPY_COMMAND";
   if (callback && COPY_CALLBACK.test(String(callback.data || ""))) return "COPY_CALLBACK";
   return null;
 }
@@ -41,6 +43,7 @@ export function copyRoute(update, botUsername = "lintchabot") {
 export function sanitizedCopyEnvelope(update, nowSeconds, botUsername = "lintchabot") {
   const route = copyRoute(update, botUsername);
   if (!route) return null;
+  const text = String(update?.message?.text || "").trim();
   const source = update.callback_query || update.message;
   const chat = source?.message?.chat || source?.chat;
   const user = source?.from;
@@ -55,6 +58,7 @@ export function sanitizedCopyEnvelope(update, nowSeconds, botUsername = "lintcha
     locale: clean(user.language_code || "", 16),
     receivedAt: nowSeconds,
   };
+  if (/^\/start(?:@[^\s]+)?\s+copy_site$/.test(text.toLowerCase())) envelope.referralSource = "SITE";
   if (route === "COPY_CALLBACK") envelope.callbackData = clean(update.callback_query.data);
   return Object.freeze(envelope);
 }
@@ -88,7 +92,7 @@ export function validateCopyResponse(response, copyAppOrigin) {
 }
 
 /**
- * Routes one Telegram update. Anything that is not `/copy` or a namespaced Copy callback returns `handled: false`
+ * Routes one Telegram update. Anything that is not `/copy`, the exact `/start copy_site` deep link, or a namespaced Copy callback returns `handled: false`
  * and stays in Core. A Copy-side failure never propagates into the Core webhook: the user gets a fixed
  * unavailable message, the update is acknowledged, and Core never retries on Copy's behalf.
  */

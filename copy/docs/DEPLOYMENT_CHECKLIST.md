@@ -6,7 +6,7 @@ All boxes remain unchecked locally. Items marked (local ✓) have local test evi
 - [ ] Owner approved the section-eight text amendment included in the integration pull request.
 - [ ] Copy-first entry and Telegram CTA published on `https://lintcha.com/`; isolated secure-sheet origin `https://copy.lintcha.com/` has DNS/TLS and its `_headers` CSP verified live (local ✓ contract test).
 - [ ] Existing Core webhook owns the Telegram token; Copy Worker environment proven token-free (runtime refuses token bindings: local ✓).
-- [ ] `COPY_GATEWAY_SECRET` generated in the secret store and staged on both Workers; `COPY_CONFIRMATION_SECRET` (64 hex) staged on Copy; optional `COPY_ADMIN_SECRET`; rotation procedure in `copy/docs/RUNBOOK.md`.
+- [ ] `COPY_GATEWAY_SECRET` generated in the secret store and staged on both Workers; `COPY_CONFIRMATION_SECRET` (64 hex) and `COPY_ADMIN_SECRET` staged on Copy; rotation procedure in `copy/docs/RUNBOOK.md`.
 - [ ] `COPY_TELEGRAM_BOT_ID` set to @lintchabot's numeric id (public); Telegram third-party public key re-verified against core.telegram.org.
 - [ ] Copy D1 created as a separate binding; `schema.sql` applied; backup/export + restore drill done; retention decided for `copy_audit_log` (never truncated) and `copy_outbox`.
 - [ ] `CopyUserCoordinator` Durable Object migration applied; per-user serialization observed under a real burst (local ✓ fake runtime).
@@ -17,11 +17,13 @@ All boxes remain unchecked locally. Items marked (local ✓) have local test evi
 - [ ] Global kill switch starts paused; `admin/kill-switch` pause/resume audited (local ✓).
 - [ ] Wallet bridge decision made (injected EIP-1193 only vs WalletConnect/Reown vs wallet Telegram SDK); Mini App CSP adjusted accordingly and re-reviewed.
 - [ ] Secure-sheet flow independently reviewed; device QA matrix executed (`copy/docs/DEVICE_QA_MATRIX.md`).
-- [ ] Every BUY and SELL review shows module label, chain, token, amount, minimum output, slippage, target, selector, simulation block and expiry (local ✓).
+- [ ] Auto-BUY delegation architecture and executor provider selected after capability/security review; exact wallet, chain, router, selector, per-transaction, daily-spend, slippage and expiry scope proven.
+- [ ] Executor binding holds no user funds, has its own caps and kill switch, returns only a public transaction hash, and an ambiguous response is proven not to retry (local ✓ adapter contract).
+- [ ] Manual SELL review shows module label, chain, token, amount, minimum output, slippage, target, selector, simulation block and expiry (local ✓).
 - [ ] SELL approval exact and separate; trade freshly quoted and simulated with a live allowance read (local ✓).
 - [ ] Duplicate/replay/concurrency tests pass against the real D1 + DO runtime (`wrangler dev --remote` or staging).
-- [ ] Reconciliation requires two-provider agreement, safe-block inclusion, and has no broadcast path (local ✓).
-- [ ] Auto-copy and auto-SELL flags absent or false; no delegation exists for Basic.
+- [ ] Reconciliation requires two-provider agreement and safe-block inclusion; no path automatically repeats a delegated submission (local ✓).
+- [ ] `COPY_AUTO_BUY_ENABLED` and `COPY_DELEGATED_SUBMISSION_ENABLED` remain false until every preceding gate passes; generic `COPY_BROADCAST_ENABLED` stays false; auto-SELL has no flag or path.
 - [ ] Rate limits, audit monitoring, alerting, support and incident rollback exercised (`copy/docs/RUNBOOK.md`).
 - [ ] Core seam staged disabled first; `/copy` silent in production confirmed; then enabled for the beta chat only.
 - [ ] Deployment approved separately.

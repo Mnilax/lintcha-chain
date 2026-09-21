@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fakeD1 } from "./fake-d1.mjs";
-import { D1AuditSink, D1IntentStore, D1KillSwitchStore, D1OutboxStore, D1ReplayStore, D1SpendLedger, D1UserStore } from "../src/cloudflare/d1-store.mjs";
+import { D1AuditSink, D1DelegationStore, D1IntentStore, D1KillSwitchStore, D1OutboxStore, D1ReplayStore, D1SpendLedger, D1UserStore } from "../src/cloudflare/d1-store.mjs";
 import { HashChainedAuditLog } from "../src/audit.mjs";
 import { KillSwitches } from "../src/policy.mjs";
-import { HASH, WALLET, fixture, input, openAndSubmit } from "./helpers.mjs";
+import { HASH, ROUTER, WALLET, fixture, input, openAndSubmit } from "./helpers.mjs";
 
 test("D1 intent store claims replay keys atomically, supersedes retryable rows and round-trips the full record", async () => {
   const db = fakeD1();
@@ -61,10 +61,24 @@ test("D1 audit sink resumes the hash chain; replay store is single-use until exp
   assert.equal((await users.upsert({ telegramUserId: "42", privateChatId: "99" })).paused, 1);
   assert.equal((await users.upsert({ telegramUserId: "42", mode: "CONFIRM_EACH", paused: false })).mode, "CONFIRM_EACH");
   assert.equal((await users.get("42")).privateChatId, "99");
+  await users.recordReferral({ telegramUserId: "42", source: "SITE" });
+  await users.recordReferral({ telegramUserId: "42", source: "SITE" });
+  await users.upsert({ telegramUserId: "43" });
+  await users.recordReferral({ telegramUserId: "43", source: "SITE" });
+  assert.deepEqual(await users.referralStats("SITE"), { source: "SITE", uniqueUsers: 2, starts: 3 });
+  await assert.rejects(users.recordReferral({ telegramUserId: "42", source: "AD" }), /INVALID_REFERRAL_SOURCE/);
   await assert.rejects(users.upsert({ telegramUserId: "42", mode: "AUTO" }), /INVALID_USER_MODE/);
   assert.equal((await users.addWallet({ telegramUserId: "42", publicAddress: WALLET })).length, 1);
   assert.equal((await users.addWallet({ telegramUserId: "42", publicAddress: WALLET })).length, 1);
   await assert.rejects(users.addWallet({ telegramUserId: "42", publicAddress: "0xabc" }), /INVALID_PUBLIC_ADDRESS/);
+  assert.equal((await users.upsert({ telegramUserId: "42", mode: "AUTO_BUY" })).mode, "AUTO_BUY");
+
+  const delegations = new D1DelegationStore(db, () => 7);
+  const delegation = await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "EIP7702_SESSION", authorizationRef: "auth:d1:test:42", chainId: 4663, routers: [ROUTER], selectors: ["0x12345678"], maxTransactionWei: "500", maxDailySpendWei: "900", maxSlippageBps: 50, expiresAt: 100 });
+  assert.equal(delegation.walletAddress, WALLET);
+  assert.equal((await delegations.getActive("42", WALLET)).authorizationRef, "auth:d1:test:42");
+  await delegations.revoke("42", WALLET);
+  assert.equal(await delegations.getActive("42", WALLET), null);
 
   const outbox = new D1OutboxStore(db, () => 7);
   assert.equal((await outbox.enqueue({ telegramUserId: "42", privateChatId: "99", text: "hi", dedupeKey: "k" })).id, "1");

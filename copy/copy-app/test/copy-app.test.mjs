@@ -17,6 +17,7 @@ test("the sheet carries an immutable 'Lintcha Copy — trading' label that the s
   assert.equal(count(html, /Lintcha Copy — trading<\/span>/g), 1);
   assert.match(html, /<header class="module-label" data-module-label>/);
   assert.match(html, /It is not read-only Lintcha Core\./);
+  assert.match(html, /Auto-BUY can act only inside an active bounded permission/);
   assert.equal(/data-module-label|module-name|module-boundary/.test(js), false);
   assert.match(html, /<meta name="robots" content="noindex,nofollow">/);
   assert.match(html, /<title>Lintcha Copy — trading<\/title>/);
@@ -43,7 +44,7 @@ test("the page separates review, explicit confirm and cancel, and the sheet cont
   assert.match(html, /data-action="confirm"/);
   assert.match(html, /data-action="cancel"/);
   assert.match(html, /Separate confirmation\./);
-  assert.match(html, /SELL is manual: approval and trade are two separate confirmations/);
+  assert.match(html, /SELL approval and trade are two separate manual confirmations/);
   assert.equal(read("copy", "confirm-each.mjs"), fs.readFileSync(path.join(root, "..", "secure-sheet-crypto", "src", "confirm-each.mjs"), "utf8"));
   assert.match(js, /new ExternalEip1193WalletAdapter\(provider\)/);
   assert.equal(/seed|mnemonic|privateKey/.test(js.replace(/\/\/.*$/gm, "").replace(/Seed phrases and private keys never enter/g, "")), false);

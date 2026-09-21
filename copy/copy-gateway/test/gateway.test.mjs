@@ -11,8 +11,18 @@ test("gateway leaves every Core command untouched", () => {
   assert.equal(copyRoute({ message: { text: "/holders" } }), null);
   assert.equal(copyRoute({ message: { text: "/copy@otherbot" } }), null);
   assert.equal(copyRoute({ message: { text: "/copy@LintchaBot" } }), "COPY_COMMAND");
+  assert.equal(copyRoute({ message: { text: "/start copy_site" } }), "COPY_COMMAND");
+  assert.equal(copyRoute({ message: { text: "/start@LintchaBot copy_site" } }), "COPY_COMMAND");
+  assert.equal(copyRoute({ message: { text: "/start copy_other" } }), null);
   assert.equal(copyRoute({ message: { text: "/copycat" } }), null);
   assert.equal(copyRoute({ callback_query: { data: "core.forget" } }), null);
+});
+
+test("site deep link carries only a bounded attribution source", () => {
+  const envelope = sanitizedCopyEnvelope(privateUpdate("/start copy_site"), 100);
+  assert.equal(envelope.route, "COPY_COMMAND");
+  assert.equal(envelope.referralSource, "SITE");
+  assert.equal(JSON.stringify(envelope).includes("copy_site"), false);
 });
 
 test("gateway forwards only minimal Copy identity, not raw text or bot token", async () => {

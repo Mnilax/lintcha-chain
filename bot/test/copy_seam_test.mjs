@@ -36,6 +36,7 @@ t.ok((await handleUpdate(callback("copy.pause"), { env: {}, kv: fakeKV() })).len
 t.ok((await handleUpdate({ update_id: 8, callback_query: { id: "1", data: "anything", from: { id: 7 }, message: { chat: { id: 100, type: "private" } } } }, { env: {}, kv: fakeKV() })).length === 0, "a foreign callback query is silence, enabled or not");
 t.ok(!KNOWN_COMMANDS.includes("copy") && COPY_COMMANDS.length === 1, "copy is not a Core command; it is claimed only while the seam is configured");
 t.ok(textOf(await handleUpdate(privateCopy("/start"), { env: {}, kv: fakeKV() })).includes("Lintcha Core"), "/start still answers as Core");
+t.ok((await handleUpdate(privateCopy("/start copy_site"), { env: {}, kv: fakeKV() })).length === 0, "the site deep link stays silent when Copy is disabled");
 
 // Claims: a Copy callback is metered to its presser; a foreign callback is not known.
 const claim = telegramCommandClaimOf(callback("copy.pause"), "lintchabot", { copy: true });
@@ -61,11 +62,13 @@ const envelope = JSON.parse(received[0].body.body);
 t.ok(envelope.schema === "lintcha.copy.gateway.v1" && envelope.telegramUserId === "7" && envelope.privateChatId === "100" && envelope.route === "COPY_COMMAND", "the envelope carries identity and route");
 t.ok(!JSON.stringify(received[0].body).includes("never leave") && !("update" in received[0].body) && /^[0-9a-f]{64}$/.test(received[0].body.signature), "the envelope carries no message text or raw update, and is signed");
 t.ok(!JSON.stringify(received[0].body).toLowerCase().includes("token"), "no token-shaped field crosses the seam");
+const attributed = await handleUpdate(privateCopy("/start copy_site"), { env, kv: fakeKV() });
+t.ok(attributed.length === 1 && JSON.parse(received[1].body.body).referralSource === "SITE" && !JSON.stringify(received[1].body.body).includes("copy_site"), "the site deep link enters Copy with only the bounded SITE attribution");
 const pressed = await handleUpdate(callback("copy.pause"), { env, kv: fakeKV() });
 t.ok(pressed.length === 2 && pressed[0].kind === "answer-callback" && pressed[0].callbackQueryId === "4242" && pressed[1].kind === "send", "a callback is answered and then replied to");
-t.ok(JSON.parse(received[1].body.body).callbackData === "copy.pause", "the callback payload is forwarded by namespace");
+t.ok(JSON.parse(received[2].body.body).callbackData === "copy.pause", "the callback payload is forwarded by namespace");
 const grouped = await handleUpdate(groupCopy, { env, kv: fakeKV() });
-t.ok(grouped.length === 1 && grouped[0].text === GATEWAY_TEXTS.PRIVATE_ONLY && received.length === 2, "a group /copy gets the fixed private-only line without a Copy call");
+t.ok(grouped.length === 1 && grouped[0].text === GATEWAY_TEXTS.PRIVATE_ONLY && received.length === 3, "a group /copy gets the fixed private-only line without a Copy call");
 
 // Copy failure: a fixed line, no throw, Core unaffected.
 const broken = { ...env, COPY_SERVICE: { async fetch() { throw new Error("ECONNRESET"); } } };

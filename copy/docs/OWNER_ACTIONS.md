@@ -12,6 +12,6 @@ This is the complete external action list after local work. Nothing here has bee
 8. **Wallet bridge**: decide how a wallet reaches the sheet inside Telegram clients (injected EIP-1193 only, WalletConnect/Reown project, or a wallet's Telegram SDK). This is a vendor/paid decision; the current Mini App shows an explicit "no wallet in this client" state and picks nothing.
 9. **Security review**: nominate a reviewer for the threat model, the seam, the sheet flow and the runbook; run the device QA matrix.
 10. **Deployment**, then **closed beta** (global resume for named users), as two separate decisions with the checklist evidence.
-11. Only for a future auto-copy experiment: a separate decision on one real EIP-7702 delegation after its own audit. Basic and the confirm-each beta do not need it.
+11. Select the production bounded-delegation architecture and executor provider after a separate audit, then approve one real test delegation. The local adapters support scoped account-abstraction or delegated-account sessions; neither is selected or active, and no real delegation is needed before this gate.
 
 Never send bot token, RPC URLs, API keys, seed, mnemonic or private key in Telegram or this workspace. No wallet is funded until its own gate is approved.

@@ -44,6 +44,7 @@ const LINKS_FILE = path.resolve(root, opt("links", path.join(SITE, "links.json")
 const SPECIMEN_FILE = path.join(root, "fixtures", "verified-specimen.json");
 const REPO = "https://github.com/Mnilax/lintcha-chain";                 // GITHUB and Repository go to this repository (LINTCHA_CHAIN_05, section 2)
 const X_URL = "https://x.com/mnilax";                                   // the account lintcha's own footer links (vendored launch.html)
+const COPY_BOT_URL = "https://t.me/lintchabot?start=copy_site";          // site-attributed Telegram start; Copy counts verified starts, not browser clicks
 const read = p => fs.readFileSync(p, "utf8");
 const LOCALE_PATHS = Object.freeze({ en: "/", es: "/es/", pt: "/pt/" });
 const EMIT = Object.keys(LOCALE_PATHS);
@@ -163,12 +164,18 @@ if (!token) throw new Error("token.json does not match the shared activation con
 // label. A missing telegram is absent from the tree, not a stub.
 const links = linksConfigOf(JSON.parse(read(LINKS_FILE)));
 if (!links) throw new Error("links.json does not match the shared outbound-link contract");
-const outbound = (href, key, label = "") => `<a class="out" href="${esc(href)}" rel="noopener" target="_blank"><span${label ? "" : ` data-i18n="${key}"`}>${label ? escText(label) : ""}</span><span class="arrow" aria-hidden="true">↗</span></a>`;
+const socialIcon = kind => kind === "x"
+  ? `<svg class="social-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.966 6.817H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`
+  : kind === "telegram"
+    ? `<svg class="social-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.7 3.2 18.5 20c-.2 1.2-.9 1.5-1.8.9l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6 13.8l-4.8-1.5c-1-.3-1.1-1 .2-1.5L20.1 3.6c.9-.3 1.7.2 1.6-.4z"/></svg>`
+    : "";
+const outbound = (href, key, label = "", { icon = "", className = "", iconOnly = false, ariaLabel = "" } = {}) => `<a class="out${className ? ` ${className}` : ""}${iconOnly ? " out-icon-only" : ""}" href="${esc(href)}" rel="noopener" target="_blank"${iconOnly ? ` aria-label="${esc(ariaLabel || label || key)}"` : ""}>${socialIcon(icon)}<span${label ? "" : ` data-i18n="${key}"`}>${label ? escText(label) : ""}</span><span class="arrow" aria-hidden="true">↗</span></a>`;
 function cluster() {
   const items = [outbound(REPO, "nav.github")];
-  if (links.x) links.x.forEach(account => items.push(outbound(account.href, "", account.label)));
+  if (links.x) links.x.forEach(account => items.push(outbound(account.href, "", account.label, { icon: account.label === "X" ? "x" : "", iconOnly: account.label === "X" })));
   else items.push(outbound(X_URL, "nav.x"));
-  if (links.telegram) items.push(outbound(links.telegram, "nav.telegram"));
+  if (links.telegram) items.push(outbound(links.telegram, "nav.telegram", "", { icon: "telegram", iconOnly: true, ariaLabel: "Telegram" }));
+  items.push(outbound(COPY_BOT_URL, "", "BOT", { className: "out-bot" }));
   if (token.address && token.pons) items.push(`<a class="buy" href="${esc(token.pons)}" rel="noopener" target="_blank" data-i18n="token.buy"></a>`);
   return items.join("");
 }

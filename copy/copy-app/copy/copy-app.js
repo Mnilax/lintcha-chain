@@ -97,9 +97,15 @@ export async function boot({ document: doc = globalThis.document, windowLike = g
 
   async function home() {
     try { me = await api.me(); } catch (error) { return fail(root, error.message); }
-    $(root, "[data-mode]").textContent = me.user.mode === "CONFIRM_EACH" ? "confirm each trade" : "notifications only";
+    $(root, "[data-mode]").textContent = me.user.mode === "AUTO_BUY" ? "auto-copy BUY" : me.user.mode === "CONFIRM_EACH" ? "legacy confirm-each" : "notifications only";
     $(root, "[data-status]").textContent = me.globallyPaused ? "paused for everyone" : me.user.paused ? "paused" : "active";
     $(root, "[data-wallets]").textContent = me.wallets.length ? me.wallets.map((row) => `${row.walletKind.toLowerCase()} ${shortAddress(row.publicAddress)}`).join(" · ") : "No public address registered yet.";
+    const activeDelegations = Array.isArray(me.activeDelegations) ? me.activeDelegations : [];
+    $(root, "[data-auto-buy-status]").textContent = !me.autoBuyAvailable
+      ? "Auto-BUY is closed until the production delegation and provider gates pass."
+      : activeDelegations.length
+        ? `Active bounded permission for ${activeDelegations.map((row) => shortAddress(row.walletAddress)).join(" · ")}.`
+        : "No active bounded permission. Auto-BUY cannot submit anything.";
     const connect = $(root, "[data-action=connect-wallet]");
     connect.disabled = !provider;
     $(root, "[data-wallet-note]").textContent = provider ? "Connecting shares only your public address. Seed phrases and private keys never enter this page or the server." : "No EIP-1193 wallet is exposed by this Telegram client. Lintcha Copy does not pick a wallet vendor for you; open the sheet where your wallet is available.";

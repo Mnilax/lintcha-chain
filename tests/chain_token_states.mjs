@@ -42,7 +42,7 @@ const count = (html, re) => (html.match(re) || []).length;
 const re = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const attr = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // the hrefs of the cluster's outbound items, in the order the build renders them
-const outHrefs = html => (html.match(/class="out" href="[^"]*"/g) || []).map(m => m.slice('class="out" href="'.length, -1));
+const outHrefs = html => [...html.matchAll(/class="out(?: [^"]*)?" href="([^"]*)"/g)].map(m => m[1]);
 // the cluster's own markup: outbound anchors only, no nested div, so the first closing tag ends it
 const clusterOf = html => { const m = /<div class="cluster">([\s\S]*?)<\/div>/.exec(html); return m ? m[1] : ""; };
 // the text inside one named address slot, or null when that slot is not on the page
@@ -101,17 +101,17 @@ ok(count(a, /class="buy"/g) === 0, "no buy button");
 ok(count(a, /token-sec/g) === 0, "no token section");
 ok(count(a, /class="band"/g) === 0 && count(a, /band-address|band-copy/g) === 0, "no launch band, not even an empty one");
 ok(count(a, /data-token-address/g) === 0 && count(a, /data-copy-address/g) === 0, "no address slot and no copy button for one");
-ok(count(a, /class="out"/g) === 4, "cluster is four outbound items");
+ok(count(a, /class="out(?: [^"]*)?"/g) === 5, "cluster is five outbound items including the Copy bot");
 ok(count(a, /data-i18n="nav\.telegram"/g) === 1, "the configured telegram item is present once");
-ok(outHrefs(a).length === 4 && outHrefs(a)[1] === X_DEFAULT && outHrefs(a)[2] === "https://x.com/lintchadotcom" && outHrefs(a)[3] === TELEGRAM_DEFAULT, "both X accounts and Telegram point at the configured destinations");
+ok(outHrefs(a).length === 5 && outHrefs(a)[1] === X_DEFAULT && outHrefs(a)[2] === "https://x.com/lintchadotcom" && outHrefs(a)[3] === TELEGRAM_DEFAULT && outHrefs(a)[4] === "https://t.me/lintchabot?start=copy_site", "social links and the site-attributed bot button point at the configured destinations");
 ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are nowhere");
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
 ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 2, "the Copy-first hero has one focused two-action path");
-ok(/class="hero-actions"[\s\S]*?href="https:\/\/t\.me\/lintchabot\?start=copy"[\s\S]*?href="#s02"[\s\S]*?<\/nav>/.test(a), "the primary hero action opens Lintcha Copy in the existing bot before the Core fallback");
+ok(/class="hero-actions"[\s\S]*?href="https:\/\/t\.me\/lintchabot\?start=copy_site"[\s\S]*?href="#s02"[\s\S]*?<\/nav>/.test(a), "the primary hero action opens the site-attributed Lintcha Copy start before the Core fallback");
 ok(count(a, /class="copy-mode(?: copy-mode-primary)?"/g) === 3 && count(a, /class="core-entry"/g) === 1, "the hero explains notify-only, confirm-each BUY and manual SELL before handing off to Core");
 ok(count(a, /data-proof-loop/g) === 1 && count(a, /data-proof-step/g) === 5 && count(a, /data-proof-play/g) === 1 && count(a, /class="proof-loop copy-terminal"/g) === 1, "one user-controlled five-stage Copy terminal sits in the hero");
 ok(a.indexOf('class="proof-loop copy-terminal"') < a.indexOf('class="core-entry"'), "the Copy terminal appears before the handoff to read-only Core");
-ok(/class="page-switch"[\s\S]*?class="page-switch-copy"[^>]*href="https:\/\/t\.me\/lintchabot\?start=copy"[\s\S]*?page-switch-current[^>]*aria-current="page"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?<\/nav>/.test(a), "the persistent page switch puts Copy first and sends it to the existing Telegram bot");
+ok(/class="page-switch"[\s\S]*?class="page-switch-copy"[^>]*href="https:\/\/t\.me\/lintchabot\?start=copy_site"[\s\S]*?page-switch-current[^>]*aria-current="page"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?<\/nav>/.test(a), "the persistent page switch puts Copy first and sends a site-attributed start to the existing Telegram bot");
 ok(count(a, /class="nav section-nav"/g) === 1, "the long-page section anchors remain a distinct secondary navigation");
 // The order gained the lore section in round B and the chain block in round C, and each moved every number after it
 // and every anchor with it. All of it is read back off the built page rather than trusted: the bar's anchors have to
@@ -189,7 +189,7 @@ ok(count(b, /data-copy-address/g) === 2, "two copy buttons: the contract row's a
 ok(count(b, /class="band"/g) === 1 && count(b, /class="band-copy"/g) === 1, "one launch band, with one copy button");
 ok(slot(b, "band-address") === address && slot(b, "band-address") === slot(b, "contract-address"), "the band carries the contract row's address");
 ok(b.indexOf('class="band"') > b.indexOf("</footer>"), "the band sits under the footer");
-ok(count(b, /class="out"/g) === 4 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === "https://x.com/lintchadotcom" && outHrefs(b)[3] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: both X accounts and Telegram remain configured");
+ok(count(b, /class="out(?: [^"]*)?"/g) === 5 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === "https://x.com/lintchadotcom" && outHrefs(b)[3] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: social links and BOT remain configured");
 for (const lang of ["es", "pt"]) {
   const localized = fs.readFileSync(path.join(tmp, "b", lang, "index.html"), "utf8");
   ok(count(localized, new RegExp(`data-token-address>${re(address)}<`, "g")) === 3 && count(localized, new RegExp(`href="${re(attr(pons))}"`, "g")) === 2 && !/token-btn-uni/.test(localized), `${lang}: the active page carries the exact same pons-only token state`);
@@ -204,10 +204,10 @@ ok(count(c, /class="band"/g) === 1 && slot(c, "band-address") === address, "one 
 console.log("links: both X accounts and Telegram filled");
 const l = build("links", { address, pons, uniswap: null }, { x: [{ href: xAccount, label: "@first" }, { href: xAccountTwo, label: "@second" }], telegram });
 const hrefs = outHrefs(l);
-ok(count(l, /class="out"/g) === 4, "cluster is four outbound items");
-ok(hrefs.length === 4 && hrefs[0] === "https://github.com/Mnilax/lintcha-chain" && hrefs[1] === xAccount && hrefs[2] === xAccountTwo && hrefs[3] === telegram, "github, then both labelled X accounts, then telegram");
+ok(count(l, /class="out(?: [^"]*)?"/g) === 5, "cluster is five outbound items");
+ok(hrefs.length === 5 && hrefs[0] === "https://github.com/Mnilax/lintcha-chain" && hrefs[1] === xAccount && hrefs[2] === xAccountTwo && hrefs[3] === telegram && hrefs[4] === "https://t.me/lintchabot?start=copy_site", "github, both labelled X accounts, telegram, then the attributed bot button");
 ok(clusterOf(l).includes("@first") && clusterOf(l).includes("@second"), "both configured X labels are visible");
-ok(count(clusterOf(l), /class="arrow"/g) === 4, "each of the four carries the arrow");
+ok(count(clusterOf(l), /class="arrow"/g) === 5, "each of the five carries the arrow");
 ok(count(l, /data-i18n="nav\.telegram"/g) === 1, "the telegram item is keyed nav.telegram");
 ok(!l.includes(X_DEFAULT), "the default X account is not on the page once links.json names one");
 
@@ -217,8 +217,8 @@ const treeState = tokenConfigOf(treeToken);
 ok(!!treeState, "site/token.json matches the shared dormant-or-active contract");
 const treeLinks = JSON.parse(fs.readFileSync(path.join(root, "site", "links.json"), "utf8"));
 ok(JSON.stringify(treeLinks.x) === JSON.stringify([
-  { href: "https://x.com/mnilax", label: "@mnilax" },
-  { href: "https://x.com/lintchadotcom", label: "@lintchadotcom" }
+  { href: "https://x.com/mnilax", label: "Founder" },
+  { href: "https://x.com/lintchadotcom", label: "X" }
 ]) && treeLinks.telegram === TELEGRAM_DEFAULT, "site/links.json names both confirmed X accounts and the confirmed Telegram room");
 const tree = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");
 const treeLocales = [tree, ...["es", "pt"].map(lang => fs.readFileSync(path.join(root, "site", lang, "index.html"), "utf8"))];
@@ -240,9 +240,9 @@ if (treeState && treeState.address === null) {
 }
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
-ok(count(tree, /class="out"/g) === 4 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === "https://x.com/lintchadotcom" && outHrefs(tree)[3] === TELEGRAM_DEFAULT &&
-  clusterOf(tree).includes("@mnilax") && clusterOf(tree).includes("@lintchadotcom") && count(tree, /data-i18n="nav\.telegram"/g) === 1,
-  "the tree's page links and labels both confirmed X accounts and the confirmed Telegram room");
+ok(count(tree, /class="out(?: [^"]*)?"/g) === 5 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === "https://x.com/lintchadotcom" && outHrefs(tree)[3] === TELEGRAM_DEFAULT && outHrefs(tree)[4] === "https://t.me/lintchabot?start=copy_site" &&
+  clusterOf(tree).includes("Founder") && clusterOf(tree).includes(">X<") && clusterOf(tree).includes(">BOT<") && count(tree, /class="social-icon"/g) >= 2 && count(tree, /data-i18n="nav\.telegram"/g) === 1,
+  "the tree's page renders Founder, vector X and Telegram, plus the attributed BOT button");
 ok(treeLocales.every(page => treeState.address === null ? count(page, /data-token-address|data-copy-address|class="buy"|token-sec/g) === 0 : page.includes(`data-token-address>${treeState.address}<`)), "every tree locale agrees with the shared token document");
 
 // The eight never lines are the product boundary, not ordinary copy. Pin the ordered set in every source language so

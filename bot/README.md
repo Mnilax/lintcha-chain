@@ -614,7 +614,7 @@ These statements describe Lintcha Core, not every feature reachable through the 
 
 `/copy` may route a private-chat user through a minimal gateway to the separately deployed Lintcha Copy service. The gateway forwards only a signed minimal identity envelope and namespaced Copy action; it does not give the Copy service the bot token or the raw Telegram update. All existing commands stay in Core.
 
-Lintcha Copy has its own Mini App route/origin, database, configuration, audit log and kill switches. Its Basic mode is notify-only or confirm-each. Every BUY and every manual SELL is reviewed and signed by the user's self-custody wallet in the secure sheet. Seed, private key, recovery material, wallet vault and signed raw transaction never enter Telegram, Bot API, this Worker, either database, analytics, logs or Git. Auto-SELL is disabled.
+Lintcha Copy has its own Mini App route/origin, database, configuration, audit log and kill switches. Its user modes are notifications or bounded auto-BUY; SELL remains a separate manual secure-sheet action. Auto-BUY needs an active expiring delegation and passes simulation, allowlists and user caps before one submission through a separately controlled executor. Seed, private key, session key, recovery material, wallet vault and signed raw transaction never enter Telegram, Bot API, the Copy Worker, either database, analytics, logs or Git. Auto-SELL is disabled.
 
 A screen or message must name either “Lintcha Core — read-only” or “Lintcha Copy — trading” before showing the next action.
 

@@ -6,6 +6,7 @@ import { GatewayRequestVerifier, MemoryReplayStore } from "../src/gateway-auth.m
 import { SignedServiceRequestVerifier, createCopyHttpHandler, signServiceRequest } from "../src/http.mjs";
 import { MemoryOutboxStore, MemoryUserStore } from "../src/stores.mjs";
 import { CopyTelegramSurface } from "../src/telegram-surface.mjs";
+import { MemoryDelegationStore } from "../src/delegated-execution.mjs";
 import { TelegramInitDataVerifier, telegramDataCheckString } from "../src/telegram-init-data.mjs";
 import { routeCopyUpdate, drainCopyOutbox } from "../../copy-gateway/src/gateway.mjs";
 import { ConfirmEachSheetController, ExternalEip1193WalletAdapter } from "../../secure-sheet-crypto/src/confirm-each.mjs";
@@ -30,22 +31,24 @@ async function initDataFor(pair, userId, authDate = NOW) {
   return params.toString();
 }
 
-async function stack(fixtureOptions = {}) {
+async function stack(fixtureOptions = {}, configEnv = {}) {
   const keys = await telegramKeys();
   const current = fixture(fixtureOptions);
-  const config = loadCopyConfig({ COPY_APP_ORIGIN: ORIGIN, COPY_ENVIRONMENT: "preproduction" });
+  const config = loadCopyConfig({ COPY_APP_ORIGIN: ORIGIN, COPY_ENVIRONMENT: "preproduction", ...configEnv });
   const clock = () => current.service.clock();
   const userStore = new MemoryUserStore(clock);
   const outbox = new MemoryOutboxStore(clock);
   const replayStore = new MemoryReplayStore();
-  const surface = new CopyTelegramSurface({ userStore, killSwitches: current.killSwitches, appOrigin: ORIGIN, appPath: "/copy/", service: current.service });
+  const delegationStore = current.service.delegationStore;
+  const surface = new CopyTelegramSurface({ userStore, delegationStore, killSwitches: current.killSwitches, appOrigin: ORIGIN, appPath: "/copy/", service: current.service, autoBuyAvailable: config.autoBuyEnabled });
   const handler = createCopyHttpHandler({
-    config, service: current.service, surface, userStore, outbox, killSwitches: current.killSwitches, clock,
+    config, service: current.service, surface, userStore, delegationStore, outbox, killSwitches: current.killSwitches, clock,
     gatewayVerifier: new GatewayRequestVerifier({ secret: GATEWAY_SECRET, replayStore }),
     serviceVerifier: {
       outbox: new SignedServiceRequestVerifier({ secret: GATEWAY_SECRET, schema: "lintcha.copy.outbox.v1", replayStore }),
       notify: new SignedServiceRequestVerifier({ secret: GATEWAY_SECRET, schema: "lintcha.copy.notify.v1", replayStore }),
       intent: new SignedServiceRequestVerifier({ secret: GATEWAY_SECRET, schema: "lintcha.copy.intent.v1", replayStore }),
+      autoBuy: new SignedServiceRequestVerifier({ secret: GATEWAY_SECRET, schema: "lintcha.copy.auto-buy.v1", replayStore }),
     },
     adminVerifier: new SignedServiceRequestVerifier({ secret: ADMIN_SECRET, schema: "lintcha.copy.admin.v1", replayStore }),
     initDataVerifier: new TelegramInitDataVerifier({ botId: BOT_ID, publicKeyHex: keys.publicKeyHex, subtle }),
@@ -62,6 +65,29 @@ async function stack(fixtureOptions = {}) {
   const nextUpdate = () => ++updateId;
   return { ...current, keys, config, userStore, outbox, handler, call, post, signed, client, telegram, privateMessage, callback, nextUpdate, clock };
 }
+
+test("end-to-end bounded auto-BUY activates only after delegation and submits once", async () => {
+  const delegations = new MemoryDelegationStore(() => NOW);
+  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "EIP7702_SESSION", authorizationRef: "auth:http:auto:42", chainId: 4663, routers: [ROUTER], selectors: ["0x12345678"], maxTransactionWei: "600", maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: NOW + 3600 });
+  let submissions = 0;
+  const s = await stack({ service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { submissions += 1; return { transactionHash: HASH }; } } } }, { COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true" });
+  await s.telegram(s.privateMessage("/start copy_site"), s.nextUpdate());
+  await s.post("wallet", { publicAddress: WALLET, walletKind: "EXTERNAL" }, await s.client("42"));
+  const selected = await s.telegram(s.callback("copy.mode.auto_buy"), s.nextUpdate());
+  assert.match(selected.response.text, /Mode: auto-copy BUY/);
+  await s.telegram(s.callback("copy.resume"), s.nextUpdate());
+  s.killSwitches.resumeGlobal();
+  const created = await (await s.signed("auto-buy", "lintcha.copy.auto-buy.v1", { userId: "42", ...input() })).json();
+  assert.equal(created.intent.state, "SUBMITTED_PENDING_RECONCILIATION");
+  assert.equal(created.intent.executionMode, "AUTO_BUY");
+  assert.equal(submissions, 1);
+  const duplicate = await (await s.signed("auto-buy", "lintcha.copy.auto-buy.v1", { userId: "42", ...input() })).json();
+  assert.equal(duplicate.intent.duplicate, true);
+  assert.equal(submissions, 1);
+  const me = await (await s.call("me", { headers: await s.client("42") })).json();
+  assert.equal(me.autoBuyAvailable, true);
+  assert.equal(me.activeDelegations[0].walletAddress, WALLET);
+});
 
 async function sheet(s, { intentId, userId = "42", wallet = WALLET, provider }) {
   const headers = await s.client(userId);
@@ -85,10 +111,13 @@ function wallet(sendHash = HASH) {
 
 test("end-to-end confirm-each BUY: Telegram settings → signal → outbox → Mini App review → wallet → reconciliation", async () => {
   const s = await stack();
-  const start = await s.telegram(s.privateMessage("/copy"), s.nextUpdate());
+  const start = await s.telegram(s.privateMessage("/start copy_site"), s.nextUpdate());
   assert.match(start.response.text, /^Lintcha Copy — trading/);
   assert.match(start.response.text, /not read-only Lintcha Core/);
   assert.equal(start.response.reply_markup.inline_keyboard.at(-1)[0].web_app.url, `${ORIGIN}/copy/`);
+  await s.telegram(s.privateMessage("/start copy_site"), s.nextUpdate());
+  const referralStats = await (await s.signed("admin/referrals", "lintcha.copy.admin.v1", {}, ADMIN_SECRET)).json();
+  assert.deepEqual(referralStats.referrals, { source: "SITE", uniqueUsers: 1, starts: 2 });
   await s.telegram(s.callback("copy.mode.confirm_each"), s.nextUpdate());
   const resumed = await s.telegram(s.callback("copy.resume"), s.nextUpdate());
   assert.match(resumed.response.text, /Mode: confirm each trade/);

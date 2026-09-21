@@ -48,7 +48,7 @@ const START_AS_GIVEN = [
   "",
   "Lintcha Core never messages you first, asks for a key, seed or spending approval, holds funds or trades. Everything Core says is read from the chain, and its code is in the repository with the rest.",
   "",
-  "/copy opens Lintcha Copy, a separately labelled voluntary trading module. In Basic mode every BUY and manual SELL is reviewed and signed in the secure sheet; never send a seed or private key in Telegram."
+  "/copy opens Lintcha Copy, a separately labelled voluntary trading module. Choose notifications or bounded auto-BUY; SELL stays manual. Never send a seed or private key in Telegram."
 ].join("\n");
 
 // The one addition. The feed shows buys and not sells, which is a choice about which facts reach the reader,
@@ -185,7 +185,7 @@ export const NEVER = [
   "The Core holder check signs a sentence, with no gas, and the sentence says in words that it moves nothing.",
   "Lintcha Core sets no score, predicts nothing and advises nothing.",
   "Everything Lintcha Core says is read from the chain.",
-  "Lintcha Copy is a separate voluntary trading module; every Basic transaction is confirmed in its secure sheet."
+  "Lintcha Copy is a separate voluntary trading module; auto-BUY is bounded and revocable, while SELL always requires a manual secure-sheet action."
 ];
 
 /** /site. The chart is only named when the site names it, which is the same rule the page follows. */
