@@ -90,6 +90,8 @@ for (const [lang, locale] of Object.entries(LOCALES)) {
     count(page, new RegExp(`<link rel="alternate" hreflang="x-default" href="${re(ORIGIN + "/")}">`, "g")) === 1,
   `${lang}: canonical and the complete hreflang set name only emitted pages`);
   ok(count(page, /data-lang-host/g) === 1 && page.includes(`<script id="i18n-data" type="application/json">{"lang":"${lang}",`), `${lang}: one language control is bound to the matching i18n island`);
+  ok(page.includes(`<title>${sourceStrings["site.meta.title"]}</title>`) && sourceStrings["site.meta.title"].startsWith("Lintcha — ") &&
+    page.includes(`<meta property="og:title" content="${attr(sourceStrings["site.meta.og_title"])}">`), `${lang}: the browser and social titles lead with the Lintcha brand`);
   ok(Array.from({ length: 8 }, (_, i) => attr(sourceStrings[`road.never.l${i + 1}`])).every(line => page.includes(`>${line}</li>`)), `${lang}: all eight never lines render from that locale without substitution`);
 }
 const sitemapA = fs.readFileSync(path.join(tmp, "a", "sitemap.xml"), "utf8");

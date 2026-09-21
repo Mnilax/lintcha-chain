@@ -1,8 +1,8 @@
 {
   "app.name": "lintcha-chain",
   "site.wordmark": "lintcha",
-  "site.meta.title": "Lintcha Copy — copie trades, mantenha o controle",
-  "site.meta.og_title": "Lintcha Copy — copie trades, mantenha o controle",
+  "site.meta.title": "Lintcha — copie trades, mantenha o controle",
+  "site.meta.og_title": "Lintcha — copie trades, mantenha o controle",
   "site.meta.description": "Siga carteiras e atividade de launchpads na Robinhood Chain. Receba alertas ou copie BUYs automaticamente dentro dos limites que você controla. SELL é sempre manual.",
   "site.meta.image_alt": "Echo Bat ao lado da mensagem de auto-copy trading da Lintcha Copy.",
   "hero.kicker": "Lintcha Copy — trading",
