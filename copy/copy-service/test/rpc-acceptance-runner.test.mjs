@@ -8,7 +8,7 @@ import { loadFixture, fixtureProvider } from "./fixture-rpc.mjs";
 const fixture = loadFixture("pons-v2-mainnet-buy");
 const tool = fileURLToPath(new URL("../tools/rpc-acceptance.mjs", import.meta.url));
 
-function serve(id) {
+function serve(id, { maxLogBlocks = Infinity } = {}) {
   const provider = fixtureProvider(id, fixture);
   const server = http.createServer((request, response) => {
     let body = "";
@@ -18,7 +18,12 @@ function serve(id) {
       try {
         let result;
         if (call.method === "eth_getCode") result = "0x6001";
-        else if (call.method === "eth_getLogs") result = [{}, {}];
+        else if (call.method === "eth_getLogs") {
+          const [filter] = call.params;
+          const blocks = Number(BigInt(filter.toBlock) - BigInt(filter.fromBlock) + 1n);
+          if (blocks > maxLogBlocks) throw new Error(`LOG_RANGE_LIMIT_${maxLogBlocks}`);
+          result = [{}, {}];
+        }
         else if (call.method === "eth_getBlockByNumber" && call.params[0] === "latest") result = { number: fixture.block.number, hash: fixture.block.hash, timestamp: `0x${Math.floor(Date.now() / 1000).toString(16)}` };
         else result = await provider.request(call.method, call.params);
         response.end(JSON.stringify({ jsonrpc: "2.0", id: call.id, result }));
@@ -39,7 +44,7 @@ function run(env) {
 }
 
 test("credentialed acceptance runner accepts two agreeing providers and never writes an endpoint or key to output", async () => {
-  const a = await serve("alchemy");
+  const a = await serve("alchemy", { maxLogBlocks: 10 });
   const b = await serve("drpc");
   try {
     const result = await run({ COPY_RPC_PRIMARY_URL: a.url, COPY_RPC_SECONDARY_URL: b.url, COPY_ACCEPT_MAX_LAG_SECONDS: "600" });
@@ -49,10 +54,28 @@ test("credentialed acceptance runner accepts two agreeing providers and never wr
     const report = JSON.parse(result.stdout);
     assert.equal(report.accepted, true, JSON.stringify(report.checks));
     assert.equal(result.status, 0);
-    assert.deepEqual(Object.keys(report.checks), ["health", "latency_alchemy", "latency_drpc", "archive_history", "simulation_quorum", "log_range", "burst_alchemy", "burst_drpc"]);
+    assert.deepEqual(Object.keys(report.checks), ["health", "latency_alchemy", "latency_drpc", "archive_history", "simulation_quorum", "log_probe_quorum", "wide_log_range", "burst_alchemy", "burst_drpc"]);
+    assert.equal(report.checks.log_probe_quorum.blocks, 10);
+    assert.equal(report.checks.wide_log_range.provider, "drpc");
+    assert.equal(report.checks.wide_log_range.blocks, 2000);
     const sameHost = await run({ COPY_RPC_PRIMARY_URL: a.url, COPY_RPC_SECONDARY_URL: `${a.url}-b` });
     assert.equal(sameHost.status, 2);
     assert.equal(JSON.parse(sameHost.stdout).reasons.includes("PROVIDER_HOSTS_MUST_DIFFER"), true);
+  } finally {
+    a.server.close(); b.server.close();
+  }
+});
+
+test("credentialed acceptance runner rejects a dRPC endpoint without the required wide-log capability", async () => {
+  const a = await serve("alchemy", { maxLogBlocks: 10 });
+  const b = await serve("drpc", { maxLogBlocks: 100 });
+  try {
+    const result = await run({ COPY_RPC_PRIMARY_URL: a.url, COPY_RPC_SECONDARY_URL: b.url, COPY_ACCEPT_MAX_LAG_SECONDS: "600" });
+    const report = JSON.parse(result.stdout);
+    assert.equal(result.status, 2);
+    assert.equal(report.checks.log_probe_quorum.ok, true);
+    assert.equal(report.checks.wide_log_range.ok, false);
+    assert.equal(report.reasons.includes("WIDE_LOG_RANGE_FAILED"), true);
   } finally {
     a.server.close(); b.server.close();
   }

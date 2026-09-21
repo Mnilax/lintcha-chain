@@ -6,6 +6,8 @@
 //   COPY_RPC_PRIMARY_URL / COPY_RPC_SECONDARY_URL        (secrets; from the owner's secret store, not from chat)
 //   COPY_RPC_PRIMARY_PROVIDER / COPY_RPC_SECONDARY_PROVIDER  vendor ids (default alchemy / drpc)
 //   COPY_ACCEPT_MAX_LATENCY_MS (default 1500), COPY_ACCEPT_MAX_LAG_SECONDS (default 30), COPY_ACCEPT_BURST (default 20)
+//   COPY_ACCEPT_LOG_PROBE_BLOCKS (default 10), COPY_ACCEPT_WIDE_LOG_BLOCKS (default 2000)
+//   COPY_ACCEPT_WIDE_LOG_PROVIDER (default drpc)
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ReadOnlyJsonRpcProvider, RpcPool } from "../src/rpc-pool.mjs";
@@ -14,7 +16,14 @@ import { SimulationQuorum } from "../src/simulation.mjs";
 const env = process.env;
 const urls = [env.COPY_RPC_PRIMARY_URL, env.COPY_RPC_SECONDARY_URL];
 const ids = [env.COPY_RPC_PRIMARY_PROVIDER || "alchemy", env.COPY_RPC_SECONDARY_PROVIDER || "drpc"];
-const thresholds = { maxLatencyMs: Number(env.COPY_ACCEPT_MAX_LATENCY_MS || 1500), maxLagSeconds: Number(env.COPY_ACCEPT_MAX_LAG_SECONDS || 30), burst: Number(env.COPY_ACCEPT_BURST || 20) };
+const thresholds = {
+  maxLatencyMs: Number(env.COPY_ACCEPT_MAX_LATENCY_MS || 1500),
+  maxLagSeconds: Number(env.COPY_ACCEPT_MAX_LAG_SECONDS || 30),
+  burst: Number(env.COPY_ACCEPT_BURST || 20),
+  logProbeBlocks: Number(env.COPY_ACCEPT_LOG_PROBE_BLOCKS || 10),
+  wideLogBlocks: Number(env.COPY_ACCEPT_WIDE_LOG_BLOCKS || 2000),
+  wideLogProvider: env.COPY_ACCEPT_WIDE_LOG_PROVIDER || "drpc",
+};
 const reasons = [];
 const report = { schemaVersion: 1, capturedAtUtc: new Date().toISOString(), chainId: 4663, providerIds: ids, thresholds, checks: {} };
 
@@ -80,14 +89,28 @@ await timed("simulation_quorum", async () => {
   return { blockNumber: result.blockNumber, gasSkewBps: result.gasSkewBps };
 });
 
-// 5. Log range: 2000-block eth_getLogs window on the factory must be served by both.
-await timed("log_range", async () => {
+// 5a. Both independent providers must serve and agree on a range that fits Alchemy Free on Robinhood.
+// Wide historical/backfill capability is tested separately so a provider-specific commercial limit cannot
+// silently disable the two-provider simulation/finality/reconciliation path.
+await timed("log_probe_quorum", async () => {
   if (!health) throw new Error("NO_HEALTH");
   const to = health.referenceBlock;
-  const from = Math.max(0, to - 1999);
+  const from = Math.max(0, to - thresholds.logProbeBlocks + 1);
   const logs = await Promise.all(providers.map((provider) => provider.request("eth_getLogs", [{ address: fixture.source.factory, fromBlock: `0x${from.toString(16)}`, toBlock: `0x${to.toString(16)}` }])));
   if (logs[0].length !== logs[1].length) throw new Error("LOG_COUNT_DISAGREEMENT");
   return { blocks: to - from + 1, logs: logs[0].length };
+});
+
+// 5b. One explicitly selected paid provider must serve the full backfill window. This is not a fallback
+// quorum: broad results are never promoted to trading facts without the normal per-transaction quorum reads.
+await timed("wide_log_range", async () => {
+  if (!health) throw new Error("NO_HEALTH");
+  const provider = providers.find((candidate) => candidate.id === thresholds.wideLogProvider);
+  if (!provider) throw new Error("WIDE_LOG_PROVIDER_NOT_CONFIGURED");
+  const to = health.referenceBlock;
+  const from = Math.max(0, to - thresholds.wideLogBlocks + 1);
+  const logs = await provider.request("eth_getLogs", [{ address: fixture.source.factory, fromBlock: `0x${from.toString(16)}`, toBlock: `0x${to.toString(16)}` }]);
+  return { provider: provider.id, blocks: to - from + 1, logs: logs.length };
 });
 
 // 6. Burst: N parallel head reads per provider without a rate-limit failure.

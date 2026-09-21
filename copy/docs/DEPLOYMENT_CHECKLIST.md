@@ -16,7 +16,7 @@ broadcast/auto/delegation flag remains false.
 - [ ] `COPY_TELEGRAM_BOT_ID` set to @lintchabot's numeric id (public); Telegram third-party public key re-verified against core.telegram.org.
 - [ ] Copy D1 created as a separate binding; `schema.sql` applied; backup/export + restore drill done; retention decided for `copy_audit_log` (never truncated) and `copy_outbox`.
 - [ ] `CopyUserCoordinator` Durable Object migration applied; per-user serialization observed under a real burst (local ✓ fake runtime).
-- [ ] Independent Alchemy and dRPC endpoints pass `copy-service/tools/rpc-acceptance.mjs` (chain 4663, finality tags, common block, archive read, simulation quorum, log range, burst); sanitized report archived.
+- [ ] Independent Alchemy and dRPC endpoints pass `copy-service/tools/rpc-acceptance.mjs` (chain 4663, finality tags, common block, archive read, simulation quorum, 10-block two-provider log agreement, paid dRPC 2,000-block backfill, burst); sanitized report archived.
 - [ ] Public RPC excluded from Copy quorum (config allows only the two named providers).
 - [ ] Venue manifest pins exact chain/router/spender/selectors (Pons V2 curve BUY `0x59a87bc1` / SELL `0xd04c6983`, Uniswap V2 Router02 as evidenced) with bytecode/provenance; allowlists populated from it, not by hand.
 - [ ] Caps non-zero only after owner review: per BUY, daily BUY spend, per-token SELL amount, slippage.
