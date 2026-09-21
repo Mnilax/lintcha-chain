@@ -42,7 +42,7 @@ const count = (html, re) => (html.match(re) || []).length;
 const re = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const attr = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // the hrefs of the cluster's outbound items, in the order the build renders them
-const outHrefs = html => (html.match(/class="out" href="[^"]*"/g) || []).map(m => m.slice('class="out" href="'.length, -1));
+const outHrefs = html => [...html.matchAll(/class="out(?: [^"]*)?" href="([^"]*)"/g)].map(m => m[1]);
 // the cluster's own markup: outbound anchors only, no nested div, so the first closing tag ends it
 const clusterOf = html => { const m = /<div class="cluster">([\s\S]*?)<\/div>/.exec(html); return m ? m[1] : ""; };
 // the text inside one named address slot, or null when that slot is not on the page
@@ -90,6 +90,8 @@ for (const [lang, locale] of Object.entries(LOCALES)) {
     count(page, new RegExp(`<link rel="alternate" hreflang="x-default" href="${re(ORIGIN + "/")}">`, "g")) === 1,
   `${lang}: canonical and the complete hreflang set name only emitted pages`);
   ok(count(page, /data-lang-host/g) === 1 && page.includes(`<script id="i18n-data" type="application/json">{"lang":"${lang}",`), `${lang}: one language control is bound to the matching i18n island`);
+  ok(page.includes(`<title>${sourceStrings["site.meta.title"]}</title>`) && sourceStrings["site.meta.title"].startsWith("Lintcha — ") &&
+    page.includes(`<meta property="og:title" content="${attr(sourceStrings["site.meta.og_title"])}">`), `${lang}: the browser and social titles lead with the Lintcha brand`);
   ok(Array.from({ length: 8 }, (_, i) => attr(sourceStrings[`road.never.l${i + 1}`])).every(line => page.includes(`>${line}</li>`)), `${lang}: all eight never lines render from that locale without substitution`);
 }
 const sitemapA = fs.readFileSync(path.join(tmp, "a", "sitemap.xml"), "utf8");
@@ -101,59 +103,49 @@ ok(count(a, /class="buy"/g) === 0, "no buy button");
 ok(count(a, /token-sec/g) === 0, "no token section");
 ok(count(a, /class="band"/g) === 0 && count(a, /band-address|band-copy/g) === 0, "no launch band, not even an empty one");
 ok(count(a, /data-token-address/g) === 0 && count(a, /data-copy-address/g) === 0, "no address slot and no copy button for one");
-ok(count(a, /class="out"/g) === 4, "cluster is four outbound items");
+ok(count(a, /class="out(?: [^"]*)?"/g) === 5, "cluster is five outbound items including the Copy bot");
 ok(count(a, /data-i18n="nav\.telegram"/g) === 1, "the configured telegram item is present once");
-ok(outHrefs(a).length === 4 && outHrefs(a)[1] === X_DEFAULT && outHrefs(a)[2] === "https://x.com/lintchadotcom" && outHrefs(a)[3] === TELEGRAM_DEFAULT, "both X accounts and Telegram point at the configured destinations");
+ok(outHrefs(a).length === 5 && outHrefs(a)[1] === X_DEFAULT && outHrefs(a)[2] === "https://x.com/lintchadotcom" && outHrefs(a)[3] === TELEGRAM_DEFAULT && outHrefs(a)[4] === "https://t.me/lintchabot?start=copy_site", "social links and the site-attributed bot button point at the configured destinations");
 ok(!a.includes(address) && !a.includes(pons), "the made-up address and link are nowhere");
 ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are nowhere");
 ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 2, "the Copy-first hero has one focused two-action path");
-ok(/class="hero-actions"[\s\S]*?href="https:\/\/t\.me\/lintchabot\?start=copy"[\s\S]*?href="#s02"[\s\S]*?<\/nav>/.test(a), "the primary hero action opens Lintcha Copy in the existing bot before the Core fallback");
-ok(count(a, /class="copy-mode(?: copy-mode-primary)?"/g) === 3 && count(a, /class="core-entry"/g) === 1, "the hero explains notify-only, confirm-each BUY and manual SELL before handing off to Core");
+ok(/class="hero-actions"[\s\S]*?href="https:\/\/t\.me\/lintchabot\?start=copy_site"[\s\S]*?href="#s04"[\s\S]*?<\/nav>/.test(a), "the primary hero action opens the site-attributed Lintcha Copy start before the compact Core tool");
+ok(count(a, /class="copy-mode(?: copy-mode-primary)?"/g) === 3 && count(a, /class="core-entry"/g) === 0, "the hero explains notify-only, bounded auto-BUY and manual SELL without the old Core transition card");
 ok(count(a, /data-proof-loop/g) === 1 && count(a, /data-proof-step/g) === 5 && count(a, /data-proof-play/g) === 1 && count(a, /class="proof-loop copy-terminal"/g) === 1, "one user-controlled five-stage Copy terminal sits in the hero");
-ok(a.indexOf('class="proof-loop copy-terminal"') < a.indexOf('class="core-entry"'), "the Copy terminal appears before the handoff to read-only Core");
-ok(/class="page-switch"[\s\S]*?class="page-switch-copy"[^>]*href="https:\/\/t\.me\/lintchabot\?start=copy"[\s\S]*?page-switch-current[^>]*aria-current="page"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?<\/nav>/.test(a), "the persistent page switch puts Copy first and sends it to the existing Telegram bot");
+ok(count(a, /class="sec sec-copy"/g) === 3 && a.indexOf('data-i18n="copy.sources.h2"') < a.indexOf('data-i18n="copy.execution.h2"') && a.indexOf('data-i18n="copy.execution.h2"') < a.indexOf('data-i18n="copy.controls.h2"'), "three dedicated Copy sections follow the hero in sources, execution and controls order");
+ok(count(a, /class="copy-feature"/g) === 3 && count(a, /class="copy-flow-mark"/g) === 4 && count(a, /class="copy-control(?: copy-control-primary)?"/g) === 2, "the Copy sections carry three sources, four execution gates and two control panels");
+ok(count(a, /class="copy-inline-cta"[^>]+start=copy_site/g) === 1, "the Copy controls close with the attributed bot route");
+ok(/class="page-switch"[\s\S]*?class="page-switch-copy"[^>]*href="https:\/\/t\.me\/lintchabot\?start=copy_site"[\s\S]*?page-switch-current[^>]*aria-current="page"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?<\/nav>/.test(a), "the persistent page switch puts Copy first and sends a site-attributed start to the existing Telegram bot");
 ok(count(a, /class="nav section-nav"/g) === 1, "the long-page section anchors remain a distinct secondary navigation");
-// The order gained the lore section in round B and the chain block in round C, and each moved every number after it
-// and every anchor with it. All of it is read back off the built page rather than trusted: the bar's anchors have to
-// name sections that are on the page, there have to be as many anchors as items, the numbers they point at have to
-// climb, and the numbering has to run without a gap. The climb is the round C check: the bar is read as a map of the
-// page, and an item out of place reads as a section out of place.
+// The homepage now carries a compact seven-section product path. All numbering is read back off the built page:
+// three Copy sections first, then the Core tool and method, roadmap and FAQ. The sticky bar deliberately skips the
+// technical method, which remains linked from the footer, and every bar item must still climb to a real section.
 const navNums = nums(a, /data-nav="(\d+)"/g);
 const navHrefs = nums(a, /<a href="#s(\d+)" data-nav=/g);
 const secNums = nums(a, /<section class="sec[^"]*" id="s(\d+)"/g);
-ok(navNums.length === 10, "ten items in the bar");
+ok(navNums.length === 6 && navNums.join(" ") === "01 02 03 04 06 07", "six focused items in the bar, with method left to the footer");
 ok(navHrefs.length === navNums.length && navHrefs.join(" ") === navNums.join(" "), "as many section anchors as items in the bar, each anchor on its own item");
 ok(navNums.every(n => secNums.includes(n)), "every anchor in the bar names a section that is on the page");
 ok(navNums.every((n, i) => i === 0 || Number(n) > Number(navNums[i - 1])), "the sections the bar points at climb: " + navNums.join(" "));
-ok(secNums.join(" ") === "01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16", "sixteen sections, numbered without a gap");
-ok(count(a, /class="sec sec-chain" id="s03"/g) === 1 && count(a, /data-nav="03" data-i18n="nav\.chain"/g) === 1, "the chain block is section three, and the bar names it there");
-ok(a.indexOf('id="s03"') < a.indexOf('id="s04"') && count(a, /<section class="sec" id="s04"[\s\S]{0,400}data-i18n="reads\.h2"/g) === 1, "the chain block comes before what this reads");
-ok(count(a, /href="https:\/\/docs\.robinhood\.com\/chain\/connecting\/"/g) === 1 && count(a, /data-i18n="chain\.source"/g) === 1, "the chain facts link to Robinhood's official network configuration");
-ok(count(a, /data-nav="09" data-i18n="nav\.run"/g) === 1, "run has a bar item, at section nine");
-ok(count(a, /data-nav="14" data-i18n="nav\.lore"/g) === 1, "lore is the bar item for section fourteen");
-ok(count(a, /class="sec sec-lore" id="s14"/g) === 1, "the lore section is section fourteen");
-ok(a.indexOf('id="s14"') < a.indexOf('id="s15"'), "lore comes before the roadmap");
-ok(count(a, /class="lore-card"/g) === 6, "six lore cards");
+ok(secNums.join(" ") === "01 02 03 04 05 06 07", "seven sections, numbered without a gap");
+ok(count(a, /class="sec sec-tool" id="s04"/g) === 1 && count(a, /data-nav="04" data-i18n="nav\.tool"/g) === 1, "the read-only Core tool is a compact fourth section after Copy");
+ok(count(a, /data-i18n="(?:process|chain|reads|definitions|refusal|window|reproduce|run|origin|viz|not|lore)\.h2"/g) === 0, "the twelve legacy explainer sections are absent from the homepage");
 ok(count(a, /class="never"/g) === 1 && count(a, /<li data-i18n="road\.never\.l\d">/g) === 8, "the never list, eight lines");
 ok(count(a, /data-livetile="snapshot"/g) === 1 && a.includes(shippedIndexHash.slice(0, 16)), "the status strip identifies the shipped snapshot by its index key");
 ok(count(a, /data-result-tools/g) === 1 && count(a, /data-share-result/g) === 1 && count(a, /data-copy-receipt/g) === 1 && count(a, /data-download-receipt(?:>|\s)/g) === 1 && count(a, /data-download-receipt-svg/g) === 1, "one result context block with share, JSON receipt and SVG receipt controls");
 ok(a.includes(`data-window-from="${shippedNumbers.window.from_block}"`) && a.includes(`data-window-to="${shippedNumbers.window.to_block}"`) && a.includes(`data-window-start="${shippedNumbers.window.from_time}"`) && a.includes(`data-window-end="${shippedNumbers.window.to_time}"`) && a.includes(`data-index-hash="${shippedIndexHash}"`), "the result context carries both shipped snapshot boundaries, both times and the full index hash");
-ok(count(a, /data-i18n="faq\.(?:bot_first|signature)\.q"/g) === 2, "the FAQ carries both bot questions");
+ok(count(a, /class="qa"/g) === 8 && count(a, /data-i18n="faq\.(?:auto|sources|custody|pause|sell)\.q"/g) === 5, "the compact FAQ leads with five Copy questions and keeps only three Core questions");
 ok(a.lastIndexOf('data-i18n="roadmap.close"') > a.lastIndexOf('data-i18n="road.check.p"'), "roadmap.close is still the last thing in the section");
-// the closing angle bracket matters: without it the first pattern also matches the opening tag of cells-run-wide
-ok(count(a, /class="cells cells-run">/g) === 1 && count(a, /class="cells cells-run-wide">/g) === 1, "the run section is three cards and one wide");
-ok(count(a, /class="cell-t"/g) === 4, "three step cards and the wide one, each with a title");
-ok(count(a, /<code>npm test<\/code>|<code>npm run build<\/code>|<code>npm run verify<\/code>/g) === 3 && count(a, /<code>git clone /g) === 1, "the same four commands, none added");
 // the caret survives only as the theme control; brand and roadmap carry the owned Echo Bat assets
 const sprites = a.match(/<svg class="sprite [^"]*"[\s\S]*?<\/svg>/g) || [];
 ok(sprites.length === 1 && count(a, /class="sprite sprite-s"/g) === 1, "the caret sprite appears only in the theme control");
 ok(count(sprites[0] || "", /<rect /g) === 11 && count(sprites[0] || "", /class="cut"/g) === 2, "the theme caret keeps its eleven-cell shape and two cut strokes");
-ok(count(a, /class="lore-mascot"[^>]+echo-bat-front\.png/g) === 1, "the lore carries one front-facing Echo Bat");
+ok(count(a, /class="lore-mascot"/g) === 0, "the removed lore block leaves no duplicate mascot below the hero");
 ok(count(a, /data-hero-lockup/g) === 1 && /class="hero-lockup-bat"[^>]+echo-bat-front-flight\.gif/.test(a) && count(a, /class="hero-bat-wing/g) === 0 && /class="hero-lockup-word"[^>]*>LINTCHA</.test(a), "the hero opens with the front-facing Echo Bat flight loop and LINTCHA lockup");
 ok(count(a, /class="road-mascot"[^>]+echo-bat-flight\.gif/g) === 1 && count(a, /data-mascot-progress/g) === 1, "the roadmap and scroll rail carry Echo Bat flight assets");
 ok(count(a, /data-mascot-fill/g) === 1 && count(a, /data-mascot-section/g) === 1 && /data-i18n="progress\.prefix">you are in</.test(a) && /href="\/favicon-bat\.png"/.test(a), "the bottom rail carries progress, its current-section label and the dedicated bat favicon");
 // the roadmap line: the three phase lists folded onto one rule, a tick for every item and not one item lost
-const road = a.slice(a.indexOf('id="s15"'), a.indexOf("<section", a.indexOf('id="s15"') + 1));
+const road = a.slice(a.indexOf('id="s06"'), a.indexOf("<section", a.indexOf('id="s06"') + 1));
 const roadItems = count(road, /data-i18n="roadmap\.(shipped|next|later)\.l\d"/g);
 ok(roadItems === 8, "eight items across shipped, next and later, the same eight as the three columns carried");
 ok(count(road, /class="road-tick"/g) === roadItems, "one tick on the line for each of them: " + count(road, /class="road-tick"/g));
@@ -175,21 +167,18 @@ ok(dated.length === 0, "no label on the line carries a date, a year, a quarter, 
 console.log("state b: address and pons");
 const b = build("b", { address, pons, uniswap: null });
 ok(count(b, /class="buy"/g) === 1 && b.includes(`class="buy" href="${pons}"`), "one filled buy button, to the pons link");
-// three address slots: the contract row, section sixteen, the band; two copy buttons: the row's and the band's
+// three address slots: the contract row, the token section, the band; two copy buttons: the row's and the band's
 ok(count(b, /class="contract"/g) === 1 && count(b, /data-token-address>[^<]*</g) === 3, "the contract row, the section and the band carry the address");
-// the token section is numbered one past the last section of the page: the order in tools/build.mjs carries
-// sixteen sections since the chain block joined it and none is pending, so String(ORDER.length + 1) makes the
-// token section seventeen. The number is read off the order, not fitted to the output: it moved from fifteen to
-// sixteen in round B and from sixteen to seventeen in round C, each time because the order grew by one.
-ok(count(b, /class="sec token-sec" id="s17"/g) === 1, "the token section is section seventeen");
-ok(count(b, /data-sec="16"/g) === 1 && count(b, /data-sec="17"/g) === 1 && count(b, /data-sec="18"/g) === 0, "numbered straight after the last section of the page, no gap");
+// The optional token block remains mechanically one number after the compact seven-section page.
+ok(count(b, /class="sec token-sec" id="s08"/g) === 1, "the optional token section is section eight");
+ok(count(b, /data-sec="07"/g) === 1 && count(b, /data-sec="08"/g) === 1 && count(b, /data-sec="09"/g) === 0, "the token is numbered straight after the last homepage section, with no gap");
 ok(count(b, /token-btn-pons/g) === 1 && count(b, /token-btn-uni/g) === 0, "pons button only");
 ok(count(b, /badge-live/g) === 2 && count(b, /class="cell-v" data-i18n="token.dash">—</g) === 2, "two live tiles, each a dash");
 ok(count(b, /data-copy-address/g) === 2, "two copy buttons: the contract row's and the band's");
 ok(count(b, /class="band"/g) === 1 && count(b, /class="band-copy"/g) === 1, "one launch band, with one copy button");
 ok(slot(b, "band-address") === address && slot(b, "band-address") === slot(b, "contract-address"), "the band carries the contract row's address");
 ok(b.indexOf('class="band"') > b.indexOf("</footer>"), "the band sits under the footer");
-ok(count(b, /class="out"/g) === 4 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === "https://x.com/lintchadotcom" && outHrefs(b)[3] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: both X accounts and Telegram remain configured");
+ok(count(b, /class="out(?: [^"]*)?"/g) === 5 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === "https://x.com/lintchadotcom" && outHrefs(b)[3] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: social links and BOT remain configured");
 for (const lang of ["es", "pt"]) {
   const localized = fs.readFileSync(path.join(tmp, "b", lang, "index.html"), "utf8");
   ok(count(localized, new RegExp(`data-token-address>${re(address)}<`, "g")) === 3 && count(localized, new RegExp(`href="${re(attr(pons))}"`, "g")) === 2 && !/token-btn-uni/.test(localized), `${lang}: the active page carries the exact same pons-only token state`);
@@ -204,10 +193,10 @@ ok(count(c, /class="band"/g) === 1 && slot(c, "band-address") === address, "one 
 console.log("links: both X accounts and Telegram filled");
 const l = build("links", { address, pons, uniswap: null }, { x: [{ href: xAccount, label: "@first" }, { href: xAccountTwo, label: "@second" }], telegram });
 const hrefs = outHrefs(l);
-ok(count(l, /class="out"/g) === 4, "cluster is four outbound items");
-ok(hrefs.length === 4 && hrefs[0] === "https://github.com/Mnilax/lintcha-chain" && hrefs[1] === xAccount && hrefs[2] === xAccountTwo && hrefs[3] === telegram, "github, then both labelled X accounts, then telegram");
+ok(count(l, /class="out(?: [^"]*)?"/g) === 5, "cluster is five outbound items");
+ok(hrefs.length === 5 && hrefs[0] === "https://github.com/Mnilax/lintcha-chain" && hrefs[1] === xAccount && hrefs[2] === xAccountTwo && hrefs[3] === telegram && hrefs[4] === "https://t.me/lintchabot?start=copy_site", "github, both labelled X accounts, telegram, then the attributed bot button");
 ok(clusterOf(l).includes("@first") && clusterOf(l).includes("@second"), "both configured X labels are visible");
-ok(count(clusterOf(l), /class="arrow"/g) === 4, "each of the four carries the arrow");
+ok(count(clusterOf(l), /class="arrow"/g) === 5, "each of the five carries the arrow");
 ok(count(l, /data-i18n="nav\.telegram"/g) === 1, "the telegram item is keyed nav.telegram");
 ok(!l.includes(X_DEFAULT), "the default X account is not on the page once links.json names one");
 
@@ -217,8 +206,8 @@ const treeState = tokenConfigOf(treeToken);
 ok(!!treeState, "site/token.json matches the shared dormant-or-active contract");
 const treeLinks = JSON.parse(fs.readFileSync(path.join(root, "site", "links.json"), "utf8"));
 ok(JSON.stringify(treeLinks.x) === JSON.stringify([
-  { href: "https://x.com/mnilax", label: "@mnilax" },
-  { href: "https://x.com/lintchadotcom", label: "@lintchadotcom" }
+  { href: "https://x.com/mnilax", label: "Founder" },
+  { href: "https://x.com/lintchadotcom", label: "X" }
 ]) && treeLinks.telegram === TELEGRAM_DEFAULT, "site/links.json names both confirmed X accounts and the confirmed Telegram room");
 const tree = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");
 const treeLocales = [tree, ...["es", "pt"].map(lang => fs.readFileSync(path.join(root, "site", lang, "index.html"), "utf8"))];
@@ -240,9 +229,9 @@ if (treeState && treeState.address === null) {
 }
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
-ok(count(tree, /class="out"/g) === 4 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === "https://x.com/lintchadotcom" && outHrefs(tree)[3] === TELEGRAM_DEFAULT &&
-  clusterOf(tree).includes("@mnilax") && clusterOf(tree).includes("@lintchadotcom") && count(tree, /data-i18n="nav\.telegram"/g) === 1,
-  "the tree's page links and labels both confirmed X accounts and the confirmed Telegram room");
+ok(count(tree, /class="out(?: [^"]*)?"/g) === 5 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === "https://x.com/lintchadotcom" && outHrefs(tree)[3] === TELEGRAM_DEFAULT && outHrefs(tree)[4] === "https://t.me/lintchabot?start=copy_site" &&
+  clusterOf(tree).includes("Founder") && clusterOf(tree).includes(">X<") && clusterOf(tree).includes(">BOT<") && count(tree, /class="social-icon"/g) >= 2 && count(tree, /data-i18n="nav\.telegram"/g) === 1,
+  "the tree's page renders Founder, vector X and Telegram, plus the attributed BOT button");
 ok(treeLocales.every(page => treeState.address === null ? count(page, /data-token-address|data-copy-address|class="buy"|token-sec/g) === 0 : page.includes(`data-token-address>${treeState.address}<`)), "every tree locale agrees with the shared token document");
 
 // The eight never lines are the product boundary, not ordinary copy. Pin the ordered set in every source language so

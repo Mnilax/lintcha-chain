@@ -66,7 +66,7 @@ test("Mini App boot → wallet registration → review → separate confirm → 
 
   await boot({ document: doc, windowLike, fetchImpl, clock });
   assert.equal(visible(), "home", get("[data-error]").textContent);
-  assert.equal(get("[data-mode]").textContent, "confirm each trade");
+  assert.equal(get("[data-mode]").textContent, "legacy confirm-each");
   assert.match(get("[data-wallets]").textContent, /No public address/);
   await get("[data-action=connect-wallet]").click();
   assert.match(get("[data-wallets]").textContent, /external 0x1111…1111/);

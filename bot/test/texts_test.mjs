@@ -48,9 +48,9 @@ const GIVEN = {
     approval, holds funds or trades. Everything Core says is read from the chain,
     and its code is in the repository with the rest.
 
-    /copy opens Lintcha Copy, a separately labelled voluntary trading module. In
-    Basic mode every BUY and manual SELL is reviewed and signed in the secure sheet;
-    never send a seed or private key in Telegram.`,
+    /copy opens Lintcha Copy, a separately labelled voluntary trading module. Choose
+    notifications or bounded auto-BUY; SELL stays manual. Never send a seed or private
+    key in Telegram.`,
   greeting: `This room is the tape. Every buy the feed can prove lands here as it clears the venue the bot can read.
     Nobody here will message you first, and nobody will ever ask you for
     your seed. One contract; any other address with this name is not ours.

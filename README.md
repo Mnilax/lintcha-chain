@@ -1,22 +1,24 @@
 <p align="center">
   <a href="https://lintcha.com/">
-    <img src="assets/banner.png" width="100%" alt="lintcha — reads strings, not contracts">
+    <img src="assets/banner.png" width="100%" alt="lintcha — Copy-first trading with read-only Core tools">
   </a>
 </p>
 
-<h1 align="center">lintcha-chain</h1>
+<h1 align="center">lintcha</h1>
 
 <p align="center">
-  <strong>Read what a Robinhood Chain launch calls itself — and see what those strings are shared with.</strong>
+  <strong>Follow activity. Copy matched BUYs within your limits. Keep every SELL manual.</strong>
 </p>
 
 <p align="center">
-  A browser-side comparison against a finalized, state-pinned day of launches.<br>
-  Shared strings, stated plainly. No score. No verdict.
+  Lintcha Copy is the opt-in trading module inside @lintchabot.<br>
+  Lintcha Core keeps the original comparison and observer tools read-only.
 </p>
 
 <p align="center">
-  <a href="https://lintcha.com/">Read a launch</a>
+  <a href="https://t.me/lintchabot?start=copy_site">Open Lintcha Copy</a>
+  ·
+  <a href="https://lintcha.com/">Website</a>
   ·
   <a href="https://lintcha.com/live/">Live wall</a>
   ·
@@ -28,7 +30,7 @@
   ·
   <a href="https://x.com/lintchadotcom">@lintchadotcom</a>
   ·
-  <a href="https://t.me/lintchabot">Telegram Mini App</a>
+  <a href="https://t.me/lintchabot?start=copy_site">Telegram Bot</a>
   ·
   <a href="https://t.me/lintcha">Telegram room</a>
 </p>
@@ -48,7 +50,13 @@
 -->
 
 > [!IMPORTANT]
-> The snapshot comparison reads self-declared identity strings. It does not inspect a launch contract, calculate a price, assign a score, predict an outcome or recommend a trade. A reported shared value is evidence of a matching index key inside the stated window — not evidence that a launch is safe, unsafe, original or copied.
+> Lintcha Copy is separate from read-only Lintcha Core. Auto-BUY is local/pre-production code and remains disabled until the delegation, provider, simulation and beta gates pass. Funds stay in the user's self-custody wallet; seed and private key never enter Telegram or the Lintcha backend. SELL is manual only.
+
+## Lintcha Copy
+
+Copy supports notifications and a bounded auto-BUY path. An automatic BUY must match a selected source, pass two-provider simulation, fit both project and user caps, use an allowlisted chain, router and selector, and fit an active expiring delegation. Submission is one-shot: an uncertain result is reconciled manually and never broadcast again automatically.
+
+The local implementation supports provider-dependent scoped session delegation through either an account-abstraction adapter or a delegated-account adapter. Choosing and funding the real production provider, creating a real delegation, signing, broadcasting, deployment and closed beta remain separate owner-approved actions.
 
 ## What lintcha-chain does
 
@@ -80,7 +88,7 @@ The comparison needs no account and no wallet. What you paste stays in the brows
 | Integrity manifest | Binds the exact published index and numbers bytes with SHA-256 | Shipped |
 | Identity kit | Exposes the same normalization engine as an ESM library, offline JSON CLI and opt-in HTTP API | Shipped |
 | Localized comparison | Builds the snapshot page in English, Spanish and Portuguese | Shipped |
-| [Lintcha Copy in `@lintchabot`](https://t.me/lintchabot?start=copy) | Leads the `lintcha.com` homepage and opens the voluntary notify-only or confirm-each self-custody trading flow | Separate service and database; activate only after its own beta gate |
+| [Lintcha Copy in `@lintchabot`](https://t.me/lintchabot?start=copy_site) | Notifications or bounded auto-copy BUY; SELL remains an explicit manual wallet action | Local/pre-production service and database; activate only after its own beta gate |
 | [Lintcha Core in Telegram](https://t.me/lintchabot) | Keeps the existing Read, Live, Deployer, token-state, holder-proof and finalized-feed commands read-only | Existing Core surface; unchanged |
 
 The live path never mutates the comparison index. The snapshot stays pinned to its recorded state and window until a guarded refresh publishes a replacement.
@@ -297,7 +305,7 @@ A proposal that weakens one of these lines changes Lintcha Core rather than exte
 
 `@lintchabot` may also expose **Lintcha Copy**, a separately labelled and voluntary trading module. It is not Lintcha Core: it has a separate package/service, `/copy/` Mini App route and origin, database namespace, configuration, audit log and kill switches. Core commands, Core data and the eight lines above remain read-only and unchanged.
 
-Lintcha Copy never receives a seed or private key through Telegram or the backend. Wallet creation, import, recovery and export stay in the protected client secure sheet. In Basic mode the backend prepares and simulates an unsigned transaction, and the user's self-custody wallet reviews, signs and submits every BUY or manual SELL separately. Auto-SELL is not available.
+Lintcha Copy never receives a seed, private key or session key through Telegram or the backend. Wallet creation, import, recovery and export stay in the protected client secure sheet. A bounded auto-BUY uses only public scope metadata and an opaque authorization reference; signing/submission belongs to a separately controlled delegated executor. Manual SELL approval and trade remain explicit wallet actions. Auto-SELL is not available.
 
 Therefore statements such as “the bot never trades” or “no signature anywhere moves funds” refer to **Lintcha Core**, not to the whole `@lintchabot` identity. Every transition from Core to Copy must say so before a wallet or transaction control appears.
 

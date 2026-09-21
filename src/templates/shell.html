@@ -47,7 +47,7 @@
       <span class="wordmark" data-i18n="site.wordmark"></span>
     </a>
     <nav class="page-switch" data-i18n-attr="aria-label:nav.pages">
-      <a class="page-switch-copy" href="https://t.me/lintchabot?start=copy" rel="noopener" target="_blank" data-i18n="nav.copy"></a>
+      <a class="page-switch-copy" href="https://t.me/lintchabot?start=copy_site" rel="noopener" target="_blank" data-i18n="nav.copy"></a>
       <span class="page-switch-current" aria-current="page" data-i18n="nav.comparison"></span>
       <a href="/live/" data-i18n="nav.live"></a>
       <a href="/deployer/" data-i18n="nav.deployer"></a>
@@ -87,8 +87,8 @@
     <p class="hero-intro" data-i18n="hero.intro"></p>
     <p class="hero-privacy" data-i18n="hero.safety"></p>
     <nav class="hero-actions" data-i18n-attr="aria-label:hero.actions.label">
-      <a class="hero-action hero-action-primary" href="https://t.me/lintchabot?start=copy" rel="noopener" target="_blank" data-i18n="hero.actions.copy"></a>
-      <a class="hero-action" href="#s02" data-i18n="hero.actions.core"></a>
+      <a class="hero-action hero-action-primary" href="https://t.me/lintchabot?start=copy_site" rel="noopener" target="_blank" data-i18n="hero.actions.copy"></a>
+      <a class="hero-action" href="#s04" data-i18n="hero.actions.core"></a>
     </nav>
     <p class="copy-availability" data-i18n="hero.availability"></p>
     <div class="copy-modes" data-i18n-attr="aria-label:hero.modes.label">
@@ -127,13 +127,68 @@
       <span class="sr-only" data-proof-status></span>
       </div>
     </aside>
-    <aside class="core-entry" aria-labelledby="core-entry-title">
-      <span class="core-entry-kicker" data-i18n="hero.core.kicker"></span>
-      <h2 id="core-entry-title" data-i18n="hero.core.h"></h2>
-      <p data-i18n="launch.intro"></p>
-      <p class="core-entry-privacy" data-i18n="launch.privacy"></p>
-    </aside>
   </section>
+
+<!-- section:copy_sources -->
+  <section class="sec sec-copy" data-sec="copy_sources">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="copy.sources.h2"></h2></div>
+    <p class="sec-p sec-p-lg" data-i18n="copy.sources.intro"></p>
+    <div class="copy-feature-grid">
+      <article class="copy-feature">
+        <span class="copy-feature-tag" data-i18n="copy.sources.wallet.tag"></span>
+        <h3 data-i18n="copy.sources.wallet.t"></h3>
+        <p data-i18n="copy.sources.wallet.p"></p>
+      </article>
+      <article class="copy-feature">
+        <span class="copy-feature-tag" data-i18n="copy.sources.launchpad.tag"></span>
+        <h3 data-i18n="copy.sources.launchpad.t"></h3>
+        <p data-i18n="copy.sources.launchpad.p"></p>
+      </article>
+      <article class="copy-feature">
+        <span class="copy-feature-tag" data-i18n="copy.sources.rule.tag"></span>
+        <h3 data-i18n="copy.sources.rule.t"></h3>
+        <p data-i18n="copy.sources.rule.p"></p>
+      </article>
+    </div>
+  </section>
+<!-- /section:copy_sources -->
+
+<!-- section:copy_execution -->
+  <section class="sec sec-copy" data-sec="copy_execution">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="copy.execution.h2"></h2></div>
+    <p class="sec-p sec-p-lg" data-i18n="copy.execution.intro"></p>
+    <ol class="copy-flow">
+      <li><span class="copy-flow-mark" aria-hidden="true"></span><div><h3 data-i18n="copy.execution.match.t"></h3><p data-i18n="copy.execution.match.p"></p></div></li>
+      <li><span class="copy-flow-mark" aria-hidden="true"></span><div><h3 data-i18n="copy.execution.simulate.t"></h3><p data-i18n="copy.execution.simulate.p"></p></div></li>
+      <li><span class="copy-flow-mark" aria-hidden="true"></span><div><h3 data-i18n="copy.execution.policy.t"></h3><p data-i18n="copy.execution.policy.p"></p></div></li>
+      <li><span class="copy-flow-mark" aria-hidden="true"></span><div><h3 data-i18n="copy.execution.submit.t"></h3><p data-i18n="copy.execution.submit.p"></p></div></li>
+    </ol>
+  </section>
+<!-- /section:copy_execution -->
+
+<!-- section:copy_controls -->
+  <section class="sec sec-copy" data-sec="copy_controls">
+    <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="copy.controls.h2"></h2></div>
+    <p class="sec-p sec-p-lg" data-i18n="copy.controls.intro"></p>
+    <div class="copy-control-grid">
+      <article class="copy-control copy-control-primary">
+        <span class="copy-control-kicker" data-i18n="copy.controls.buy.kicker"></span>
+        <h3 data-i18n="copy.controls.buy.t"></h3>
+        <ul>
+          <li data-i18n="copy.controls.buy.l1"></li>
+          <li data-i18n="copy.controls.buy.l2"></li>
+          <li data-i18n="copy.controls.buy.l3"></li>
+        </ul>
+      </article>
+      <article class="copy-control">
+        <span class="copy-control-kicker" data-i18n="copy.controls.sell.kicker"></span>
+        <h3 data-i18n="copy.controls.sell.t"></h3>
+        <p data-i18n="copy.controls.sell.p"></p>
+        <a class="copy-inline-cta" href="https://t.me/lintchabot?start=copy_site" rel="noopener" target="_blank" data-i18n="copy.controls.cta"></a>
+      </article>
+    </div>
+  </section>
+<!-- /section:copy_controls -->
 
 <!-- section:process -->
   <section class="sec" data-sec="process">
@@ -505,7 +560,7 @@
     <aside class="telegram-app-callout" aria-labelledby="road-mini-app-title">
       <h4 class="telegram-app-title" id="road-mini-app-title" data-i18n="road.room.app.t"></h4>
       <p class="sec-p" data-i18n="road.room.app.p"></p>
-      <div class="telegram-app-actions"><a class="telegram-app-button" href="https://t.me/lintchabot" rel="noopener" target="_blank" data-i18n="road.room.app.cta"></a></div>
+      <div class="telegram-app-actions"><a class="telegram-app-button" href="https://t.me/lintchabot?start=copy_site" rel="noopener" target="_blank" data-i18n="road.room.app.cta"></a></div>
     </aside>
     <h3 class="sub" data-i18n="road.token.t"></h3>
     <p class="sec-p" data-i18n="road.token.p"></p>
@@ -530,18 +585,14 @@
   <section class="sec" data-sec="faq">
     <div class="sec-head"><span class="num" data-num></span><h2 class="sec-h" data-i18n="faq.h2"></h2></div>
     <div class="faq">
+      <div class="qa"><h3 data-i18n="faq.auto.q"></h3><p data-i18n="faq.auto.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.sources.q"></h3><p data-i18n="faq.sources.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.custody.q"></h3><p data-i18n="faq.custody.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.pause.q"></h3><p data-i18n="faq.pause.a"></p></div>
+      <div class="qa"><h3 data-i18n="faq.sell.q"></h3><p data-i18n="faq.sell.a"></p></div>
       <div class="qa"><h3 data-i18n="faq.safe.q"></h3><p data-i18n="faq.safe.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.copy.q"></h3><p data-i18n="faq.copy.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.day.q"></h3><p data-i18n="faq.day.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.hashes.q"></h3><p data-i18n="faq.hashes.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.desc.q"></h3><p data-i18n="faq.desc.a" data-i18n-vars="min_words"></p></div>
       <div class="qa"><h3 data-i18n="faq.input.q"></h3><p data-i18n="faq.input.a"></p></div>
       <div class="qa"><h3 data-i18n="faq.code.q"></h3><p data-i18n="faq.code.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.who.q"></h3><p data-i18n="faq.who.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.score.q"></h3><p data-i18n="faq.score.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.wall.q"></h3><p data-i18n="faq.wall.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.bot_first.q"></h3><p data-i18n="faq.bot_first.a"></p></div>
-      <div class="qa"><h3 data-i18n="faq.signature.q"></h3><p data-i18n="faq.signature.a"></p></div>
     </div>
   </section>
 <!-- /section:faq -->
@@ -565,5 +616,6 @@
 <script src="{{root}}fact-receipt-svg.js"></script>
 <script src="{{root}}proof-loop.js"></script>
 <script src="{{root}}chain.js"></script>
+<script src="{{root}}swarm-transition.js"></script>
 </body>
 </html>

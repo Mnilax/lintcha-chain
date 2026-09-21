@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { RpcError } from "./rpc-pool.mjs";
+import { assertDelegationAllows, UnconfiguredDelegatedExecutor } from "./delegated-execution.mjs";
 
 const HASH = /^0x[0-9a-fA-F]{64}$/;
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
@@ -94,6 +95,7 @@ export class MemoryIntentStore {
 export class LintchaCopyService {
   constructor({
     policyGate, simulator, rpcPool, auditLog, intentStore = new MemoryIntentStore(), confirmationSecret,
+    delegationStore = null, delegatedExecutor = new UnconfiguredDelegatedExecutor(), autoBuyEnabled = false, delegatedSubmissionEnabled = false,
     clock = () => Math.floor(Date.now() / 1000), submissionGraceSeconds = 600, dropDeadlineSeconds = 1800,
     maxReconcileAttempts = 120, requireSafeInclusion = true,
   }) {
@@ -102,12 +104,79 @@ export class LintchaCopyService {
     this.rpcPool = rpcPool;
     this.auditLog = auditLog;
     this.intentStore = intentStore;
+    this.delegationStore = delegationStore;
+    this.delegatedExecutor = delegatedExecutor;
+    this.autoBuyEnabled = autoBuyEnabled;
+    this.delegatedSubmissionEnabled = delegatedSubmissionEnabled;
     this.tokens = new ConfirmationTokenCodec(confirmationSecret);
     this.clock = clock;
     this.submissionGraceSeconds = submissionGraceSeconds;
     this.dropDeadlineSeconds = dropDeadlineSeconds;
     this.maxReconcileAttempts = maxReconcileAttempts;
     this.requireSafeInclusion = requireSafeInclusion;
+  }
+
+  /** Automatic execution is BUY-only and possible only through a bounded, active public delegation record. */
+  async executeAutomaticBuy({ userId, walletAddress, sourceTradeId, quote, transaction, operation = "TRADE", utcDay }) {
+    if (!this.autoBuyEnabled || !this.delegatedSubmissionEnabled) throw new Error("AUTO_BUY_DISABLED");
+    if (!this.delegationStore) throw new Error("DELEGATION_STORE_REQUIRED");
+    const now = this.clock();
+    const unsignedTransaction = assertPublicTransaction(transaction);
+    const publicQuote = assertPublicQuote(quote, now);
+    if (publicQuote.direction !== "BUY" || operation !== "TRADE") throw new Error(publicQuote.direction === "SELL" ? "AUTO_SELL_FORBIDDEN" : "AUTO_BUY_TRADE_ONLY");
+    const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
+    if (typeof sourceTradeId !== "string" || !sourceTradeId || sourceTradeId.length > 128) throw new Error("INVALID_SOURCE_TRADE");
+    const delegation = assertDelegationAllows(await this.delegationStore.getActive(userId, publicWalletAddress), { userId, walletAddress: publicWalletAddress, transaction: unsignedTransaction, quote: publicQuote }, now);
+    const day = utcDay || utcDayOf(now);
+    const replayKey = stableId(String(userId), publicWalletAddress, sourceTradeId, "BUY", "TRADE");
+    const id = stableId("auto-buy", replayKey, publicQuote.id);
+    const row = {
+      id, replayKey, userId: String(userId), walletAddress: publicWalletAddress, direction: "BUY", operation: "TRADE", executionMode: "AUTO_BUY",
+      sourceTradeId, utcDay: day, quote: publicQuote, transaction: unsignedTransaction, state: "CREATING", revision: 1,
+      createdAt: now, updatedAt: now, expiresAt: Math.min(publicQuote.expiresAt, delegation.expiresAt), simulation: null,
+      delegation: { architecture: delegation.architecture, authorizationRef: delegation.authorizationRef, expiresAt: delegation.expiresAt },
+      transactionHash: null, submittedAt: null, reconcileAttempts: 0, history: [{ state: "CREATING", at: now }],
+    };
+    const claim = await this.intentStore.claim(row);
+    if (claim.duplicate) {
+      if (!RETRYABLE_TERMINAL_STATES.has(claim.row.state)) return this.#view(claim.row, true);
+      if (claim.row.id === id) throw new Error("QUOTE_ALREADY_USED");
+      await this.intentStore.supersede(claim.row, row);
+    }
+    try {
+      await this.policyGate.authorize({ intentId: id, userId, utcDay: day, direction: "BUY", operation: "TRADE", transaction: unsignedTransaction, quote: publicQuote, confirmationKind: "DELEGATED_AUTO_BUY", manualSell: false, dailySpendCapWei: delegation.maxDailySpendWei });
+      row.simulation = await this.simulator.simulate({ from: row.walletAddress, transaction: unsignedTransaction });
+      if (this.clock() >= row.expiresAt) throw new Error("STALE_QUOTE");
+      this.policyGate.killSwitches.assertAllowed(userId);
+      assertDelegationAllows(await this.delegationStore.getActive(userId, publicWalletAddress), { userId, walletAddress: publicWalletAddress, transaction: unsignedTransaction, quote: publicQuote }, this.clock());
+      this.#transition(row, "DELEGATED_SUBMISSION_PENDING");
+      await this.intentStore.save(row);
+      let submission;
+      try {
+        submission = await this.delegatedExecutor.submit({
+          intentId: id, userId: String(userId), walletAddress: publicWalletAddress, authorizationRef: delegation.authorizationRef,
+          transaction: unsignedTransaction, quoteId: publicQuote.id, expiresAt: row.expiresAt,
+        });
+        if (!HASH.test(submission?.transactionHash || "")) throw new Error("DELEGATED_SUBMISSION_UNCERTAIN");
+      } catch (error) {
+        this.#transition(row, "RECONCILIATION_REQUIRED", error.message === "DELEGATED_EXECUTOR_NOT_CONFIGURED" ? error.message : "DELEGATED_SUBMISSION_UNCERTAIN");
+        await this.intentStore.save(row);
+        await this.auditLog.append("AUTO_BUY_SUBMISSION_UNCERTAIN", { intentId: id, userId: row.userId, reason: row.history.at(-1).reason, automaticRetry: false, reservationReleased: false });
+        return this.#view(row, false);
+      }
+      row.transactionHash = submission.transactionHash.toLowerCase(); row.submittedAt = this.clock();
+      this.#transition(row, "SUBMITTED_PENDING_RECONCILIATION");
+      await this.intentStore.save(row);
+      await this.auditLog.append("AUTO_BUY_SUBMITTED", { intentId: id, userId: row.userId, walletAddress: row.walletAddress, transactionHash: row.transactionHash, simulationBlock: row.simulation.blockNumber, automaticRetry: false });
+      return this.#view(row, false);
+    } catch (error) {
+      if (row.state === "DELEGATED_SUBMISSION_PENDING" || row.state === "RECONCILIATION_REQUIRED") throw error;
+      await this.policyGate.spendLedger.release(id);
+      this.#transition(row, "REJECTED", error.message);
+      await this.intentStore.save(row);
+      await this.auditLog.append("AUTO_BUY_REJECTED", { intentId: id, userId: row.userId, reason: error.message });
+      throw error;
+    }
   }
 
   async createConfirmEachIntent({ userId, walletAddress, sourceTradeId, quote, transaction, operation = "TRADE", manualSell = false, utcDay, ttlSeconds = 90 }) {
@@ -339,7 +408,7 @@ export class LintchaCopyService {
   #view(row, duplicate) {
     const last = row.history.at(-1) || {};
     const response = {
-      intentId: row.id, state: row.state, revision: row.revision, expiresAt: row.expiresAt, duplicate,
+      intentId: row.id, state: row.state, revision: row.revision, expiresAt: row.expiresAt, duplicate, executionMode: row.executionMode || "CONFIRM_EACH",
       direction: row.direction, operation: row.operation, transactionHash: row.transactionHash || null,
       reason: last.reason || null, manualAttention: MANUAL_STATES.has(row.state),
     };

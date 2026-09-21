@@ -67,6 +67,7 @@ A path is added here in the same commit that creates the file.
 - `tests/chain_browser.mjs`
 - `tests/chain_acceptance.sh`
 - `site/chain.js`
+- `site/swarm-transition.js`
 - `site/404.html`
 - `src/templates/404.html`
 - `tools/build-viz.mjs`
@@ -129,4 +130,5 @@ A path is added here in the same commit that creates the file.
 - `tests/refusal_gallery_test.mjs`
 - `tests/fact_receipt_svg_test.js`
 - `tests/proof_loop_test.js`
+- `tests/swarm_transition_test.mjs`
 - `docs/FACT_RECEIPTS.md`

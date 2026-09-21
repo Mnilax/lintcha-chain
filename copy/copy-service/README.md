@@ -1,13 +1,14 @@
 # Lintcha Copy service
 
-An isolated, fail-closed service for the opt-in trading module inside the existing `@lintchabot` identity. It has no bot token, no signer and no broadcaster.
+An isolated, fail-closed service for the opt-in trading module inside the existing `@lintchabot` identity. It has no bot token or key material. Optional auto-BUY submission crosses only a dedicated executor service binding and is disabled by default.
 
 ## Layout
 
-- `src/config.mjs` — environment → frozen config; refuses bot-token bindings, server broadcast and auto-copy flags.
+- `src/config.mjs` — environment → frozen config; refuses bot-token bindings and generic server broadcast; auto-BUY requires two matching opt-in flags.
 - `src/policy.mjs` — kill switches, spend ledger contract, allowlists, caps, exact-approval decoding.
 - `src/rpc-pool.mjs`, `src/simulation.mjs` — two-vendor read-only pool: health (chain, finality tags, head skew, common block hash, conservative safe/finalized), failover reads, projection-based quorum, simulation with revert classification.
-- `src/service.mjs` — confirm-each intent lifecycle: create → AWAITING_USER_CONFIRMATION → CLIENT_CONFIRMING → SUBMITTED_PENDING_RECONCILIATION → (INCLUDED_AWAITING_SAFE) → CONFIRMED | FAILED; CANCELLED/EXPIRED; RECONCILIATION_REQUIRED/DROPPED_OR_REPLACED for humans. SELL trade requires a live allowance.
+- `src/service.mjs` — one-shot auto-BUY plus explicit secure-sheet lifecycles. Both converge on SUBMITTED_PENDING_RECONCILIATION → (INCLUDED_AWAITING_SAFE) → CONFIRMED | FAILED, with RECONCILIATION_REQUIRED/DROPPED_OR_REPLACED for humans and no blind retry. SELL requires a live allowance and explicit wallet confirmation.
+- `src/delegated-execution.mjs` — validates public scoped delegation metadata and isolates the optional executor service binding; accepts no key, signature or signed transaction.
 - `src/gateway-auth.mjs` — HMAC verification of the Core gateway envelope with a durable replay store.
 - `src/telegram-init-data.mjs` — Ed25519 third-party validation of Mini App init data (no bot token).
 - `src/telegram-surface.mjs` — what `/copy` and the namespaced callbacks say; review lines for the outbox.
@@ -21,7 +22,7 @@ An isolated, fail-closed service for the opt-in trading module inside the existi
 ## Run
 
 ```
-node --test test/*.test.mjs          # 34 tests
+node --test test/*.test.mjs
 node tools/fork-replay.mjs           # SKIPPED unless COPY_FORK_RPC_URL is a local fork
 node tools/rpc-acceptance.mjs        # needs COPY_RPC_PRIMARY_URL / COPY_RPC_SECONDARY_URL in the environment
 ```

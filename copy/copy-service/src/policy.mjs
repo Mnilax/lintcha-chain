@@ -93,15 +93,17 @@ export class ExecutionPolicyGate {
    * Fail-closed authorization of one unsigned intent. Returns the reservation for BUY trades.
    * Every check here runs before simulation and before any confirmation token is issued.
    */
-  async authorize({ intentId, userId, utcDay, direction, operation = "TRADE", transaction, quote, confirmationKind, manualSell = false }) {
+  async authorize({ intentId, userId, utcDay, direction, operation = "TRADE", transaction, quote, confirmationKind, manualSell = false, dailySpendCapWei = null }) {
     this.killSwitches.assertAllowed(userId);
-    if (confirmationKind !== "SECURE_SHEET_EXPLICIT") throw new Error("EXPLICIT_CLIENT_CONFIRMATION_REQUIRED");
+    const delegatedAutoBuy = confirmationKind === "DELEGATED_AUTO_BUY";
+    if (confirmationKind !== "SECURE_SHEET_EXPLICIT" && !delegatedAutoBuy) throw new Error("EXPLICIT_CLIENT_CONFIRMATION_REQUIRED");
     if (!this.config.chains.includes(Number(transaction.chainId))) throw new Error("CHAIN_NOT_ALLOWLISTED");
     const selector = String(transaction.data || "").slice(0, 10).toLowerCase();
     if (!this.config.selectors.includes(selector)) throw new Error("SELECTOR_NOT_ALLOWLISTED");
     if (!Number.isSafeInteger(Number(quote.slippageBps)) || Number(quote.slippageBps) < 0 || Number(quote.slippageBps) > this.config.maxSlippageBps) throw new Error("SLIPPAGE_CAP_EXCEEDED");
     if (!["BUY", "SELL"].includes(direction)) throw new Error("INVALID_DIRECTION");
     if (!["TRADE", "APPROVAL"].includes(operation)) throw new Error("INVALID_OPERATION");
+    if (delegatedAutoBuy && (direction !== "BUY" || operation !== "TRADE")) throw new Error(direction === "SELL" ? "AUTO_SELL_FORBIDDEN" : "AUTO_BUY_TRADE_ONLY");
     if (direction === "SELL" && manualSell !== true) throw new Error("AUTO_SELL_FORBIDDEN");
     const value = amount(transaction.value || 0, "TRANSACTION_VALUE");
     const tradeAmount = amount(quote.amountIn, "TRANSACTION_AMOUNT");
@@ -129,7 +131,9 @@ export class ExecutionPolicyGate {
     }
     let reservation = null;
     if (direction === "BUY" && operation === "TRADE") {
-      reservation = await this.spendLedger.reserve({ intentId, userId, utcDay, amountWei: tradeAmount, maxDailySpendWei: this.config.maxDailySpendWei });
+      const configuredCap = amount(this.config.maxDailySpendWei, "DAILY_CAP");
+      const delegatedCap = dailySpendCapWei === null ? configuredCap : amount(dailySpendCapWei, "DAILY_CAP");
+      reservation = await this.spendLedger.reserve({ intentId, userId, utcDay, amountWei: tradeAmount, maxDailySpendWei: (delegatedCap < configuredCap ? delegatedCap : configuredCap).toString() });
     }
     return Object.freeze({ authorized: true, selector, reservation });
   }

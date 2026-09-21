@@ -5,7 +5,7 @@
  * at any moment without losing anything. Reads bypass the object.
  */
 export const COORDINATED_OPERATIONS = Object.freeze(new Set([
-  "createConfirmEachIntent", "beginSecureSheetConfirmation", "recordClientSubmission", "cancelIntent", "reconcile", "expireIntent",
+  "createConfirmEachIntent", "executeAutomaticBuy", "beginSecureSheetConfirmation", "recordClientSubmission", "cancelIntent", "reconcile", "expireIntent",
 ]));
 
 function userIdOf(op, args) {
@@ -34,6 +34,7 @@ export function createCoordinatedService({ localService, stubFor, clock = () => 
     intentStore: localService.intentStore,
     policyGate: localService.policyGate,
     createConfirmEachIntent: (args) => forward(userIdOf("createConfirmEachIntent", args), "createConfirmEachIntent", args),
+    executeAutomaticBuy: (args) => forward(userIdOf("executeAutomaticBuy", args), "executeAutomaticBuy", args),
     beginSecureSheetConfirmation: (args) => forward(userIdOf("beginSecureSheetConfirmation", args), "beginSecureSheetConfirmation", args),
     recordClientSubmission: (args) => forward(userIdOf("recordClientSubmission", args), "recordClientSubmission", args),
     cancelIntent: (args) => forward(userIdOf("cancelIntent", args), "cancelIntent", args),

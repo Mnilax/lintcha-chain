@@ -8,6 +8,7 @@
  * unique replay keys, unique dedupe keys, primary-key idempotence.
  */
 const now = () => Math.floor(Date.now() / 1000);
+import { validateDelegation } from "../delegated-execution.mjs";
 
 function rowToIntent(row) { return row ? JSON.parse(row.row_json) : null; }
 
@@ -97,7 +98,7 @@ export class D1UserStore {
   async upsert({ telegramUserId, privateChatId, mode, paused }) {
     const id = String(telegramUserId);
     const at = this.clock();
-    if (mode !== undefined && !["NOTIFY_ONLY", "CONFIRM_EACH"].includes(mode)) throw new Error("INVALID_USER_MODE");
+    if (mode !== undefined && !["NOTIFY_ONLY", "AUTO_BUY", "CONFIRM_EACH"].includes(mode)) throw new Error("INVALID_USER_MODE");
     await this.db.prepare("INSERT OR IGNORE INTO copy_users (telegram_user_id, private_chat_id, mode, paused, created_at, updated_at) VALUES (?, ?, 'NOTIFY_ONLY', 1, ?, ?)").bind(id, privateChatId === undefined ? null : String(privateChatId), at, at).run();
     await this.db.prepare("UPDATE copy_users SET mode = COALESCE(?, mode), paused = COALESCE(?, paused), private_chat_id = COALESCE(?, private_chat_id), updated_at = ? WHERE telegram_user_id = ?")
       .bind(mode ?? null, paused === undefined ? null : (paused ? 1 : 0), privateChatId === undefined ? null : String(privateChatId), at, id).run();
@@ -115,6 +116,45 @@ export class D1UserStore {
     await this.db.prepare("INSERT OR IGNORE INTO copy_wallets (telegram_user_id, public_address, wallet_kind, public_label, created_at) VALUES (?, ?, ?, ?, ?)").bind(String(telegramUserId), publicAddress, walletKind, publicLabel, this.clock()).run();
     return this.wallets(telegramUserId);
   }
+  async recordReferral({ telegramUserId, source }) {
+    if (source !== "SITE") throw new Error("INVALID_REFERRAL_SOURCE");
+    const id = String(telegramUserId), at = this.clock();
+    await this.db.prepare("INSERT INTO copy_referral_users (source, telegram_user_id, first_seen_at, last_seen_at, starts) VALUES (?, ?, ?, ?, 1) ON CONFLICT(source, telegram_user_id) DO UPDATE SET last_seen_at = excluded.last_seen_at, starts = copy_referral_users.starts + 1")
+      .bind(source, id, at, at).run();
+    return this.db.prepare("SELECT source, telegram_user_id, first_seen_at, last_seen_at, starts FROM copy_referral_users WHERE source = ? AND telegram_user_id = ?").bind(source, id).first();
+  }
+  async referralStats(source = "SITE") {
+    if (source !== "SITE") throw new Error("INVALID_REFERRAL_SOURCE");
+    const row = await this.db.prepare("SELECT COUNT(*) AS unique_users, COALESCE(SUM(starts), 0) AS starts FROM copy_referral_users WHERE source = ?").bind(source).first();
+    return { source, uniqueUsers: Number(row?.unique_users || 0), starts: Number(row?.starts || 0) };
+  }
+}
+
+export class D1DelegationStore {
+  constructor(db, clock = now) { this.db = db; this.clock = clock; }
+  #map(row) {
+    if (!row) return null;
+    return {
+      userId: row.telegram_user_id, walletAddress: row.public_address, architecture: row.architecture,
+      authorizationRef: row.authorization_ref, status: row.status, chainId: Number(row.chain_id),
+      routers: JSON.parse(row.routers_json), selectors: JSON.parse(row.selectors_json),
+      maxTransactionWei: row.max_transaction_wei, maxDailySpendWei: row.max_daily_spend_wei,
+      maxSlippageBps: Number(row.max_slippage_bps), expiresAt: Number(row.expires_at),
+      createdAt: Number(row.created_at), updatedAt: Number(row.updated_at),
+    };
+  }
+  async put(input) {
+    const row = validateDelegation(input, this.clock());
+    await this.db.prepare("INSERT INTO copy_delegations (telegram_user_id, public_address, architecture, authorization_ref, status, chain_id, routers_json, selectors_json, max_transaction_wei, max_daily_spend_wei, max_slippage_bps, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(telegram_user_id, public_address) DO UPDATE SET architecture = excluded.architecture, authorization_ref = excluded.authorization_ref, status = excluded.status, chain_id = excluded.chain_id, routers_json = excluded.routers_json, selectors_json = excluded.selectors_json, max_transaction_wei = excluded.max_transaction_wei, max_daily_spend_wei = excluded.max_daily_spend_wei, max_slippage_bps = excluded.max_slippage_bps, expires_at = excluded.expires_at, updated_at = excluded.updated_at")
+      .bind(row.userId, row.walletAddress, row.architecture, row.authorizationRef, row.status, row.chainId, JSON.stringify(row.routers), JSON.stringify(row.selectors), row.maxTransactionWei, row.maxDailySpendWei, row.maxSlippageBps, row.expiresAt, row.createdAt, row.updatedAt).run();
+    return row;
+  }
+  async getActive(userId, walletAddress) {
+    const row = this.#map(await this.db.prepare("SELECT * FROM copy_delegations WHERE telegram_user_id = ? AND public_address = ? AND status = 'ACTIVE'").bind(String(userId), String(walletAddress).toLowerCase()).first());
+    if (!row || row.expiresAt <= this.clock()) return null;
+    return row;
+  }
+  async revoke(userId, walletAddress) { await this.db.prepare("UPDATE copy_delegations SET status = 'REVOKED', updated_at = ? WHERE telegram_user_id = ? AND public_address = ?").bind(this.clock(), String(userId), String(walletAddress).toLowerCase()).run(); }
 }
 
 export class D1OutboxStore {

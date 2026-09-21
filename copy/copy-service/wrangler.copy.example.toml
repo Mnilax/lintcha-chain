@@ -21,8 +21,8 @@ zone_name = "lintcha.com"
 
 # Staged with `wrangler versions secret put`, never written here. Names only.
 [secrets]
-required = ["COPY_GATEWAY_SECRET", "COPY_CONFIRMATION_SECRET", "COPY_RPC_PRIMARY_URL", "COPY_RPC_SECONDARY_URL"]
-# optional: COPY_ADMIN_SECRET (operator kill-switch/reconcile channel)
+required = ["COPY_GATEWAY_SECRET", "COPY_CONFIRMATION_SECRET", "COPY_ADMIN_SECRET", "COPY_RPC_PRIMARY_URL", "COPY_RPC_SECONDARY_URL"]
+# COPY_ADMIN_SECRET protects kill-switch, reconciliation and aggregate referral-stat routes.
 # forbidden: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET — the runtime refuses to start if either is bound.
 
 [[d1_databases]]
@@ -55,7 +55,8 @@ COPY_RPC_MAX_HEAD_SKEW_BLOCKS = "2"
 COPY_RPC_MAX_GAS_SKEW_BPS = "1500"
 COPY_GLOBAL_KILL_SWITCH = "true"
 COPY_BROADCAST_ENABLED = "false"
-COPY_AUTO_COPY_ENABLED = "false"
+COPY_AUTO_BUY_ENABLED = "false"
+COPY_DELEGATED_SUBMISSION_ENABLED = "false"
 COPY_ALLOW_CHAINS = "[4663]"
 COPY_ALLOW_ROUTERS = "[]"        # from the verified venue manifest only
 COPY_ALLOW_SPENDERS = "[]"

@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#08090a">
-<meta name="description" content="Lintcha Copy — trading. The secure sheet for confirm-each BUY and manual SELL. Separate from read-only Lintcha Core.">
+<meta name="description" content="Lintcha Copy — trading. Configure bounded auto-BUY and review manual SELL. Separate from read-only Lintcha Core.">
 <title>Lintcha Copy — trading</title>
 <link rel="stylesheet" href="/copy/copy-app.css">
 </head>
@@ -15,7 +15,7 @@
   <!-- The module label is static markup. The script never selects, rewrites or hides it. -->
   <header class="module-label" data-module-label>
     <span class="module-name">Lintcha Copy — trading</span>
-    <span class="module-boundary">This is Lintcha Copy, a separate voluntary trading module. It is not read-only Lintcha Core. Every BUY and manual SELL is confirmed here by your own wallet. Nothing is signed or sent automatically.</span>
+    <span class="module-boundary">This is Lintcha Copy, a separate voluntary trading module. It is not read-only Lintcha Core. Auto-BUY can act only inside an active bounded permission. SELL is always manual.</span>
   </header>
 
   <section data-view="loading">
@@ -36,13 +36,16 @@
   <section data-view="home" class="hidden">
     <h1>Your Lintcha Copy</h1>
     <p><span class="small">Mode:</span> <span data-mode></span> · <span class="small">Status:</span> <span data-status></span></p>
-    <p class="small">Change mode or pause from the /copy message in Telegram. This sheet only reviews and confirms.</p>
+    <p class="small">Change mode or pause from the /copy message in Telegram. This sheet shows wallet and delegation readiness and handles manual transaction reviews.</p>
     <h2>Wallet</h2>
     <p class="wallets" data-wallets>No public address registered yet.</p>
     <div class="actions">
       <button type="button" data-action="connect-wallet">Connect wallet (EIP-1193)</button>
     </div>
     <p class="small" data-wallet-note>Connecting shares only your public address. Seed phrases and private keys never enter this page or the server.</p>
+    <h2>Auto-BUY permission</h2>
+    <p class="notice" data-auto-buy-status>Checking whether this wallet has an active bounded permission.</p>
+    <p class="small">A production permission will be limited by wallet, chain, routes, spend, slippage and expiry, and can be revoked. Until a reviewed wallet provider and delegated executor are connected, auto-BUY remains unavailable.</p>
     <h2>Open reviews</h2>
     <ul class="intents" data-intents></ul>
     <p class="notice hidden" data-no-intents>Nothing is waiting for your confirmation.</p>
@@ -73,7 +76,7 @@
   </section>
 
   <footer>
-    Lintcha Copy keeps your funds in your own wallet. It never asks for a seed phrase or private key, never signs on your behalf and never sells automatically. SELL is manual: approval and trade are two separate confirmations.
+    Lintcha Copy keeps your funds in your own wallet. It never asks for a seed phrase, private key or session key. A bounded delegate may submit allowed BUYs; it can never auto-SELL. SELL approval and trade are two separate manual confirmations.
   </footer>
 </main>
 <script type="module" src="/copy/copy-app.js"></script>

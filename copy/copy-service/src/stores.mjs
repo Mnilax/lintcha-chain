@@ -8,10 +8,10 @@
  * The outbox exists because the Copy service holds no bot token: Lintcha Core drains it through the signed
  * gateway channel and delivers each line with its own token, after the same response validation as replies.
  */
-export const USER_MODES = Object.freeze(["NOTIFY_ONLY", "CONFIRM_EACH"]);
+export const USER_MODES = Object.freeze(["NOTIFY_ONLY", "AUTO_BUY", "CONFIRM_EACH"]);
 
 export class MemoryUserStore {
-  constructor(clock = () => Math.floor(Date.now() / 1000)) { this.rows = new Map(); this.clock = clock; }
+  constructor(clock = () => Math.floor(Date.now() / 1000)) { this.rows = new Map(); this.referrals = new Map(); this.clock = clock; }
   async get(telegramUserId) { return this.rows.get(String(telegramUserId)) || null; }
   async upsert({ telegramUserId, privateChatId, mode, paused }) {
     const id = String(telegramUserId);
@@ -34,6 +34,18 @@ export class MemoryUserStore {
     if (!list.some((row) => row.publicAddress === publicAddress)) list.push({ publicAddress, walletKind, publicLabel, createdAt: this.clock() });
     this.walletRows.set(String(telegramUserId), list);
     return structuredClone(list);
+  }
+  async recordReferral({ telegramUserId, source }) {
+    if (source !== "SITE") throw new Error("INVALID_REFERRAL_SOURCE");
+    const key = `${source}:${String(telegramUserId)}`, now = this.clock();
+    const row = this.referrals.get(key) || { source, telegramUserId: String(telegramUserId), firstSeenAt: now, lastSeenAt: now, starts: 0 };
+    row.lastSeenAt = now; row.starts += 1; this.referrals.set(key, row);
+    return structuredClone(row);
+  }
+  async referralStats(source = "SITE") {
+    if (source !== "SITE") throw new Error("INVALID_REFERRAL_SOURCE");
+    const rows = [...this.referrals.values()].filter((row) => row.source === source);
+    return { source, uniqueUsers: rows.length, starts: rows.reduce((sum, row) => sum + row.starts, 0) };
   }
 }
 
