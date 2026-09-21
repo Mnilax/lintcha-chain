@@ -5,7 +5,7 @@ Bootstrap status on 2026-09-21: the integration and deployment-config pull reque
 stored in Cloudflare; a paused Worker exists without a public route; and the verified Pons V2 manifest is pinned.
 No RPC credential, bot token, wallet credential, session key, signature or transaction was stored or used.
 
-1. **Public bot id**: read @lintchabot's numeric id from `getMe` and set `COPY_TELEGRAM_BOT_ID` (public value, not the token). Re-verify Telegram's third-party public key on core.telegram.org.
+1. **Telegram verification**: `COPY_TELEGRAM_BOT_ID=8954636276` is set from the owner's `getMe` result (public value, not the token). Re-verify Telegram's third-party public key on core.telegram.org before beta.
 2. **RPC accounts**: create independent Alchemy and dRPC Robinhood Mainnet endpoints. Alchemy Free is sufficient for the bounded two-provider probe, simulation, finality and transaction reconciliation path; approve a paid dRPC key for the required 2,000-block backfill capability. Enter both URLs directly into the trading Worker secrets. Then run `copy-service/tools/rpc-acceptance.mjs`; never paste the URLs into chat or Git.
 3. **Wallet bridge account**: create a Reown project for the Telegram Mini App and enter its project id through the deployment secret/config flow. Reown is only the client wallet bridge; it does not receive the Telegram bot token.
 4. **Auto-BUY executor account**: provision Alchemy Wallet APIs / Modular Account V2 for Robinhood Mainnet. The selected direction is EIP-7702 with expiring session permissions constrained by target, function, native spend and time. Do not grant root permission. Production activation still requires a provider-specific executor review and one real revocation test.
