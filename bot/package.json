@@ -13,6 +13,7 @@
     "check-config": "node tools/predeploy.mjs",
     "check-config:production": "node tools/predeploy.mjs --production",
     "bundle": "node tools/bundle.mjs",
+    "telegram:bot-id": "node tools/telegram-bootstrap.mjs bot-id",
     "telegram:discover": "node tools/telegram-bootstrap.mjs discover",
     "telegram:webhook-info": "node tools/telegram-bootstrap.mjs webhook-info",
     "telegram:set-webhook": "node tools/telegram-bootstrap.mjs set-webhook",

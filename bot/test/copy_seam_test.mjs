@@ -50,14 +50,14 @@ const received = [];
 const env = { BOT_USERNAME: "lintchabot", COPY_GATEWAY_SECRET: SECRET, COPY_APP_ORIGIN: ORIGIN, COPY_SERVICE: { async fetch(request) {
   const body = await request.json();
   received.push({ url: request.url, body });
-  if (request.url.endsWith("/gateway/outbox")) return Response.json({ ok: true, rows: [{ id: "1", privateChatId: "100", response: { text: "Lintcha Copy — trading\nA source BUY matched", inlineKeyboard: [[{ text: "Review", webAppUrl: ORIGIN + "/copy/?intent=" + "a".repeat(64) }]] } }] });
-  return Response.json({ ok: true, response: { text: "Lintcha Copy — trading\nhello & <b>", inlineKeyboard: [[{ text: "Open", webAppUrl: ORIGIN + "/copy/" }], [{ text: "Pause", callbackData: "copy.pause" }]] } });
+  if (request.url.endsWith("/gateway/outbox")) return Response.json({ ok: true, rows: [{ id: "1", privateChatId: "100", response: { text: "Lintcha — copy-trading\nA source BUY matched", inlineKeyboard: [[{ text: "Review", webAppUrl: ORIGIN + "/copy/?intent=" + "a".repeat(64) }]] } }] });
+  return Response.json({ ok: true, response: { text: "Lintcha — copy-trading\nhello & <b>", inlineKeyboard: [[{ text: "Open", webAppUrl: ORIGIN + "/copy/" }], [{ text: "Pause", callbackData: "copy.pause" }]] } });
 } } };
 const enabled = await handleUpdate(privateCopy("/copy these words never leave"), { env, kv: fakeKV() });
 t.ok(enabled.length === 1 && enabled[0].kind === "send" && enabled[0].chat === 100, "enabled: one send action to the private chat");
-t.ok(enabled[0].escape === true && enabled[0].text.startsWith("Lintcha Copy — trading"), "the reply is marked for escaping and names the module first");
+t.ok(enabled[0].escape === true && enabled[0].text.startsWith("Lintcha — copy-trading"), "the reply is marked for escaping and names the mode first");
 t.ok(enabled[0].reply_markup.inline_keyboard[0][0].web_app.url === ORIGIN + "/copy/" && enabled[0].reply_markup.inline_keyboard[1][0].callback_data === "copy.pause", "buttons are the exact Copy origin and a namespaced callback");
-t.ok(received.length === 1 && received[0].url === ORIGIN + "/copy/api/gateway", "the seam posted to the gateway route of the bound service");
+t.ok(received.length === 1 && received[0].url === ORIGIN + "/api/copy/gateway", "the seam posted to the gateway route of the bound service");
 const envelope = JSON.parse(received[0].body.body);
 t.ok(envelope.schema === "lintcha.copy.gateway.v1" && envelope.telegramUserId === "7" && envelope.privateChatId === "100" && envelope.route === "COPY_COMMAND", "the envelope carries identity and route");
 t.ok(!JSON.stringify(received[0].body).includes("never leave") && !("update" in received[0].body) && /^[0-9a-f]{64}$/.test(received[0].body.signature), "the envelope carries no message text or raw update, and is signed");

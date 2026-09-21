@@ -30,7 +30,7 @@ export function copyConfigOf(env) {
   const service = env.COPY_SERVICE && typeof env.COPY_SERVICE.fetch === "function" ? env.COPY_SERVICE : null;
   const serviceUrl = service ? null : exactOrigin(env.COPY_SERVICE_URL);
   if (typeof secret !== "string" || new TextEncoder().encode(secret).length < MINIMUM_SECRET_BYTES || !origin || (!service && !serviceUrl)) return null;
-  return Object.freeze({ secret, origin, service, serviceUrl, apiBase: `${serviceUrl || origin}/copy/api` });
+  return Object.freeze({ secret, origin, service, serviceUrl, apiBase: `${serviceUrl || origin}/api/copy` });
 }
 
 async function copyPost(config, path, signed) {
