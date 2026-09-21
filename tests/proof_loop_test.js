@@ -72,9 +72,9 @@ function harness({ reduced = false, count = 5, delay = "310" } = {}) {
 ok(!/fetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource/.test(source), "the controller is network-silent");
 ok(!/addEventListener\(\s*["']key(?:down|up|press)/.test(source), "native button keyboard behavior is not replaced");
 ok(!/Lintcha|snapshot|compare|verdict|score|rating|price|market cap/i.test(source), "the controller hard-codes no product or marketing claim");
-ok((shell.match(/data-proof-step(?:>|\s)/g) || []).length === 5 && shell.includes("data-proof-loop") && shell.includes("data-proof-play"), "the page authors exactly one five-stage proof loop with one native control");
-ok(shell.includes("proof.note") && shell.indexOf("proof-loop.js") < shell.indexOf("chain.js"), "the page carries translated disclosure copy and loads its local controller");
-ok(css.includes("prefers-reduced-motion:reduce") && !/url\s*\(/i.test(css), "the owned presentation removes motion on request and loads no external asset");
+ok((shell.match(/data-proof-step(?:>|\s)/g) || []).length === 5 && shell.includes("proof-loop copy-terminal") && shell.includes("data-proof-play"), "the page authors exactly one five-stage Copy terminal with one native control");
+ok(shell.includes("copy-terminal-logo") && shell.includes("proof.note") && shell.includes("proof.footer") && shell.indexOf("proof-loop.js") < shell.indexOf("chain.js"), "the terminal carries pixel lettering, translated disclosure copy and its local controller");
+ok(css.includes(".copy-terminal-logo") && css.includes("prefers-reduced-motion:reduce") && !/url\s*\(/i.test(css), "the owned terminal presentation removes motion on request and loads no external asset");
 
 const run = harness();
 ok(run.root.getAttribute("data-proof-state") === "idle", "the loop starts idle");

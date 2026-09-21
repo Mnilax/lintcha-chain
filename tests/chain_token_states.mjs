@@ -109,7 +109,8 @@ ok(!a.includes(xAccount) && !a.includes(telegram), "the made-up accounts are now
 ok(count(a, /class="hero-actions"/g) === 1 && count(a, /class="hero-action(?: hero-action-primary)?"/g) === 2, "the Copy-first hero has one focused two-action path");
 ok(/class="hero-actions"[\s\S]*?href="https:\/\/t\.me\/lintchabot\?start=copy"[\s\S]*?href="#s02"[\s\S]*?<\/nav>/.test(a), "the primary hero action opens Lintcha Copy in the existing bot before the Core fallback");
 ok(count(a, /class="copy-mode(?: copy-mode-primary)?"/g) === 3 && count(a, /class="core-entry"/g) === 1, "the hero explains notify-only, confirm-each BUY and manual SELL before handing off to Core");
-ok(count(a, /data-proof-loop/g) === 1 && count(a, /data-proof-step/g) === 5 && count(a, /data-proof-play/g) === 1, "one user-controlled five-stage proof loop sits in the hero");
+ok(count(a, /data-proof-loop/g) === 1 && count(a, /data-proof-step/g) === 5 && count(a, /data-proof-play/g) === 1 && count(a, /class="proof-loop copy-terminal"/g) === 1, "one user-controlled five-stage Copy terminal sits in the hero");
+ok(a.indexOf('class="proof-loop copy-terminal"') < a.indexOf('class="core-entry"'), "the Copy terminal appears before the handoff to read-only Core");
 ok(/class="page-switch"[\s\S]*?class="page-switch-copy"[^>]*href="https:\/\/t\.me\/lintchabot\?start=copy"[\s\S]*?page-switch-current[^>]*aria-current="page"[\s\S]*?href="\/live\/"[\s\S]*?href="\/deployer\/"[\s\S]*?<\/nav>/.test(a), "the persistent page switch puts Copy first and sends it to the existing Telegram bot");
 ok(count(a, /class="nav section-nav"/g) === 1, "the long-page section anchors remain a distinct secondary navigation");
 // The order gained the lore section in round B and the chain block in round C, and each moved every number after it
