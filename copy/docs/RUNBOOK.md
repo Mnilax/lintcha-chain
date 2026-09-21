@@ -1,12 +1,12 @@
-# Lintcha Copy — runbook (pre-production draft)
+# Lintcha copy-trading — runbook (pre-production draft)
 
 Every step below is an owner action or needs owner-provisioned access. Nothing here has been executed.
 
 ## Deploy order (after the three production patches are merged)
 
-1. **Copy Worker** (`lintcha-copy`): create D1 `lintcha-copy`, run `copy-service/src/schema.sql`, stage secrets `COPY_GATEWAY_SECRET`, `COPY_CONFIRMATION_SECRET` (64 hex), `COPY_ADMIN_SECRET`, `COPY_RPC_PRIMARY_URL`, `COPY_RPC_SECONDARY_URL`; set `COPY_TELEGRAM_BOT_ID` (numeric id of @lintchabot from `getMe`, public), `COPY_APP_ORIGIN` (exact origin), allowlists/caps from the verified venue manifest. Deploy with `COPY_GLOBAL_KILL_SWITCH=true`, `COPY_AUTO_BUY_ENABLED=false`, `COPY_DELEGATED_SUBMISSION_ENABLED=false`, and no executor binding. Verify `GET /copy/api/health` shows `globallyPaused: true`, `rpcReady: true`, both auto-BUY flags false and no URLs.
+1. **Trading Worker** (`lintcha-copy`): create D1 `lintcha-copy`, run `copy-service/src/schema.sql`, stage secrets `COPY_GATEWAY_SECRET`, `COPY_CONFIRMATION_SECRET` (64 hex), `COPY_ADMIN_SECRET`, `COPY_RPC_PRIMARY_URL`, `COPY_RPC_SECONDARY_URL`; set `COPY_TELEGRAM_BOT_ID` (numeric id of @lintchabot from `getMe`, public), `COPY_APP_ORIGIN=https://lintcha.com`, allowlists/caps from the verified venue manifest. Deploy with `COPY_GLOBAL_KILL_SWITCH=true`, `COPY_AUTO_BUY_ENABLED=false`, `COPY_DELEGATED_SUBMISSION_ENABLED=false`, and no executor binding. Verify `GET /api/copy/health` shows `globallyPaused: true`, `rpcReady: true`, both auto-BUY flags false and no URLs.
 
-The website uses the exact Telegram payload `copy_site`. Each verified `/start copy_site` increments a first-party counter in Copy D1; no browser analytics, cookie, IP address or raw Telegram payload is stored. Read the aggregate through signed operator route `POST /copy/api/admin/referrals`: it returns `SITE` starts and unique Telegram users only, never identities.
+The website uses the exact Telegram payload `copy_site`. Each verified `/start copy_site` increments a first-party counter in Copy D1; no browser analytics, cookie, IP address or raw Telegram payload is stored. Read the aggregate through signed operator route `POST /api/copy/admin/referrals`: it returns `SITE` starts and unique Telegram users only, never identities.
 2. **Mini App**: served by the same Worker's assets binding from `copy-app/`; verify `_headers` CSP on the live origin (`default-src 'none'`, `script-src 'self'`), and that `/copy/` opens from a private-chat button only.
 3. **Core seam** (`lintcha-chain-api`): stage `COPY_GATEWAY_SECRET` (same value), add the `COPY_SERVICE` service binding (or `COPY_SERVICE_URL`), set `COPY_APP_ORIGIN`. Until all three are set, `/copy` is silence. Deploy Core; `npm run check-config:production` first.
 4. **Credentialed RPC acceptance**: `node copy-service/tools/rpc-acceptance.mjs` with the two URLs in the environment of the runner only. Keep the sanitized report as evidence. Not accepted → do not resume.

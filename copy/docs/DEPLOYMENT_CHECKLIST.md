@@ -1,22 +1,22 @@
-# Lintcha Copy deployment checklist (CP15 revision)
+# Lintcha copy-trading deployment checklist (CP16 revision)
 
 Boxes are checked only when the whole line is complete. Items marked (local ✓) have local test evidence only, not runtime evidence.
 
 Live bootstrap evidence (2026-09-21): PRs #40 and #41 merged with green CI; isolated D1 schema and SQLite
 `CopyUserCoordinator` migration applied; gateway/confirmation/admin secret names present in Cloudflare; paused Copy
 Worker created without a public route; Pons V2 router bytecode and recorded BUY/SELL transactions re-verified on
-Robinhood Mainnet. `copy.lintcha.com` still has no DNS record, Core seam is disabled, caps are zero, and every
+Robinhood Mainnet. The `/copy/*` and `/api/copy/*` routes are not activated, Core seam is disabled, caps are zero, and every
 broadcast/auto/delegation flag remains false.
 
 - [ ] Integration pull request reviewed and merged; Core and Copy regression suites green on the exact merge candidate.
 - [ ] Owner approved the section-eight text amendment included in the integration pull request.
-- [ ] Copy-first entry and Telegram CTA published on `https://lintcha.com/`; isolated secure-sheet origin `https://copy.lintcha.com/` has DNS/TLS and its `_headers` CSP verified live (local ✓ contract test).
+- [ ] Copy-first entry and Telegram CTA published on `https://lintcha.com/`; `/copy/` secure-sheet assets and `/api/copy/` trading API have their route precedence and `_headers` CSP verified live (local ✓ contract test).
 - [ ] Existing Core webhook owns the Telegram token; Copy Worker environment proven token-free (runtime refuses token bindings: local ✓).
 - [ ] `COPY_GATEWAY_SECRET` generated in the secret store and staged on both Workers; `COPY_CONFIRMATION_SECRET` (64 hex) and `COPY_ADMIN_SECRET` staged on Copy; rotation procedure in `copy/docs/RUNBOOK.md`.
 - [ ] `COPY_TELEGRAM_BOT_ID` set to @lintchabot's numeric id (public); Telegram third-party public key re-verified against core.telegram.org.
 - [ ] Copy D1 created as a separate binding; `schema.sql` applied; backup/export + restore drill done; retention decided for `copy_audit_log` (never truncated) and `copy_outbox`.
 - [ ] `CopyUserCoordinator` Durable Object migration applied; per-user serialization observed under a real burst (local ✓ fake runtime).
-- [ ] Alchemy and QuickNode endpoints pass `copy-service/tools/rpc-acceptance.mjs` (chain 4663, finality tags, common block, archive read, simulation quorum, log range, burst); sanitized report archived.
+- [ ] Independent Alchemy and dRPC endpoints pass `copy-service/tools/rpc-acceptance.mjs` (chain 4663, finality tags, common block, archive read, simulation quorum, log range, burst); sanitized report archived.
 - [ ] Public RPC excluded from Copy quorum (config allows only the two named providers).
 - [ ] Venue manifest pins exact chain/router/spender/selectors (Pons V2 curve BUY `0x59a87bc1` / SELL `0xd04c6983`, Uniswap V2 Router02 as evidenced) with bytecode/provenance; allowlists populated from it, not by hand.
 - [ ] Caps non-zero only after owner review: per BUY, daily BUY spend, per-token SELL amount, slippage.
