@@ -8,10 +8,14 @@ preview_urls = false
 [assets]
 directory = "../copy-app"
 not_found_handling = "404-page"
-run_worker_first = ["/copy/api/*"]
+run_worker_first = ["/api/copy/*"]
 
 [[routes]]
-pattern = "copy.lintcha.com/*"
+pattern = "lintcha.com/copy/*"
+zone_name = "lintcha.com"
+
+[[routes]]
+pattern = "lintcha.com/api/copy/*"
 zone_name = "lintcha.com"
 
 [[d1_databases]]
@@ -34,12 +38,13 @@ crons = ["* * * * *"]
 COPY_ENVIRONMENT = "preproduction"
 COPY_CHAIN_ID = "4663"
 COPY_DB_NAMESPACE = "lintcha_copy"
-COPY_APP_ORIGIN = "https://copy.lintcha.com"
+COPY_APP_ORIGIN = "https://lintcha.com"
 COPY_APP_PATH = "/copy/"
+COPY_API_PATH = "/api/copy/"
 COPY_TELEGRAM_BOT_ID = ""
 COPY_TELEGRAM_ENV = "production"
 COPY_RPC_PRIMARY_PROVIDER = "alchemy"
-COPY_RPC_SECONDARY_PROVIDER = "quicknode"
+COPY_RPC_SECONDARY_PROVIDER = "drpc"
 COPY_RPC_MAX_HEAD_SKEW_BLOCKS = "2"
 COPY_RPC_MAX_GAS_SKEW_BPS = "1500"
 COPY_GLOBAL_KILL_SWITCH = "true"

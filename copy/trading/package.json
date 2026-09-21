@@ -1,0 +1,21 @@
+{
+  "name": "lintcha-v2-local-trading",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:cp2": "node --test test/cp2-observer.test.mjs",
+    "test:cp3": "node --test test/cp3-rules.test.mjs",
+    "test:cp4": "node --test test/cp4-wallet.test.mjs",
+    "test:cp5": "node --test test/cp5-*.test.mjs",
+    "test:cp6": "node --test test/cp6-telegram.test.mjs",
+    "test:cp6a": "node --test test/cp6a-fee.test.mjs",
+    "test:cp6b": "node --test test/cp6b-referral.test.mjs",
+    "test:cp7": "node --test test/cp7-hardening.test.mjs",
+    "test:cp8": "node --test test/cp8-readiness.test.mjs",
+    "test:cp9": "node --test test/cp9-*.test.mjs"
+  }
+}

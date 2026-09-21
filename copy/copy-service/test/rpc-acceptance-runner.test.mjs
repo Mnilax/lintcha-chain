@@ -40,7 +40,7 @@ function run(env) {
 
 test("credentialed acceptance runner accepts two agreeing providers and never writes an endpoint or key to output", async () => {
   const a = await serve("alchemy");
-  const b = await serve("quicknode");
+  const b = await serve("drpc");
   try {
     const result = await run({ COPY_RPC_PRIMARY_URL: a.url, COPY_RPC_SECONDARY_URL: b.url, COPY_ACCEPT_MAX_LAG_SECONDS: "600" });
     const output = result.stdout + result.stderr;
@@ -49,7 +49,7 @@ test("credentialed acceptance runner accepts two agreeing providers and never wr
     const report = JSON.parse(result.stdout);
     assert.equal(report.accepted, true, JSON.stringify(report.checks));
     assert.equal(result.status, 0);
-    assert.deepEqual(Object.keys(report.checks), ["health", "latency_alchemy", "latency_quicknode", "archive_history", "simulation_quorum", "log_range", "burst_alchemy", "burst_quicknode"]);
+    assert.deepEqual(Object.keys(report.checks), ["health", "latency_alchemy", "latency_drpc", "archive_history", "simulation_quorum", "log_range", "burst_alchemy", "burst_drpc"]);
     const sameHost = await run({ COPY_RPC_PRIMARY_URL: a.url, COPY_RPC_SECONDARY_URL: `${a.url}-b` });
     assert.equal(sameHost.status, 2);
     assert.equal(JSON.parse(sameHost.stdout).reasons.includes("PROVIDER_HOSTS_MUST_DIFFER"), true);

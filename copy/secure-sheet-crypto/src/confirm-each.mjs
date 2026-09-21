@@ -77,7 +77,7 @@ export class LocalVaultWalletAdapter {
     this.kind = "local";
   }
   async sendConfirmed({ walletAddress, storageKey, transaction }) {
-    await new Promise((resolve, reject) => this.biometric.authenticate({ reason: "Confirm Lintcha Copy transaction" }, (ok) => ok ? resolve() : reject(new Error("BIOMETRIC_AUTH_FAILED"))));
+    await new Promise((resolve, reject) => this.biometric.authenticate({ reason: "Confirm Lintcha transaction" }, (ok) => ok ? resolve() : reject(new Error("BIOMETRIC_AUTH_FAILED"))));
     let vaultRecord;
     try {
       vaultRecord = await new Promise((resolve, reject) => this.secureStorage.getItem(storageKey, (error, value) => error ? reject(new Error(String(error))) : resolve(value)));
@@ -102,7 +102,7 @@ export function assertReviewMatchesTransaction(review, transaction, expected = {
   if (String(review.selector).toLowerCase() !== selector) throw new Error("REVIEW_TRANSACTION_MISMATCH");
   if (Number(review.chainId) !== Number(transaction.chainId)) throw new Error("REVIEW_TRANSACTION_MISMATCH");
   if (BigInt(review.value ?? 0) !== BigInt(transaction.value || 0)) throw new Error("REVIEW_TRANSACTION_MISMATCH");
-  if (review.module !== "Lintcha Copy" || review.label !== "Lintcha Copy — trading") throw new Error("REVIEW_MODULE_LABEL_MISSING");
+  if (review.module !== "Lintcha" || review.label !== "Lintcha — copy-trading") throw new Error("REVIEW_MODULE_LABEL_MISSING");
   if (expected.chainId !== undefined && Number(transaction.chainId) !== Number(expected.chainId)) throw new Error("REVIEW_CHAIN_MISMATCH");
   if (expected.walletAddress !== undefined && review.walletAddress && String(review.walletAddress).toLowerCase() !== String(expected.walletAddress).toLowerCase()) throw new Error("REVIEW_WALLET_MISMATCH");
   return true;
@@ -132,8 +132,8 @@ export class ConfirmEachSheetController {
       if (this.clock() >= intent.expiresAt) throw new Error("CONFIRMATION_EXPIRED");
       assertReviewMatchesTransaction(intent.review, intent.transaction, { chainId: this.expectedChainId, walletAddress });
       await this.localReview({
-        title: "Lintcha Copy — confirm transaction",
-        moduleBoundary: "This is Lintcha Copy, not read-only Lintcha Core.",
+        title: "Lintcha — confirm transaction",
+        moduleBoundary: "Copy-trading is an opt-in mode inside Lintcha. Lintcha Core remains read-only.",
         ...intent.review,
         simulation: intent.simulation,
       });

@@ -13,7 +13,8 @@ test("config is isolated, credential-free capable, and never exposes RPC URLs", 
   const config = loadCopyConfig({ COPY_ALLOW_CHAINS: "[4663]", COPY_APP_ORIGIN: "http://localhost:8788" });
   assert.equal(config.dbNamespace, "lintcha_copy");
   assert.equal(config.rpc.ready, false);
-  assert.deepEqual(publicConfig(config).providerIds, ["alchemy", "quicknode"]);
+  assert.deepEqual(publicConfig(config).providerIds, ["alchemy", "drpc"]);
+  assert.equal(publicConfig(config).apiPath, "/api/copy/");
   assert.equal(JSON.stringify(publicConfig(config)).includes("URL"), false);
   assert.throws(() => loadCopyConfig({ TELEGRAM_BOT_TOKEN: "x" }), /MUST_NOT_RECEIVE/);
   assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true" }), /AUTO_BUY_FLAGS_MUST_MATCH/);
@@ -116,18 +117,22 @@ test("simulation requires two matching eth_call results, bounded gas skew, and r
   await assert.rejects(fixture({ secondOverrides: { eth_call: new Error("timeout") } }).service.createConfirmEachIntent(input()), /SIMULATION_PROVIDER_UNAVAILABLE/);
 });
 
-test("global and per-user kill switches fail closed, including between creation and opening", async () => {
+test("global, per-user and per-wallet kill switches fail closed, including between creation and opening", async () => {
   await assert.rejects(fixture({ paused: true }).service.createConfirmEachIntent(input()), /GLOBAL_BROADCAST_KILL_SWITCH/);
   const current = fixture();
   current.killSwitches.pauseUser("42");
   await assert.rejects(current.service.createConfirmEachIntent(input()), /USER_BROADCAST_KILL_SWITCH/);
+  const walletPaused = fixture();
+  walletPaused.killSwitches.pauseWallet(`0x${WALLET.slice(2).toUpperCase()}`);
+  await assert.rejects(walletPaused.service.createConfirmEachIntent(input()), /WALLET_BROADCAST_KILL_SWITCH/);
   const late = fixture();
   const created = await late.service.createConfirmEachIntent(input());
   late.killSwitches.pauseGlobal();
   await assert.rejects(late.service.beginSecureSheetConfirmation({ token: created.confirmationToken, userId: "42", revision: created.revision }), /GLOBAL_BROADCAST_KILL_SWITCH/);
-  const loaded = KillSwitches.load([{ scope: "GLOBAL", subjectId: "global", paused: 0, revision: 4 }, { scope: "USER", subjectId: "7", paused: 1, revision: 5 }]);
+  const loaded = KillSwitches.load([{ scope: "GLOBAL", subjectId: "global", paused: 0, revision: 4 }, { scope: "USER", subjectId: "7", paused: 1, revision: 5 }, { scope: "WALLET", subjectId: WALLET, paused: 1, revision: 6 }]);
   assert.equal(loaded.isPaused("42"), false);
   assert.equal(loaded.isPaused("7"), true);
+  assert.equal(loaded.isPaused("42", WALLET), true);
   assert.equal(KillSwitches.load([]).globallyPaused, true);
 });
 
@@ -136,8 +141,8 @@ test("confirm-each BUY is simulated, single-use and reconciled without server br
   const created = await current.service.createConfirmEachIntent(input());
   assert.equal(created.state, "AWAITING_USER_CONFIRMATION");
   const opened = await current.service.beginSecureSheetConfirmation({ token: created.confirmationToken, userId: "42", revision: created.revision });
-  assert.equal(opened.review.module, "Lintcha Copy");
-  assert.equal(opened.review.label, "Lintcha Copy — trading");
+  assert.equal(opened.review.module, "Lintcha");
+  assert.equal(opened.review.label, "Lintcha — copy-trading");
   assert.equal(opened.review.value, "500");
   await assert.rejects(current.service.beginSecureSheetConfirmation({ token: created.confirmationToken, userId: "42", revision: created.revision }), /REVISION_MISMATCH|REPLAYED/);
   const submitted = await current.service.recordClientSubmission({ intentId: created.intentId, userId: "42", revision: opened.revision, transactionHash: HASH });

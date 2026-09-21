@@ -13,7 +13,7 @@ An isolated, fail-closed service for the opt-in trading module inside the existi
 - `src/telegram-init-data.mjs` — Ed25519 third-party validation of Mini App init data (no bot token).
 - `src/telegram-surface.mjs` — what `/copy` and the namespaced callbacks say; review lines for the outbox.
 - `src/stores.mjs` — memory user/wallet/outbox stores (contracts shared with D1).
-- `src/http.mjs` — the whole HTTP surface (`/copy/api/*`), three authentications, stable error codes.
+- `src/http.mjs` — the whole HTTP surface (`/api/copy/*`), three authentications, stable error codes.
 - `src/cloudflare/` — D1 adapters, per-user Durable Object coordinator, runtime wiring, Worker entry.
 - `src/schema.sql` — dedicated D1 schema, idempotent; never for the Core database.
 - `tools/rpc-acceptance.mjs` — credentialed acceptance, URLs/keys never in output. `tools/fork-replay.mjs` — local fork replay of fixtures, skipped without a local fork.

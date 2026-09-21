@@ -15,13 +15,14 @@ function amount(value, label) {
 }
 
 /**
- * Global and per-user pause state. Starts paused. `load()` accepts persisted rows so a durable adapter
+ * Global, per-user and per-wallet pause state. Starts paused. `load()` accepts persisted rows so a durable adapter
  * (D1 `copy_kill_switches`) can hydrate the same object per request; `snapshot()` is what it persists.
  */
 export class KillSwitches {
   constructor({ globallyPaused = true } = {}) {
     this.globallyPaused = globallyPaused !== false;
     this.users = new Set();
+    this.wallets = new Set();
     this.revision = 1;
   }
   static load(rows = [], fallback = { globallyPaused: true }) {
@@ -30,6 +31,7 @@ export class KillSwitches {
     for (const row of rows) {
       if (row.scope === "GLOBAL") { switches.globallyPaused = Number(row.paused) === 1; seenGlobal = true; }
       else if (row.scope === "USER" && Number(row.paused) === 1) switches.users.add(String(row.subjectId ?? row.subject_id));
+      else if (row.scope === "WALLET" && Number(row.paused) === 1) switches.wallets.add(address(row.subjectId ?? row.subject_id));
       switches.revision = Math.max(switches.revision, Number(row.revision) || 1);
     }
     // A global row that was never written means the switch was never deliberately opened: stay paused.
@@ -41,16 +43,20 @@ export class KillSwitches {
       revision: this.revision,
       global: { scope: "GLOBAL", subjectId: "global", paused: this.globallyPaused ? 1 : 0 },
       users: [...this.users].map((id) => ({ scope: "USER", subjectId: id, paused: 1 })),
+      wallets: [...this.wallets].map((id) => ({ scope: "WALLET", subjectId: id, paused: 1 })),
     });
   }
   pauseGlobal() { this.globallyPaused = true; this.revision += 1; }
   resumeGlobal() { this.globallyPaused = false; this.revision += 1; }
   pauseUser(userId) { this.users.add(String(userId)); this.revision += 1; }
   resumeUser(userId) { this.users.delete(String(userId)); this.revision += 1; }
-  isPaused(userId) { return this.globallyPaused || this.users.has(String(userId)); }
-  assertAllowed(userId) {
+  pauseWallet(walletAddress) { this.wallets.add(address(walletAddress)); this.revision += 1; }
+  resumeWallet(walletAddress) { this.wallets.delete(address(walletAddress)); this.revision += 1; }
+  isPaused(userId, walletAddress = null) { return this.globallyPaused || this.users.has(String(userId)) || (walletAddress !== null && this.wallets.has(address(walletAddress))); }
+  assertAllowed(userId, walletAddress = null) {
     if (this.globallyPaused) throw new Error("GLOBAL_BROADCAST_KILL_SWITCH");
     if (this.users.has(String(userId))) throw new Error("USER_BROADCAST_KILL_SWITCH");
+    if (walletAddress !== null && this.wallets.has(address(walletAddress))) throw new Error("WALLET_BROADCAST_KILL_SWITCH");
   }
 }
 
@@ -93,8 +99,8 @@ export class ExecutionPolicyGate {
    * Fail-closed authorization of one unsigned intent. Returns the reservation for BUY trades.
    * Every check here runs before simulation and before any confirmation token is issued.
    */
-  async authorize({ intentId, userId, utcDay, direction, operation = "TRADE", transaction, quote, confirmationKind, manualSell = false, dailySpendCapWei = null }) {
-    this.killSwitches.assertAllowed(userId);
+  async authorize({ intentId, userId, walletAddress = null, utcDay, direction, operation = "TRADE", transaction, quote, confirmationKind, manualSell = false, dailySpendCapWei = null }) {
+    this.killSwitches.assertAllowed(userId, walletAddress);
     const delegatedAutoBuy = confirmationKind === "DELEGATED_AUTO_BUY";
     if (confirmationKind !== "SECURE_SHEET_EXPLICIT" && !delegatedAutoBuy) throw new Error("EXPLICIT_CLIENT_CONFIRMATION_REQUIRED");
     if (!this.config.chains.includes(Number(transaction.chainId))) throw new Error("CHAIN_NOT_ALLOWLISTED");

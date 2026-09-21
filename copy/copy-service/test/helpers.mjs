@@ -43,7 +43,7 @@ export function fixture({ paused = false, firstOverrides = {}, secondOverrides =
   let now = NOW;
   const tick = clock || (() => now);
   const primary = provider("alchemy", firstOverrides);
-  const secondary = provider("quicknode", secondOverrides);
+  const secondary = provider("drpc", secondOverrides);
   const rpcPool = new RpcPool({ providers: [primary, secondary], chainId: 4663, maxHeadSkewBlocks: 2 });
   const killSwitches = new KillSwitches({ globallyPaused: paused });
   const spendLedger = new InMemorySpendLedger();

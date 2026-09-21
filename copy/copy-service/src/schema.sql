@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS copy_referral_users (
 );
 
 CREATE TABLE IF NOT EXISTS copy_kill_switches (
-  scope TEXT NOT NULL CHECK (scope IN ('GLOBAL', 'USER')),
+  scope TEXT NOT NULL CHECK (scope IN ('GLOBAL', 'USER', 'WALLET')),
   subject_id TEXT NOT NULL,
   paused INTEGER NOT NULL CHECK (paused IN (0, 1)),
   revision INTEGER NOT NULL,

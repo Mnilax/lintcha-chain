@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-18T01:35:00.000Z",
+  "source": {
+    "chainId": 4663,
+    "venue": "Pons V2 Bonding Curve",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "trustedForProductionResearch": true
+  },
+  "expectation": {
+    "direction": "BUY"
+  },
+  "context": {
+    "ponsV2Launch": {
+      "factory": "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e",
+      "token": "0x02498066411904F466d037570511a48B67BE1611",
+      "curve": "0x52067DcE3CFEC3621b88D4DE3cC77374F8A44494",
+      "pairToken": "0x0000000000000000000000000000000000000000",
+      "transactionHash": "0x46fd7249fa7440c89e9bca6f5cdfe7b71c1e2bfc1b3c0a16566d2fba67b7c6b2",
+      "eventTopic": "0x8d4aad4953d0ca700d468f3753aa14432d1b35b43ec6409f051fb6aa43a89607",
+      "blockNumber": 65697020,
+      "logIndex": 44
+    }
+  },
+  "transaction": {
+    "hash": "0x9e04e3960d3a778a610f1d2697a7a857cca505922e440318b4ffe878826a5c3c",
+    "blockNumber": "0x3ea8ce5",
+    "blockHash": "0xdf95b02af16614e378cf0e4befd55b210f6c51254d92b61bccd27194a9ab08b4",
+    "from": "0x8B216cc896f32BcabCA3649Ca918D532F72010eF",
+    "to": "0x52067DcE3CFEC3621b88D4DE3cC77374F8A44494",
+    "value": "39322474350183024",
+    "input": "0x59a87bc1000000000000000000000000000000000000000000000000008bb395035502700000000000000000000000000000000000000000000ca00a4e622bc4ebd4bd300000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef"
+  },
+  "receipt": {
+    "transactionHash": "0x9e04e3960d3a778a610f1d2697a7a857cca505922e440318b4ffe878826a5c3c",
+    "blockNumber": "0x3ea8ce5",
+    "blockHash": "0xdf95b02af16614e378cf0e4befd55b210f6c51254d92b61bccd27194a9ab08b4",
+    "status": "0x1",
+    "gasUsed": "97827",
+    "logs": [
+      {
+        "address": "0x02498066411904F466d037570511a48B67BE1611",
+        "topics": [
+          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+          "0x00000000000000000000000052067dce3cfec3621b88d4de3cc77374f8a44494",
+          "0x0000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef"
+        ],
+        "data": "0x0000000000000000000000000000000000000000000db91655330e2f16995335",
+        "logIndex": "0x4d"
+      },
+      {
+        "address": "0x52067DcE3CFEC3621b88D4DE3cC77374F8A44494",
+        "topics": [
+          "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+          "0x0000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef",
+          "0x0000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef"
+        ],
+        "data": "0x000000000000000000000000000000000000000000000000008bb395035502700000000000000000000000000000000000000000000db91655330e2f16995335000000000000000000000000000000000000000000000000000165a2c52740060000000000000000000000000000000000000000000000000000000000000000",
+        "logIndex": "0x4e"
+      }
+    ]
+  },
+  "block": {
+    "number": "0x3ea8ce5",
+    "hash": "0xdf95b02af16614e378cf0e4befd55b210f6c51254d92b61bccd27194a9ab08b4",
+    "parentHash": "0x7e191870104d6613459940a75a2cdf20449715fb58c56e09f94cf1f75e45a378",
+    "timestamp": "2026-09-17T21:52:05Z"
+  }
+}

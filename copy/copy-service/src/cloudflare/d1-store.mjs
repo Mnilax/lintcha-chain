@@ -191,7 +191,9 @@ export class D1KillSwitchStore {
     const statements = [
       this.db.prepare("INSERT INTO copy_kill_switches (scope, subject_id, paused, revision, reason, actor_id, updated_at) VALUES ('GLOBAL', 'global', ?, ?, ?, ?, ?) ON CONFLICT(scope, subject_id) DO UPDATE SET paused = excluded.paused, revision = excluded.revision, reason = excluded.reason, actor_id = excluded.actor_id, updated_at = excluded.updated_at").bind(snapshot.global.paused, snapshot.revision, reason || "", actorId || "owner", at),
       this.db.prepare("UPDATE copy_kill_switches SET paused = 0, revision = ?, reason = ?, actor_id = ?, updated_at = ? WHERE scope = 'USER'").bind(snapshot.revision, reason || "", actorId || "owner", at),
+      this.db.prepare("UPDATE copy_kill_switches SET paused = 0, revision = ?, reason = ?, actor_id = ?, updated_at = ? WHERE scope = 'WALLET'").bind(snapshot.revision, reason || "", actorId || "owner", at),
       ...snapshot.users.map((row) => this.db.prepare("INSERT INTO copy_kill_switches (scope, subject_id, paused, revision, reason, actor_id, updated_at) VALUES ('USER', ?, 1, ?, ?, ?, ?) ON CONFLICT(scope, subject_id) DO UPDATE SET paused = 1, revision = excluded.revision, reason = excluded.reason, actor_id = excluded.actor_id, updated_at = excluded.updated_at").bind(row.subjectId, snapshot.revision, reason || "", actorId || "owner", at)),
+      ...snapshot.wallets.map((row) => this.db.prepare("INSERT INTO copy_kill_switches (scope, subject_id, paused, revision, reason, actor_id, updated_at) VALUES ('WALLET', ?, 1, ?, ?, ?, ?) ON CONFLICT(scope, subject_id) DO UPDATE SET paused = 1, revision = excluded.revision, reason = excluded.reason, actor_id = excluded.actor_id, updated_at = excluded.updated_at").bind(row.subjectId, snapshot.revision, reason || "", actorId || "owner", at)),
     ];
     await this.db.batch(statements);
   }

@@ -1,4 +1,4 @@
-# Lintcha Copy — example Worker configuration. Copy to wrangler.toml only inside the isolated Copy deployment.
+# Lintcha copy-trading — example Worker configuration for the internally isolated service.
 # No value below is a secret and no id is real. Names are the contract; ids/routes are owner actions (cp14/OWNER_ACTIONS.md).
 name = "lintcha-copy"
 main = "src/cloudflare/worker.mjs"
@@ -7,17 +7,20 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 preview_urls = false
 
-# The Mini App static files. Every /copy/api/* request is answered by the Worker; everything else is a file or 404.
+# The Mini App static files. Every /api/copy/* request is answered by the Worker; everything else is a file or 404.
 [assets]
 directory = "../copy-app"
 not_found_handling = "404-page"
-run_worker_first = ["/copy/api/*"]
+run_worker_first = ["/api/copy/*"]
 
-# The homepage markets Copy on lintcha.com; the signing sheet keeps this separate origin.
+# One public Lintcha domain; isolation is by exact path routes plus separate service/storage/auth boundaries.
 [[routes]]
-pattern = "copy.lintcha.com/*"
+pattern = "lintcha.com/copy/*"
 zone_name = "lintcha.com"
-# custom_domain = true   # set when the owner creates the origin
+
+[[routes]]
+pattern = "lintcha.com/api/copy/*"
+zone_name = "lintcha.com"
 
 # Staged with `wrangler versions secret put`, never written here. Names only.
 [secrets]
@@ -45,12 +48,13 @@ crons = ["* * * * *"]   # expiry sweep + reconciliation pass; no broadcast, no r
 COPY_ENVIRONMENT = "preproduction"
 COPY_CHAIN_ID = "4663"
 COPY_DB_NAMESPACE = "lintcha_copy"
-COPY_APP_ORIGIN = "https://copy.lintcha.com"
+COPY_APP_ORIGIN = "https://lintcha.com"
 COPY_APP_PATH = "/copy/"
+COPY_API_PATH = "/api/copy/"
 COPY_TELEGRAM_BOT_ID = ""                            # public numeric id of @lintchabot (from getMe), not the token
 COPY_TELEGRAM_ENV = "production"
 COPY_RPC_PRIMARY_PROVIDER = "alchemy"
-COPY_RPC_SECONDARY_PROVIDER = "quicknode"
+COPY_RPC_SECONDARY_PROVIDER = "drpc"
 COPY_RPC_MAX_HEAD_SKEW_BLOCKS = "2"
 COPY_RPC_MAX_GAS_SKEW_BPS = "1500"
 COPY_GLOBAL_KILL_SWITCH = "true"

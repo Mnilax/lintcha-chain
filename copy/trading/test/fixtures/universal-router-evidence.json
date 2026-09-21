@@ -1,0 +1,48 @@
+{
+  "capturedAt": "2026-09-18",
+  "candidate": "Universal Router PAY_PORTION plus SWEEP",
+  "mainnet": {
+    "chainId": 4663,
+    "address": "0x8876789976decbfcbbbe364623c63652db8c0904",
+    "codeKeccak256": "0x2ce6aaaf9f4151f5e1cbf774668772f17f532ae11b15e9284fd0a072a8b0fbde",
+    "officialDeploymentManifest": true,
+    "officialDeploymentCommit": "023196a13735232e6a7e69c1ea03b2225480b9dc",
+    "sourceVersion": "Universal Router v2.1.1",
+    "historicalPayPortionSweepReceipt": "0x284d4741a8f6945a34f5f32c20e9ea1b9d836eb758d7e012c034f3e360d06ff1"
+  },
+  "testnet": {
+    "chainId": 46630,
+    "address": "0x8876789976decbfcbbbe364623c63652db8c0904",
+    "codeKeccak256": "0xfdd90802f39ce5fc8bac4c2f1b3ac7bac530fd17ff46b0630f1bd00f1e14082f",
+    "officialTestnetManifest": false,
+    "sourceVersionVerified": true,
+    "bytecodePinned": true,
+    "bytecodeParity": {
+      "sameLengthBytes": 24546,
+      "differentByteCount": 34,
+      "differentRanges": [
+        { "start": 18261, "end": 18292, "meaning": "EIP-712 domain separator" },
+        { "start": 18480, "end": 18481, "meaning": "chain ID" }
+      ],
+      "mainnetDomainSeparator": "0xa7af6fcd684cdc3a3dc593f7aef3964925bd849513dc6f154233ada3b5303099",
+      "testnetDomainSeparator": "0x400cea4907a0cfa8fe473077d3c5de763bef9e7195f33fae79fb4685128d6422",
+      "assessment": "Runtime is byte-identical after normalizing the two expected EIP-712 chain-specific immutables."
+    },
+    "recentReceiptSearch": {
+      "explorer": "https://explorer.testnet.chain.robinhood.com",
+      "capturedAtUtc": "2026-09-17T21:41:36Z",
+      "addressTransactionsCountAtCapture": 628453,
+      "transactionsScanned": 2000,
+      "payPortionThenSweepMatches": 0,
+      "firstTransactionHash": "0xde134760cd8263a14e8b29847f24882c8682386402703a40997cae9b56c1ca33",
+      "lastTransactionHash": "0x60417f4e30a9b816e270139fb1ae964cbba9ed79246c8d024d0d785f52074072",
+      "exhaustive": false
+    },
+    "reproducibleReceipt": {
+      "verified": false,
+      "exactUserAndFeeDeltas": false
+    }
+  },
+  "decision": "blocked",
+  "note": "No official chain-46630 Uniswap manifest was found. Testnet runtime parity is proven except EIP-712 chain-specific immutables, but no PAY_PORTION plus SWEEP receipt was found in a bounded scan of the latest 2,000 testnet router transactions and no transaction was sent."
+}
