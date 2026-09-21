@@ -28,6 +28,12 @@ jobs:
       - name: Test the API worker and bot
         run: npm test --prefix bot
 
+      - name: Install the pinned secure-sheet dependencies
+        run: npm ci --prefix copy/secure-sheet-crypto
+
+      - name: Test the complete copy-trading boundary
+        run: npm run test:copy
+
       - name: Install the pinned Worker toolchain
         run: npm ci --prefix bot
 
