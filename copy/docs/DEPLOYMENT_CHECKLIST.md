@@ -1,6 +1,12 @@
 # Lintcha Copy deployment checklist (CP15 revision)
 
-All boxes remain unchecked locally. Items marked (local ✓) have local test evidence only, not runtime evidence.
+Boxes are checked only when the whole line is complete. Items marked (local ✓) have local test evidence only, not runtime evidence.
+
+Live bootstrap evidence (2026-09-21): PRs #40 and #41 merged with green CI; isolated D1 schema and SQLite
+`CopyUserCoordinator` migration applied; gateway/confirmation/admin secret names present in Cloudflare; paused Copy
+Worker created without a public route; Pons V2 router bytecode and recorded BUY/SELL transactions re-verified on
+Robinhood Mainnet. `copy.lintcha.com` still has no DNS record, Core seam is disabled, caps are zero, and every
+broadcast/auto/delegation flag remains false.
 
 - [ ] Integration pull request reviewed and merged; Core and Copy regression suites green on the exact merge candidate.
 - [ ] Owner approved the section-eight text amendment included in the integration pull request.
