@@ -121,6 +121,47 @@ responseState = bucketWatch.advanceTelegramResponse(6010, 1, sendState.leaseUnti
 t.ok(responseState.pending === false && bucketWatch.claimTelegramUpdate(6010, "79", now + 12).pending === false,
   "the final accepted action completes the response while retaining the update-id dedupe mark");
 
+// Copy actions cross the same durable response boundary as Core actions. This is intentionally exercised on
+// the real Watch ledger: a router-only test cannot catch a valid Copy keyboard being discarded before send.
+const copyCtx = fakeWatchCtx();
+const copyWatch = new Watch(copyCtx, { COPY_APP_ORIGIN: "https://lintcha.com" });
+const copyActions = [
+  { kind: "answer-callback", callbackQueryId: "cb_A-42" },
+  { kind: "send", chat: 79, text: "Lintcha Copy", escape: true, reply_markup: { inline_keyboard: [
+    [{ text: "Open Copy", web_app: { url: "https://lintcha.com/copy/?intent=" + "a".repeat(64) } }],
+    [{ text: "Pause", callback_data: "copy.pause" }]
+  ] } }
+];
+copyWatch.claimTelegramUpdate(6020, "79", now + 30);
+let copyState = copyWatch.storeTelegramResponse(6020, copyActions);
+t.ok(copyState.ok === true && copyState.actions[0].kind === "answer-callback" &&
+  copyState.actions[1].escape === true && copyState.actions[1].reply_markup.inline_keyboard.length === 2,
+  "a Copy callback and exact-origin Mini App keyboard survive the durable response boundary");
+let copySend = copyWatch.claimTelegramAction(6020, 0, now + 31);
+copyState = copyWatch.advanceTelegramResponse(6020, 0, copySend.leaseUntil);
+copySend = copyWatch.claimTelegramAction(6020, 1, now + 32);
+copyState = copyWatch.advanceTelegramResponse(6020, 1, copySend.leaseUntil);
+t.ok(copyState.ok === true && copyState.pending === false,
+  "the callback acknowledgement and Copy message advance through the real per-action ledger");
+
+const rejectedCopyAction = (updateId, action) => {
+  copyWatch.claimTelegramUpdate(updateId, "79", now + updateId);
+  return copyWatch.storeTelegramResponse(updateId, [action]).ok === false;
+};
+const copyMessage = reply_markup => ({ kind: "send", chat: 79, text: "copy", escape: true, reply_markup });
+t.ok(rejectedCopyAction(6021, copyMessage({ inline_keyboard: [[{ text: "Foreign", web_app: { url: "https://evil.example/copy/" } }]] })),
+  "the durable boundary rejects a foreign Mini App origin");
+t.ok(rejectedCopyAction(6022, copyMessage({ inline_keyboard: [[{ text: "Foreign callback", callback_data: "core.pause" }]] })),
+  "the durable boundary rejects a callback outside the Copy namespaces");
+t.ok(rejectedCopyAction(6023, copyMessage({ inline_keyboard: [[{ text: "Too long", callback_data: "copy." + "a".repeat(60) }]] })),
+  "the durable boundary enforces Telegram's 64-byte callback-data ceiling");
+t.ok(rejectedCopyAction(6024, copyMessage({ inline_keyboard: [[{ text: "Extra", callback_data: "copy.pause", url: "https://lintcha.com/copy/" }]] })),
+  "the durable boundary rejects extra Bot API button fields");
+t.ok(rejectedCopyAction(6025, { kind: "answer-callback", callbackQueryId: "cb_A-42", text: "smuggled" }),
+  "the durable boundary rejects extra callback-answer fields");
+t.ok(rejectedCopyAction(6026, { kind: "answer-callback", callbackQueryId: "x".repeat(257) }),
+  "the durable boundary bounds opaque callback query identifiers");
+
 const effectClaim = bucketWatch.claimTelegramUpdate(6011, "80", now + 20);
 const effectMarkA = other.slice(0, -2) + "aa";
 const effectMarkB = other.slice(0, -2) + "bb";

@@ -139,7 +139,7 @@ export async function sendMessageResult(env, chatId, text, options = {}) {
  * terminal, and Telegram posts nothing on this call, so a retry can never duplicate a message.
  */
 export async function answerCallbackQueryResult(env, value) {
-  if (!env || !env.TELEGRAM_BOT_TOKEN || !value || typeof value.callbackQueryId !== "string" || !/^[0-9]{1,32}$/.test(value.callbackQueryId)) return "terminal";
+  if (!env || !env.TELEGRAM_BOT_TOKEN || !value || !bytesWithin(value.callbackQueryId, 1, 256)) return "terminal";
   const { state, errorCode } = await botApiCallResult(env, "answerCallbackQuery", { callback_query_id: value.callbackQueryId });
   if (state === "accepted") return "accepted";
   if (state === "refused" && errorCode === 400) return "terminal";

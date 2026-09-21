@@ -26,6 +26,10 @@ export const GATEWAY_TEXTS = Object.freeze({
 function clean(value, max = 96) {
   return String(value ?? "").replace(/[\u0000-\u001f\u007f<>]/g, "").slice(0, max);
 }
+function exactKeys(value, keys) {
+  return !!value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === keys.length &&
+    Object.keys(value).every((key) => keys.includes(key));
+}
 
 export function copyRoute(update, botUsername = "lintchabot") {
   const message = update?.message;
@@ -72,15 +76,18 @@ export async function signGatewayEnvelope(envelope, secret) {
 export function validateCopyResponse(response, copyAppOrigin) {
   if (!response || typeof response.text !== "string" || !response.text.trim() || response.text.length > 4096) throw new Error("INVALID_COPY_RESPONSE");
   const buttons = response.inlineKeyboard || [];
-  if (!Array.isArray(buttons) || buttons.length > 8 || buttons.some((row) => !Array.isArray(row) || row.length > 4)) throw new Error("INVALID_COPY_RESPONSE");
+  if (!Array.isArray(buttons) || buttons.length > 8 || buttons.some((row) => !Array.isArray(row) || !row.length || row.length > 4)) throw new Error("INVALID_COPY_RESPONSE");
   for (const row of buttons) for (const button of row) {
-    if (!button || typeof button.text !== "string") throw new Error("INVALID_COPY_RESPONSE");
-    if (Boolean(button.callbackData) === Boolean(button.webAppUrl)) throw new Error("INVALID_COPY_RESPONSE");
-    if (button.callbackData && !COPY_CALLBACK.test(button.callbackData)) throw new Error("COPY_CALLBACK_NAMESPACE_REQUIRED");
-    if (button.webAppUrl) {
+    const text = clean(button && button.text, 64);
+    const callbackButton = exactKeys(button, ["text", "callbackData"]);
+    const webAppButton = exactKeys(button, ["text", "webAppUrl"]);
+    if (!text || callbackButton === webAppButton) throw new Error("INVALID_COPY_RESPONSE");
+    if (callbackButton && (!COPY_CALLBACK.test(button.callbackData) || encoder.encode(button.callbackData).byteLength > 64)) throw new Error("COPY_CALLBACK_NAMESPACE_REQUIRED");
+    if (webAppButton) {
       let url;
       try { url = new URL(button.webAppUrl); } catch { throw new Error("COPY_APP_ORIGIN_MISMATCH"); }
-      if (url.origin !== copyAppOrigin || !url.pathname.startsWith("/copy/") || url.username || url.password) throw new Error("COPY_APP_ORIGIN_MISMATCH");
+      if (encoder.encode(button.webAppUrl).byteLength > 2048 || url.origin !== copyAppOrigin || !url.pathname.startsWith("/copy/") ||
+          url.username || url.password || url.hash) throw new Error("COPY_APP_ORIGIN_MISMATCH");
     }
   }
   return Object.freeze({

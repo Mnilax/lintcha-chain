@@ -78,6 +78,8 @@ const refusing = { ...env, COPY_SERVICE: { async fetch() { return Response.json(
 t.ok((await handleUpdate(privateCopy(), { env: refusing, kv: fakeKV() }))[0].text === GATEWAY_TEXTS.UNAVAILABLE, "a Copy refusal is also the fixed line, never a raw error");
 const foreignButtons = { ...env, COPY_SERVICE: { async fetch() { return Response.json({ ok: true, response: { text: "x", inlineKeyboard: [[{ text: "evil", webAppUrl: "https://evil.example/copy/" }]] } }); } } };
 t.ok((await handleUpdate(privateCopy(), { env: foreignButtons, kv: fakeKV() }))[0].text === GATEWAY_TEXTS.UNAVAILABLE, "a reply pointing off-origin is refused and replaced by the fixed line");
+const smuggledButton = { ...env, COPY_SERVICE: { async fetch() { return Response.json({ ok: true, response: { text: "x", inlineKeyboard: [[{ text: "Pause", callbackData: "copy.pause", url: "https://evil.example" }]] } }); } } };
+t.ok((await handleUpdate(privateCopy(), { env: smuggledButton, kv: fakeKV() }))[0].text === GATEWAY_TEXTS.UNAVAILABLE, "extra Bot API button fields are refused before the durable boundary");
 t.ok(textOf(await handleUpdate(privateCopy("/start"), { env: broken, kv: fakeKV() })).includes("Lintcha Core"), "Core commands answer normally while Copy is down");
 
 // Outbox drain: Core delivers what Copy queued, with the same validation, and acknowledges only accepted sends.

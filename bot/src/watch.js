@@ -625,7 +625,7 @@ export class Watch {
     if (rows[0].actions === null) return nextAction === 0 ? { actions: null, nextAction } : { invalid: true };
     let decoded;
     try { decoded = JSON.parse(rows[0].actions); } catch { return { invalid: true }; }
-    const actions = telegramActionsOf(decoded);
+    const actions = telegramActionsOf(decoded, this.env.COPY_APP_ORIGIN);
     return actions && nextAction < actions.length ? { actions, nextAction } : { invalid: true };
   }
 
@@ -644,7 +644,7 @@ export class Watch {
   /** Store the handler's exact response before its first Telegram attempt; retries reuse these same words. */
   storeTelegramResponse(updateId, actionsValue) {
     const id = Number.isSafeInteger(updateId) && updateId > 0 ? updateId : null;
-    const actions = telegramActionsOf(actionsValue);
+    const actions = telegramActionsOf(actionsValue, this.env.COPY_APP_ORIGIN);
     if (id === null || !actions || !this.ctx.storage || typeof this.ctx.storage.transactionSync !== "function") return { ok: false };
     try {
       return this.ctx.storage.transactionSync(() => {
@@ -2095,7 +2095,50 @@ const parseTelegramEffect = value => {
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
   } catch { return null; }
 };
-const telegramActionsOf = value => {
+const exactObjectKeys = (value, keys) => !!value && typeof value === "object" && !Array.isArray(value) &&
+  Object.keys(value).length === keys.length && Object.keys(value).every(key => keys.includes(key));
+const telegramButtonText = value => typeof value === "string" && Array.from(value).length >= 1 &&
+  Array.from(value).length <= 64 && !/[\u0000-\u001f\u007f]/.test(value);
+const telegramCopyOrigin = value => {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash &&
+      url.pathname === "/" ? url.origin : null;
+  } catch { return null; }
+};
+const telegramCopyReplyMarkupOf = (value, configuredOrigin) => {
+  if (!exactObjectKeys(value, ["inline_keyboard"]) || !Array.isArray(value.inline_keyboard) ||
+      value.inline_keyboard.length < 1 || value.inline_keyboard.length > 8) return null;
+  const origin = telegramCopyOrigin(configuredOrigin);
+  const inlineKeyboard = [];
+  for (const rawRow of value.inline_keyboard) {
+    if (!Array.isArray(rawRow) || rawRow.length < 1 || rawRow.length > 4) return null;
+    const row = [];
+    for (const rawButton of rawRow) {
+      if (!telegramButtonText(rawButton && rawButton.text)) return null;
+      if (exactObjectKeys(rawButton, ["text", "callback_data"])) {
+        if (typeof rawButton.callback_data !== "string" ||
+            !/^(?:copy|trade|sell)\.[a-z0-9._-]{1,96}$/.test(rawButton.callback_data) ||
+            new TextEncoder().encode(rawButton.callback_data).byteLength > 64) return null;
+        row.push({ text: rawButton.text, callback_data: rawButton.callback_data });
+        continue;
+      }
+      if (!origin || !exactObjectKeys(rawButton, ["text", "web_app"]) ||
+          !exactObjectKeys(rawButton.web_app, ["url"]) || typeof rawButton.web_app.url !== "string" ||
+          new TextEncoder().encode(rawButton.web_app.url).byteLength > 2048) return null;
+      try {
+        const url = new URL(rawButton.web_app.url);
+        if (url.protocol !== "https:" || url.origin !== origin || url.username || url.password || url.hash ||
+            !url.pathname.startsWith("/copy/")) return null;
+        row.push({ text: rawButton.text, web_app: { url: url.href } });
+      } catch { return null; }
+    }
+    inlineKeyboard.push(row);
+  }
+  return { inline_keyboard: inlineKeyboard };
+};
+const telegramActionsOf = (value, copyOrigin = null) => {
   if (!Array.isArray(value) || value.length > MAX_TELEGRAM_RESPONSE_ACTIONS) return null;
   const out = [];
   for (const raw of value) {
@@ -2105,8 +2148,15 @@ const telegramActionsOf = value => {
       out.push(action);
       continue;
     }
+    if (raw && raw.kind === "answer-callback") {
+      if (!exactObjectKeys(raw, ["kind", "callbackQueryId"]) || typeof raw.callbackQueryId !== "string" ||
+          new TextEncoder().encode(raw.callbackQueryId).byteLength < 1 ||
+          new TextEncoder().encode(raw.callbackQueryId).byteLength > 256) return null;
+      out.push({ kind: "answer-callback", callbackQueryId: raw.callbackQueryId });
+      continue;
+    }
     if (!raw || typeof raw !== "object" || Array.isArray(raw) || raw.kind !== "send" ||
-        !Object.keys(raw).every(key => ["kind", "chat", "text", "quiet", "preview", "replyTo"].includes(key)) ||
+        !Object.keys(raw).every(key => ["kind", "chat", "text", "quiet", "preview", "replyTo", "escape", "reply_markup"].includes(key)) ||
         typeof raw.text !== "string" || !raw.text.length || raw.text.length > TELEGRAM_TEXT_LIMIT) return null;
     let chat = null;
     if (Number.isSafeInteger(raw.chat) && raw.chat !== 0) chat = raw.chat;
@@ -2116,11 +2166,16 @@ const telegramActionsOf = value => {
     }
     if (chat === null || (raw.quiet !== undefined && typeof raw.quiet !== "boolean") ||
         (raw.preview !== undefined && typeof raw.preview !== "boolean") ||
-        (raw.replyTo !== undefined && (!Number.isSafeInteger(raw.replyTo) || raw.replyTo <= 0))) return null;
+        (raw.replyTo !== undefined && (!Number.isSafeInteger(raw.replyTo) || raw.replyTo <= 0)) ||
+        (raw.escape !== undefined && typeof raw.escape !== "boolean")) return null;
+    const replyMarkup = raw.reply_markup === undefined ? undefined : telegramCopyReplyMarkupOf(raw.reply_markup, copyOrigin);
+    if (raw.reply_markup !== undefined && !replyMarkup) return null;
     const action = { kind: "send", chat, text: raw.text };
     if (raw.quiet !== undefined) action.quiet = raw.quiet;
     if (raw.preview !== undefined) action.preview = raw.preview;
     if (raw.replyTo !== undefined) action.replyTo = raw.replyTo;
+    if (raw.escape !== undefined) action.escape = raw.escape;
+    if (replyMarkup) action.reply_markup = replyMarkup;
     out.push(action);
   }
   return out;

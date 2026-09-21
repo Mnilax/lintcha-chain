@@ -53,6 +53,11 @@ test("gateway rejects arbitrary Telegram controls and foreign Mini App origins",
   assert.throws(() => validateCopyResponse({ text: "x", inlineKeyboard: [[{ text: "bad", webAppUrl: "https://evil.example/copy/" }]] }, ORIGIN), /ORIGIN/);
   assert.throws(() => validateCopyResponse({ text: "x", inlineKeyboard: [[{ text: "bad", webAppUrl: `${ORIGIN}/app/` }]] }, ORIGIN), /ORIGIN/);
   assert.throws(() => validateCopyResponse({ text: "x", inlineKeyboard: [[{ text: "bad", url: "https://evil.example" }]] }, ORIGIN), /INVALID_COPY_RESPONSE/);
+  assert.throws(() => validateCopyResponse({ text: "x", inlineKeyboard: [[]] }, ORIGIN), /INVALID_COPY_RESPONSE/);
+  assert.throws(() => validateCopyResponse({ text: "x", inlineKeyboard: [[{ text: "bad", callbackData: `copy.${"a".repeat(60)}` }]] }, ORIGIN), /NAMESPACE/);
+  assert.throws(() => validateCopyResponse({ text: "x", inlineKeyboard: [[{ text: "bad", callbackData: "copy.pause", url: "https://evil.example" }]] }, ORIGIN), /INVALID_COPY_RESPONSE/);
+  assert.throws(() => validateCopyResponse({ text: "x", inlineKeyboard: [[{ text: "<>", callbackData: "copy.pause" }]] }, ORIGIN), /INVALID_COPY_RESPONSE/);
+  assert.throws(() => validateCopyResponse({ text: "x", inlineKeyboard: [[{ text: "bad", webAppUrl: `${ORIGIN}/copy/#fragment` }]] }, ORIGIN), /ORIGIN/);
   assert.throws(() => validateCopyResponse({ text: "" }, ORIGIN), /INVALID_COPY_RESPONSE/);
 });
 
