@@ -5,6 +5,7 @@ import { assertDelegationAllows, UnconfiguredDelegatedExecutor } from "./delegat
 const HASH = /^0x[0-9a-fA-F]{64}$/;
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const ALLOWANCE_SELECTOR = "0xdd62ed3e";
+const AUTO_BUY_SELECTOR = "0xa59ac6dd";
 
 /** States that leave nothing pending on chain: a new intent for the same source trade may supersede them. */
 export const RETRYABLE_TERMINAL_STATES = Object.freeze(new Set(["REJECTED", "EXPIRED", "FAILED", "CANCELLED"]));
@@ -40,6 +41,15 @@ function assertPublicQuote(quote, now) {
     amountIn: String(BigInt(quote.amountIn)), expectedOutput: String(BigInt(quote.expectedOutput)), minimumOutput: String(BigInt(quote.minimumOutput)),
     slippageBps: Number(quote.slippageBps), expiresAt: quote.expiresAt, venue: typeof quote.venue === "string" ? quote.venue.slice(0, 64) : null,
   });
+}
+
+function assertAutoBuyWrapper(transaction, quote, executorAddress) {
+  if (!executorAddress || transaction.to !== executorAddress) throw new Error("AUTO_BUY_EXECUTOR_NOT_ALLOWED");
+  if (transaction.data.slice(0, 10) !== AUTO_BUY_SELECTOR || transaction.data.length !== 202) throw new Error("INVALID_AUTO_BUY_CALL");
+  const token = `0x${transaction.data.slice(34, 74)}`;
+  const amount = BigInt(`0x${transaction.data.slice(74, 138)}`).toString();
+  const minimum = BigInt(`0x${transaction.data.slice(138, 202)}`).toString();
+  if (token !== quote.targetToken || amount !== quote.amountIn || minimum !== quote.minimumOutput || transaction.value !== quote.amountIn) throw new Error("AUTO_BUY_CALL_MISMATCH");
 }
 
 function assertAddress(value, label) {
@@ -95,7 +105,7 @@ export class MemoryIntentStore {
 export class LintchaCopyService {
   constructor({
     policyGate, simulator, rpcPool, auditLog, intentStore = new MemoryIntentStore(), confirmationSecret,
-    delegationStore = null, delegatedExecutor = new UnconfiguredDelegatedExecutor(), autoBuyEnabled = false, delegatedSubmissionEnabled = false,
+    delegationStore = null, delegatedExecutor = new UnconfiguredDelegatedExecutor(), autoBuyEnabled = false, delegatedSubmissionEnabled = false, autoBuyExecutorAddress = null,
     clock = () => Math.floor(Date.now() / 1000), submissionGraceSeconds = 600, dropDeadlineSeconds = 1800,
     maxReconcileAttempts = 120, requireSafeInclusion = true,
   }) {
@@ -108,6 +118,7 @@ export class LintchaCopyService {
     this.delegatedExecutor = delegatedExecutor;
     this.autoBuyEnabled = autoBuyEnabled;
     this.delegatedSubmissionEnabled = delegatedSubmissionEnabled;
+    this.autoBuyExecutorAddress = autoBuyExecutorAddress ? assertAddress(autoBuyExecutorAddress, "AUTO_BUY_EXECUTOR") : null;
     this.tokens = new ConfirmationTokenCodec(confirmationSecret);
     this.clock = clock;
     this.submissionGraceSeconds = submissionGraceSeconds;
@@ -124,6 +135,7 @@ export class LintchaCopyService {
     const unsignedTransaction = assertPublicTransaction(transaction);
     const publicQuote = assertPublicQuote(quote, now);
     if (publicQuote.direction !== "BUY" || operation !== "TRADE") throw new Error(publicQuote.direction === "SELL" ? "AUTO_SELL_FORBIDDEN" : "AUTO_BUY_TRADE_ONLY");
+    assertAutoBuyWrapper(unsignedTransaction, publicQuote, this.autoBuyExecutorAddress);
     const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
     if (typeof sourceTradeId !== "string" || !sourceTradeId || sourceTradeId.length > 128) throw new Error("INVALID_SOURCE_TRADE");
     const delegation = assertDelegationAllows(await this.delegationStore.getActive(userId, publicWalletAddress), { userId, walletAddress: publicWalletAddress, transaction: unsignedTransaction, quote: publicQuote }, now);

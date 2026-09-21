@@ -7,7 +7,7 @@
  * sorted by key, joined with "\n". The bot id is public (numeric) and is configuration, not a secret.
  *
  * Public keys (hex) as published for third-party validation; production key confirmed against the tma.js
- * platform docs on 2026-09-20 and to be re-checked against core.telegram.org before beta (see CP15 report).
+ * platform docs on 2026-09-20 and to be re-checked against core.telegram.org before public resume (see CP15 report).
  */
 export const TELEGRAM_THIRD_PARTY_PUBLIC_KEYS = Object.freeze({
   production: "e7bf03a2fa4602af4580703d88dda5bb59f32ed8b02a56c187fe7d34caed242d",

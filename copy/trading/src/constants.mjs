@@ -14,6 +14,7 @@ export const PONS_V2_SELECTORS = Object.freeze({
   BUY: "0x59a87bc1",
   SELL: "0xd04c6983",
 });
+export const LINTCHA_AUTO_BUY_SELECTOR = "0xa59ac6dd";
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 export const SOURCE_STATES = Object.freeze({

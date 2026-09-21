@@ -10,7 +10,7 @@ import { MemoryDelegationStore } from "../src/delegated-execution.mjs";
 import { TelegramInitDataVerifier, telegramDataCheckString } from "../src/telegram-init-data.mjs";
 import { routeCopyUpdate, drainCopyOutbox } from "../../copy-gateway/src/gateway.mjs";
 import { ConfirmEachSheetController, ExternalEip1193WalletAdapter } from "../../secure-sheet-crypto/src/confirm-each.mjs";
-import { HASH, NOW, ROUTER, TOKEN, WALLET, approvalInput, fixture, input, sellTradeInput } from "./helpers.mjs";
+import { HASH, NOW, ROUTER, TOKEN, WALLET, approvalInput, autoBuyInput, fixture, input, sellTradeInput } from "./helpers.mjs";
 
 const subtle = webcrypto.subtle;
 const ORIGIN = "https://lintcha.com";
@@ -68,20 +68,20 @@ async function stack(fixtureOptions = {}, configEnv = {}) {
 
 test("end-to-end bounded auto-BUY activates only after delegation and submits once", async () => {
   const delegations = new MemoryDelegationStore(() => NOW);
-  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "EIP7702_SESSION", authorizationRef: "auth:http:auto:42", chainId: 4663, routers: [ROUTER], selectors: ["0x12345678"], maxTransactionWei: "600", maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: NOW + 3600 });
+  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "EIP7702_SESSION", authorizationRef: "auth:http:auto:42", chainId: 4663, routers: [ROUTER], selectors: ["0xa59ac6dd"], maxTransactionWei: "600", maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: NOW + 3600 });
   let submissions = 0;
-  const s = await stack({ service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { submissions += 1; return { transactionHash: HASH }; } } } }, { COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true" });
+  const s = await stack({ service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { submissions += 1; return { transactionHash: HASH }; } } } }, { COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER, COPY_ALLOW_ROUTERS: JSON.stringify([ROUTER]), COPY_ALLOW_SELECTORS: JSON.stringify(["0xa59ac6dd"]) });
   await s.telegram(s.privateMessage("/start copy_site"), s.nextUpdate());
   await s.post("wallet", { publicAddress: WALLET, walletKind: "EXTERNAL" }, await s.client("42"));
   const selected = await s.telegram(s.callback("copy.mode.auto_buy"), s.nextUpdate());
   assert.match(selected.response.text, /Mode: auto-copy BUY/);
   await s.telegram(s.callback("copy.resume"), s.nextUpdate());
   s.killSwitches.resumeGlobal();
-  const created = await (await s.signed("auto-buy", "lintcha.copy.auto-buy.v1", { userId: "42", ...input() })).json();
+  const created = await (await s.signed("auto-buy", "lintcha.copy.auto-buy.v1", { userId: "42", ...autoBuyInput() })).json();
   assert.equal(created.intent.state, "SUBMITTED_PENDING_RECONCILIATION");
   assert.equal(created.intent.executionMode, "AUTO_BUY");
   assert.equal(submissions, 1);
-  const duplicate = await (await s.signed("auto-buy", "lintcha.copy.auto-buy.v1", { userId: "42", ...input() })).json();
+  const duplicate = await (await s.signed("auto-buy", "lintcha.copy.auto-buy.v1", { userId: "42", ...autoBuyInput() })).json();
   assert.equal(duplicate.intent.duplicate, true);
   assert.equal(submissions, 1);
   const me = await (await s.call("me", { headers: await s.client("42") })).json();

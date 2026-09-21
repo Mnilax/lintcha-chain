@@ -97,12 +97,19 @@ export async function boot({ document: doc = globalThis.document, windowLike = g
 
   async function home() {
     try { me = await api.me(); } catch (error) { return fail(root, error.message); }
-    $(root, "[data-mode]").textContent = me.user.mode === "CONFIRM_EACH" ? "confirm each trade" : "notifications only";
+    const modeLabel = me.user.mode === "AUTO_BUY" ? "auto-copy BUY" : me.user.mode === "CONFIRM_EACH" ? "confirm each trade" : "notifications only";
+    $(root, "[data-mode]").textContent = modeLabel;
     $(root, "[data-status]").textContent = me.globallyPaused ? "paused for everyone" : me.user.paused ? "paused" : "active";
+    $(root, "[data-home-note]").textContent = me.user.mode === "AUTO_BUY"
+      ? "Matched BUYs may execute only inside your active permission and limits. Pause or change mode from /copy. SELL always waits for your manual confirmation here."
+      : "Change mode or pause from the /copy message in Telegram. BUY and manual SELL reviews are confirmed here.";
     $(root, "[data-wallets]").textContent = me.wallets.length ? me.wallets.map((row) => `${row.walletKind.toLowerCase()} ${shortAddress(row.publicAddress)}`).join(" · ") : "No public address registered yet.";
     const connect = $(root, "[data-action=connect-wallet]");
     connect.disabled = !provider;
     $(root, "[data-wallet-note]").textContent = provider ? "Connecting shares only your public address. Seed phrases and private keys never enter this page or the server." : "No external EIP-1193 wallet is exposed by this Telegram client. You can still use the built-in secure-sheet wallet when enabled; an external connector is optional.";
+    $(root, "[data-delegation]").textContent = me.activeDelegations?.length
+      ? `Active until ${new Date(me.activeDelegations[0].expiresAt * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC · ${me.activeDelegations[0].architecture}`
+      : me.autoBuyAvailable ? "No active auto-BUY permission. Setup stays inactive until the wallet-provider permission is completed." : "Auto-BUY is globally disabled.";
     const list = $(root, "[data-intents]");
     list.textContent = "";
     const open = me.intents.filter((row) => row.state === "AWAITING_USER_CONFIRMATION");

@@ -31,6 +31,12 @@ jobs:
       - name: Install the pinned secure-sheet dependencies
         run: npm ci --prefix copy/secure-sheet-crypto
 
+      - name: Install the pinned auto-BUY contract toolchain
+        run: npm ci --prefix copy/auto-buy-contract
+
+      - name: Install the pinned delegated executor SDK
+        run: npm ci --prefix copy/delegated-executor
+
       - name: Test the complete copy-trading boundary
         run: npm run test:copy
 

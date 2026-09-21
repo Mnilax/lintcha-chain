@@ -1,6 +1,7 @@
 import { asBigInt, normalizeAddress } from "../utils.mjs";
 import {
   CHAIN_ID,
+  LINTCHA_AUTO_BUY_SELECTOR,
   PONS_V2_FACTORY,
   PONS_V2_SELECTORS,
   SELECTORS,
@@ -96,6 +97,31 @@ export function buildPonsV2CurveTransaction(quote) {
     });
   }
   throw new Error("UNSUPPORTED_DIRECTION");
+}
+
+/** Builds the only transaction shape accepted by a delegated Lintcha auto-BUY session. */
+export function buildPonsV2AutoBuyTransaction(quote, { executorAddress }) {
+  if (quote.direction !== "BUY") throw new Error("AUTO_SELL_FORBIDDEN");
+  if (quote.chainId !== CHAIN_ID) throw new Error("UNSUPPORTED_CHAIN");
+  if (normalizeAddress(quote.factory) !== PONS_V2_FACTORY) throw new Error("UNSUPPORTED_FACTORY");
+  if (normalizeAddress(quote.pairToken) !== ZERO_ADDRESS) throw new Error("PONS_ERC20_QUOTE_NOT_SUPPORTED");
+  const executor = normalizeAddress(executorAddress);
+  const curve = normalizeAddress(quote.curve);
+  const token = normalizeAddress(quote.targetToken);
+  const recipient = normalizeAddress(quote.recipient);
+  const amountIn = asBigInt(quote.amountIn, "amountIn");
+  const minimumOutput = asBigInt(quote.minimumOutput, "minimumOutput");
+  if (amountIn <= 0n || minimumOutput <= 0n) throw new Error("INVALID_PONS_AMOUNT");
+  return Object.freeze({
+    chainId: CHAIN_ID,
+    venue: "LINTCHA_PONS_AUTO_BUY",
+    to: executor,
+    value: amountIn.toString(),
+    data: `${LINTCHA_AUTO_BUY_SELECTOR}${addressWord(token)}${word(amountIn)}${word(minimumOutput)}`,
+    deadline: quote.expiresAt,
+    quoteId: quote.id,
+    provenance: Object.freeze({ factory: PONS_V2_FACTORY, curve, token, recipient, executor }),
+  });
 }
 
 export function buildPonsV2ExactApproval({ token, curve, amount, chainId, factory }) {

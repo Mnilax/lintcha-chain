@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { CHAIN_ID, PONS_V2_FACTORY, UNISWAP_V2_ROUTER02, ZERO_ADDRESS } from "../src/constants.mjs";
 import { AutomaticCopyExecutor } from "../src/execution/automatic.mjs";
 import { SIGNING_ARCHITECTURES, TRADING_MODES, assertExecutionAuthorization } from "../src/execution/authorization.mjs";
-import { buildPonsV2CurveTransaction } from "../src/execution/builder.mjs";
+import { buildPonsV2AutoBuyTransaction, buildPonsV2CurveTransaction } from "../src/execution/builder.mjs";
 import { ExecutionCoordinator } from "../src/execution/lifecycle.mjs";
 import { PonsV2QuoteEngine } from "../src/execution/pons-v2-quote.mjs";
 import { QuoteEngine } from "../src/execution/quote.mjs";
@@ -117,6 +117,17 @@ test("CP10: Pons V2 SELL uses an exact token approval", () => {
   assert.equal(transaction.approval.approvalAmount, "123");
   assert.equal(transaction.approval.spender, curve);
   assert.notEqual(transaction.approval.approvalAmount, ((1n << 256n) - 1n).toString());
+});
+
+test("CP10: delegated Pons auto-BUY targets only the Lintcha wrapper and cannot encode SELL", () => {
+  const executor = "0x7777777777777777777777777777777777777777";
+  const quote = { id: "q-auto", venue: "PONS_V2_CURVE", chainId: CHAIN_ID, direction: "BUY", factory: PONS_V2_FACTORY, curve, pairToken: ZERO_ADDRESS, targetToken: token, recipient: wallet, amountIn: "123", minimumOutput: "100", expiresAt: 1_030 };
+  const transaction = buildPonsV2AutoBuyTransaction(quote, { executorAddress: executor });
+  assert.equal(transaction.to, executor);
+  assert.equal(transaction.data.slice(0, 10), "0xa59ac6dd");
+  assert.equal(transaction.value, "123");
+  assert.equal(transaction.provenance.curve, curve);
+  assert.throws(() => buildPonsV2AutoBuyTransaction({ ...quote, direction: "SELL" }, { executorAddress: executor }), /AUTO_SELL_FORBIDDEN/);
 });
 
 test("CP10: execution profile persists references and limits but no key material", () => {

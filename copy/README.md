@@ -16,13 +16,15 @@ The backend may store Telegram numeric identity, public wallet address, public l
 
 Copy-trading supports notify-only and bounded auto-BUY. An automatic BUY needs an active, expiring, revocable delegation whose public scope matches the user, wallet, chain, router, selector, per-transaction cap, daily cap and slippage cap. The exact unsigned transaction is simulated by two independent read-only providers before a separately controlled delegated executor is called once. An uncertain submission keeps its spend reservation and goes to manual reconciliation; it is never retried automatically.
 
-The trading Worker never receives the session key or wallet secret. It stores only public delegation metadata and an opaque authorization reference. The production executor adapter is disabled by default and unavailable without its own binding and a second matching activation flag.
+The trading Worker never receives the signer authorization key or wallet secret. It stores only public delegation metadata and an opaque Privy wallet reference. The production executor is a separate private Worker, disabled and globally paused by default, and unavailable without its own service binding and a second matching activation flag. The selected path and activation gates are documented in [`docs/AUTO_BUY_ARCHITECTURE.md`](docs/AUTO_BUY_ARCHITECTURE.md).
 
 SELL remains manual. Its exact approval and freshly quoted trade are separate secure-sheet confirmations in the user's self-custody wallet. Auto-SELL is forbidden in policy and cannot use the delegated path.
 
 ## Packages
 
 - `copy-service/` — HTTP surface, policy and confirm/manual plus auto-BUY intent lifecycles, public delegation records, a separate executor adapter, two-provider RPC/simulation, D1 and Durable Object adapters, audit log, outbox, reconciliation and credential-free fixtures.
+- `auto-buy-contract/` — immutable Pons V2 BUY-only wrapper with on-chain user caps, expiry, provenance and pause checks; no SELL/arbitrary-call/upgrade/withdrawal path.
+- `delegated-executor/` — private Privy executor Worker with an independent kill switch, cap, expiry, exact calldata validation and durable no-retry idempotency.
 - `copy-gateway/` — the platform-only signed gateway also vendored into `bot/src/copy-gateway.js`.
 - `copy-app/` — static `/copy/` Mini App with strict CSP and immutable `Lintcha — copy-trading` marking.
 - `secure-sheet-crypto/` — client-only wallet and confirmation boundary; the confirm-each controller is copied into the static app.

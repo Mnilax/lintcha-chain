@@ -16,7 +16,7 @@ export function validateDelegation(input, now = Math.floor(Date.now() / 1000)) {
   }
   const walletAddress = String(input.walletAddress || "").toLowerCase();
   if (!ADDRESS.test(walletAddress)) throw new Error("INVALID_DELEGATION_WALLET");
-  if (!["EIP7702_SESSION", "ERC4337_SESSION"].includes(input.architecture)) throw new Error("UNSUPPORTED_DELEGATION_ARCHITECTURE");
+  if (!["PRIVY_TEE", "EIP7702_SESSION", "ERC4337_SESSION"].includes(input.architecture)) throw new Error("UNSUPPORTED_DELEGATION_ARCHITECTURE");
   if (!/^[a-zA-Z0-9:_-]{8,160}$/.test(input.authorizationRef || "")) throw new Error("INVALID_DELEGATION_REFERENCE");
   if (!Number.isSafeInteger(input.chainId)) throw new Error("INVALID_DELEGATION_CHAIN");
   if (!Number.isSafeInteger(input.expiresAt) || input.expiresAt <= now) throw new Error("DELEGATION_EXPIRED");
