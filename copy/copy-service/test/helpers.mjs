@@ -49,12 +49,12 @@ export function fixture({ paused = false, firstOverrides = {}, secondOverrides =
   const spendLedger = new InMemorySpendLedger();
   const policyGate = new ExecutionPolicyGate({
     killSwitches, spendLedger,
-    config: { chains: [4663], routers: [ROUTER], spenders: [ROUTER], selectors: ["0x12345678", "0x095ea7b3", "0xabcdef01"], maxSlippageBps: 100, maxTransactionWei: maxTx, maxDailySpendWei: maxDay, maxSellAmountByToken: { [TOKEN]: "1000" } },
+    config: { chains: [4663], routers: [ROUTER], spenders: [ROUTER], selectors: ["0x12345678", "0xa59ac6dd", "0x095ea7b3", "0xabcdef01"], maxSlippageBps: 100, maxTransactionWei: maxTx, maxDailySpendWei: maxDay, maxSellAmountByToken: { [TOKEN]: "1000" } },
   });
   const sink = new MemoryAuditSink();
   const auditLog = new HashChainedAuditLog({ sink, clock: () => 1_700_000_000_000 });
   const simulator = new SimulationQuorum({ rpcPool, maxGasEstimateSkewBps: 1500 });
-  const service = new LintchaCopyService({ policyGate, simulator, rpcPool, auditLog, confirmationSecret: Buffer.alloc(32, 7), clock: tick, ...serviceOptions });
+  const service = new LintchaCopyService({ policyGate, simulator, rpcPool, auditLog, confirmationSecret: Buffer.alloc(32, 7), clock: tick, autoBuyExecutorAddress: ROUTER, ...serviceOptions });
   return { primary, secondary, rpcPool, killSwitches, spendLedger, sink, service, policyGate, advance: (seconds) => { now += seconds; } };
 }
 
@@ -63,6 +63,15 @@ export function input(overrides = {}) {
     userId: "42", walletAddress: WALLET, sourceTradeId: "source-1", utcDay: "2023-11-14", manualSell: false,
     quote: { id: "q1", direction: "BUY", targetToken: TOKEN, amountIn: "500", expectedOutput: "900", minimumOutput: "850", slippageBps: 50, expiresAt: NOW + 80 },
     transaction: { chainId: 4663, to: ROUTER, value: "500", data: "0x12345678" },
+    ...overrides,
+  };
+}
+
+export function autoBuyInput(overrides = {}) {
+  const base = input();
+  return {
+    ...base,
+    transaction: { chainId: 4663, to: ROUTER, value: base.quote.amountIn, data: `0xa59ac6dd${addressWord(TOKEN)}${word(base.quote.amountIn)}${word(base.quote.minimumOutput)}` },
     ...overrides,
   };
 }

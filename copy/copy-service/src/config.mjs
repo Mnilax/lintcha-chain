@@ -32,6 +32,7 @@ export function loadCopyConfig(env = {}) {
   if (env.BOT_TOKEN || env.TELEGRAM_BOT_TOKEN) throw new Error("COPY_SERVICE_MUST_NOT_RECEIVE_BOT_TOKEN");
   const mode = env.COPY_ENVIRONMENT || "local";
   if (!["local", "preproduction", "production"].includes(mode)) throw new Error("INVALID_COPY_ENVIRONMENT");
+  const chainId = integer(env.COPY_CHAIN_ID, 4663, "CHAIN_ID");
   const primaryId = env.COPY_RPC_PRIMARY_PROVIDER || "alchemy";
   const secondaryId = env.COPY_RPC_SECONDARY_PROVIDER || "drpc";
   if (primaryId === secondaryId) throw new Error("INDEPENDENT_RPC_PROVIDERS_REQUIRED");
@@ -42,17 +43,24 @@ export function loadCopyConfig(env = {}) {
   const broadcastEnabled = flag(env.COPY_BROADCAST_ENABLED, false);
   const autoBuyEnabled = flag(env.COPY_AUTO_BUY_ENABLED ?? env.COPY_AUTO_COPY_ENABLED, false);
   const delegatedSubmissionEnabled = flag(env.COPY_DELEGATED_SUBMISSION_ENABLED, false);
+  const autoBuyExecutorAddress = env.COPY_AUTO_BUY_EXECUTOR_ADDRESS ? String(env.COPY_AUTO_BUY_EXECUTOR_ADDRESS).toLowerCase() : null;
   if (broadcastEnabled) throw new Error("SERVER_BROADCAST_FORBIDDEN");
   if (autoBuyEnabled !== delegatedSubmissionEnabled) throw new Error("AUTO_BUY_FLAGS_MUST_MATCH");
+  if (autoBuyEnabled && (!autoBuyExecutorAddress || !ADDRESS.test(autoBuyExecutorAddress))) throw new Error("AUTO_BUY_EXECUTOR_REQUIRED");
   if (mode === "production" && endpoints.some((item) => !item.url)) throw new Error("TWO_RPC_ENDPOINTS_REQUIRED");
   const appPath = env.COPY_APP_PATH || "/copy/";
   if (!/^\/copy(?:\/|$)/.test(appPath)) throw new Error("COPY_ROUTE_MUST_BE_ISOLATED");
   const apiPath = env.COPY_API_PATH || "/api/copy/";
   if (!/^\/api\/copy\/$/.test(apiPath)) throw new Error("COPY_API_ROUTE_MUST_BE_ISOLATED");
+  const chains = list(env.COPY_ALLOW_CHAINS || "[4663]", (item) => Number.isSafeInteger(item)).map(Number);
+  const routers = list(env.COPY_ALLOW_ROUTERS, (item) => ADDRESS.test(item));
+  const spenders = list(env.COPY_ALLOW_SPENDERS, (item) => ADDRESS.test(item));
+  const selectors = list(env.COPY_ALLOW_SELECTORS, (item) => /^0x[0-9a-fA-F]{8}$/.test(item));
+  if (autoBuyEnabled && (!chains.includes(chainId) || !routers.includes(autoBuyExecutorAddress) || !selectors.includes("0xa59ac6dd"))) throw new Error("AUTO_BUY_POLICY_NOT_PINNED");
   return Object.freeze({
     serviceName: "lintcha-copy",
     mode,
-    chainId: integer(env.COPY_CHAIN_ID, 4663, "CHAIN_ID"),
+    chainId,
     dbNamespace: env.COPY_DB_NAMESPACE || "lintcha_copy",
     appOrigin: origin(env.COPY_APP_ORIGIN, mode),
     appPath,
@@ -60,6 +68,7 @@ export function loadCopyConfig(env = {}) {
     broadcastEnabled: false,
     autoBuyEnabled,
     delegatedSubmissionEnabled,
+    autoBuyExecutorAddress,
     startsGloballyPaused: flag(env.COPY_GLOBAL_KILL_SWITCH, true),
     rpc: Object.freeze({
       endpoints: Object.freeze(endpoints.map(Object.freeze)),
@@ -76,10 +85,10 @@ export function loadCopyConfig(env = {}) {
           if (!ADDRESS.test(token) || !/^\d+$/.test(String(cap))) throw new Error("INVALID_SELL_TOKEN_CAP");
           return [token.toLowerCase(), String(cap)];
         }))),
-      chains: list(env.COPY_ALLOW_CHAINS || "[4663]", (item) => Number.isSafeInteger(item)).map(Number),
-      routers: list(env.COPY_ALLOW_ROUTERS, (item) => ADDRESS.test(item)),
-      spenders: list(env.COPY_ALLOW_SPENDERS, (item) => ADDRESS.test(item)),
-      selectors: list(env.COPY_ALLOW_SELECTORS, (item) => /^0x[0-9a-fA-F]{8}$/.test(item)),
+      chains,
+      routers,
+      spenders,
+      selectors,
     }),
   });
 }
@@ -98,5 +107,6 @@ export function publicConfig(config) {
     broadcastEnabled: false,
     autoBuyEnabled: config.autoBuyEnabled,
     delegatedSubmissionEnabled: config.delegatedSubmissionEnabled,
+    autoBuyExecutorAddress: config.autoBuyExecutorAddress,
   });
 }

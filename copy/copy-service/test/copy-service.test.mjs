@@ -7,7 +7,7 @@ import { RpcPool } from "../src/rpc-pool.mjs";
 import { KillSwitches } from "../src/policy.mjs";
 import { GatewayRequestVerifier } from "../src/gateway-auth.mjs";
 import { MemoryDelegationStore } from "../src/delegated-execution.mjs";
-import { BLOCK_HASH, HASH, NOW, ROUTER, TOKEN, WALLET, approvalInput, fixture, input, openAndSubmit, provider, revert, sellTradeInput, word } from "./helpers.mjs";
+import { BLOCK_HASH, HASH, NOW, ROUTER, TOKEN, WALLET, approvalInput, autoBuyInput, fixture, input, openAndSubmit, provider, revert, sellTradeInput, word } from "./helpers.mjs";
 
 test("config is isolated, credential-free capable, and never exposes RPC URLs", () => {
   const config = loadCopyConfig({ COPY_ALLOW_CHAINS: "[4663]", COPY_APP_ORIGIN: "http://localhost:8788" });
@@ -18,7 +18,9 @@ test("config is isolated, credential-free capable, and never exposes RPC URLs", 
   assert.equal(JSON.stringify(publicConfig(config)).includes("URL"), false);
   assert.throws(() => loadCopyConfig({ TELEGRAM_BOT_TOKEN: "x" }), /MUST_NOT_RECEIVE/);
   assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true" }), /AUTO_BUY_FLAGS_MUST_MATCH/);
-  const auto = loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true" });
+  assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true" }), /AUTO_BUY_EXECUTOR_REQUIRED/);
+  assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER }), /AUTO_BUY_POLICY_NOT_PINNED/);
+  const auto = loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER, COPY_ALLOW_ROUTERS: JSON.stringify([ROUTER]), COPY_ALLOW_SELECTORS: JSON.stringify(["0xa59ac6dd"]) });
   assert.equal(publicConfig(auto).autoBuyEnabled, true);
   assert.equal(publicConfig(auto).delegatedSubmissionEnabled, true);
   assert.throws(() => loadCopyConfig({ COPY_BROADCAST_ENABLED: "true" }), /SERVER_BROADCAST_FORBIDDEN/);
@@ -28,7 +30,7 @@ test("auto-BUY requires a bounded delegation, submits once and never turns SELL 
   const delegations = new MemoryDelegationStore(() => 1_700_000_000);
   await delegations.put({
     userId: "42", walletAddress: WALLET, architecture: "EIP7702_SESSION", authorizationRef: "auth:test:42",
-    chainId: 4663, routers: [ROUTER], selectors: ["0x12345678"], maxTransactionWei: "600",
+    chainId: 4663, routers: [ROUTER], selectors: ["0xa59ac6dd"], maxTransactionWei: "600",
     maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: 1_700_003_600,
   });
   const submissions = [];
@@ -36,39 +38,48 @@ test("auto-BUY requires a bounded delegation, submits once and never turns SELL 
     delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true,
     delegatedExecutor: { async submit(payload) { submissions.push(payload); return { transactionHash: HASH }; } },
   } });
-  const created = await current.service.executeAutomaticBuy(input());
+  const created = await current.service.executeAutomaticBuy(autoBuyInput());
   assert.equal(created.state, "SUBMITTED_PENDING_RECONCILIATION");
   assert.equal(created.executionMode, "AUTO_BUY");
   assert.equal(submissions.length, 1);
   assert.equal("privateKey" in submissions[0], false);
-  assert.equal((await current.service.executeAutomaticBuy(input())).duplicate, true);
+  assert.equal((await current.service.executeAutomaticBuy(autoBuyInput())).duplicate, true);
   assert.equal(submissions.length, 1);
   await assert.rejects(current.service.executeAutomaticBuy(sellTradeInput()), /AUTO_SELL_FORBIDDEN/);
   const noDelegation = fixture({ service: { delegationStore: new MemoryDelegationStore(() => 1_700_000_000), autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { submit: async () => ({ transactionHash: HASH }) } } });
-  await assert.rejects(noDelegation.service.executeAutomaticBuy(input()), /ACTIVE_DELEGATION_REQUIRED/);
+  await assert.rejects(noDelegation.service.executeAutomaticBuy(autoBuyInput()), /ACTIVE_DELEGATION_REQUIRED/);
+});
+
+test("auto-BUY refuses direct venue calls and wrapper calldata that disagrees with the quote", async () => {
+  const delegations = new MemoryDelegationStore(() => NOW);
+  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", chainId: 4663, routers: [ROUTER], selectors: ["0xa59ac6dd"], maxTransactionWei: "600", maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: NOW + 3600 });
+  const current = fixture({ service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { return { transactionHash: HASH }; } } } });
+  await assert.rejects(current.service.executeAutomaticBuy(input()), /INVALID_AUTO_BUY_CALL/);
+  const mismatch = autoBuyInput({ transaction: { ...autoBuyInput().transaction, value: "499" } });
+  await assert.rejects(current.service.executeAutomaticBuy(mismatch), /AUTO_BUY_CALL_MISMATCH/);
 });
 
 test("uncertain delegated submission is never retried and keeps the spend reservation", async () => {
   const delegations = new MemoryDelegationStore(() => 1_700_000_000);
-  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "ERC4337_SESSION", authorizationRef: "auth:uncertain:42", chainId: 4663, routers: [ROUTER], selectors: ["0x12345678"], maxTransactionWei: "600", maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: 1_700_003_600 });
+  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "ERC4337_SESSION", authorizationRef: "auth:uncertain:42", chainId: 4663, routers: [ROUTER], selectors: ["0xa59ac6dd"], maxTransactionWei: "600", maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: 1_700_003_600 });
   let attempts = 0;
   const current = fixture({ service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { attempts += 1; throw new Error("network"); } } } });
-  const result = await current.service.executeAutomaticBuy(input());
+  const result = await current.service.executeAutomaticBuy(autoBuyInput());
   assert.equal(result.state, "RECONCILIATION_REQUIRED");
   assert.equal(result.manualAttention, true);
   assert.equal(attempts, 1);
   assert.equal(current.spendLedger.reservations.get(result.intentId).state, "RESERVED");
-  assert.equal((await current.service.executeAutomaticBuy(input())).duplicate, true);
+  assert.equal((await current.service.executeAutomaticBuy(autoBuyInput())).duplicate, true);
   assert.equal(attempts, 1);
 });
 
 test("auto-BUY rechecks quote expiry after simulation and before delegated submission", async () => {
   const delegations = new MemoryDelegationStore(() => NOW);
-  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "EIP7702_SESSION", authorizationRef: "auth:expiry:42", chainId: 4663, routers: [ROUTER], selectors: ["0x12345678"], maxTransactionWei: "600", maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: NOW + 3600 });
+  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "EIP7702_SESSION", authorizationRef: "auth:expiry:42", chainId: 4663, routers: [ROUTER], selectors: ["0xa59ac6dd"], maxTransactionWei: "600", maxDailySpendWei: "700", maxSlippageBps: 75, expiresAt: NOW + 3600 });
   let submissions = 0;
   const current = fixture({ service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { submissions += 1; return { transactionHash: HASH }; } } } });
   current.service.simulator = { async simulate() { current.advance(81); return { blockNumber: 100, blockHash: BLOCK_HASH, gasLimitFloor: 21_000 }; } };
-  await assert.rejects(current.service.executeAutomaticBuy(input()), /STALE_QUOTE/);
+  await assert.rejects(current.service.executeAutomaticBuy(autoBuyInput()), /STALE_QUOTE/);
   assert.equal(submissions, 0);
   const intent = (await current.service.listUserIntents("42"))[0];
   assert.equal(intent.state, "REJECTED");

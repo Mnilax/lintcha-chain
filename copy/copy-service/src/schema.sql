@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS copy_wallets (
 CREATE TABLE IF NOT EXISTS copy_delegations (
   telegram_user_id TEXT NOT NULL REFERENCES copy_users(telegram_user_id),
   public_address TEXT NOT NULL,
-  architecture TEXT NOT NULL CHECK (architecture IN ('EIP7702_SESSION', 'ERC4337_SESSION')),
+  architecture TEXT NOT NULL CHECK (architecture IN ('PRIVY_TEE', 'EIP7702_SESSION', 'ERC4337_SESSION')),
   authorization_ref TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'REVOKED', 'EXPIRED')),
   chain_id INTEGER NOT NULL,

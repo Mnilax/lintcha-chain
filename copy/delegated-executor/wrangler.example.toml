@@ -1,0 +1,23 @@
+name = "lintcha-copy-executor"
+main = "src/worker.mjs"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+preview_urls = false
+
+# No public route. Bind this Worker to lintcha-copy as COPY_DELEGATED_EXECUTOR only after review.
+[[d1_databases]]
+binding = "EXECUTOR_DB"
+database_name = "lintcha-copy-executor"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[vars]
+EXECUTOR_ENABLED = "false"
+EXECUTOR_GLOBAL_PAUSED = "true"
+EXECUTOR_CHAIN_ID = "4663"
+EXECUTOR_CONTRACT_ADDRESS = ""
+EXECUTOR_MAX_TRANSACTION_WEI = "0"
+EXECUTOR_MAX_TTL_SECONDS = "120"
+
+# Secrets staged only in this Worker: PRIVY_APP_ID, PRIVY_APP_SECRET, PRIVY_AUTHORIZATION_PRIVATE_KEY.
+# Forbidden here: Telegram bot/webhook secrets, user seed/private key, Copy RPC URLs.

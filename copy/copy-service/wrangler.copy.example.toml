@@ -37,6 +37,11 @@ database_id = "00000000-0000-0000-0000-000000000000"   # placeholder; created by
 name = "COPY_USER"
 class_name = "CopyUserCoordinator"
 
+# Add only after the private executor Worker is deployed, reviewed and still globally paused:
+# [[services]]
+# binding = "COPY_DELEGATED_EXECUTOR"
+# service = "lintcha-copy-executor"
+
 [[migrations]]
 tag = "copy-v1"
 new_sqlite_classes = ["CopyUserCoordinator"]
@@ -61,6 +66,7 @@ COPY_GLOBAL_KILL_SWITCH = "true"
 COPY_BROADCAST_ENABLED = "false"
 COPY_AUTO_BUY_ENABLED = "false"
 COPY_DELEGATED_SUBMISSION_ENABLED = "false"
+COPY_AUTO_BUY_EXECUTOR_ADDRESS = "" # reviewed deployed BUY-only wrapper; required before enabling auto-BUY
 COPY_ALLOW_CHAINS = "[4663]"
 COPY_ALLOW_ROUTERS = "[]"        # from the verified venue manifest only
 COPY_ALLOW_SPENDERS = "[]"

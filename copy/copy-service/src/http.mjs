@@ -25,7 +25,7 @@ function json(body, status = 200, extra = {}) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", ...extra } });
 }
 
-const POLICY_CODE = /^(?:AUTO_SELL_FORBIDDEN|AUTO_BUY_TRADE_ONLY|BUY_APPROVAL_FORBIDDEN|EXPLICIT_CLIENT_CONFIRMATION_REQUIRED|DELEGATION_[A-Z_]+|[A-Z_]+_NOT_ALLOWLISTED|[A-Z_]+_CAP_EXCEEDED|[A-Z_]+_CAP_REQUIRED|NON_EXACT_APPROVAL_FORBIDDEN|VALUE_BEARING_[A-Z_]+_FORBIDDEN|QUOTE_VALUE_MISMATCH|APPROVAL_TOKEN_MISMATCH|SELL_ALLOWANCE_[A-Z_]+|INVALID_SOURCE_TRADE|INVALID_DIRECTION|INVALID_OPERATION|INVALID_APPROVAL_CALL)$/;
+const POLICY_CODE = /^(?:AUTO_SELL_FORBIDDEN|AUTO_BUY_TRADE_ONLY|AUTO_BUY_EXECUTOR_NOT_ALLOWED|AUTO_BUY_CALL_MISMATCH|BUY_APPROVAL_FORBIDDEN|EXPLICIT_CLIENT_CONFIRMATION_REQUIRED|DELEGATION_[A-Z_]+|[A-Z_]+_NOT_ALLOWLISTED|[A-Z_]+_CAP_EXCEEDED|[A-Z_]+_CAP_REQUIRED|NON_EXACT_APPROVAL_FORBIDDEN|VALUE_BEARING_[A-Z_]+_FORBIDDEN|QUOTE_VALUE_MISMATCH|APPROVAL_TOKEN_MISMATCH|SELL_ALLOWANCE_[A-Z_]+|INVALID_SOURCE_TRADE|INVALID_DIRECTION|INVALID_OPERATION|INVALID_APPROVAL_CALL)$/;
 const DEPENDENCY_CODE = /^(?:SIMULATION_|RPC_)[A-Z_]+$/;
 
 export function statusForCode(code) {
@@ -122,7 +122,7 @@ export function createCopyHttpHandler({ config, service, surface, userStore, del
 
     if (route[0] === "health" && route.length === 1) {
       if (method !== "GET") throw new HttpError("METHOD_NOT_ALLOWED");
-      return json({ ok: true, service: config.serviceName, mode: config.mode, chainId: config.chainId, appPath: config.appPath, apiPath: config.apiPath, globallyPaused: killSwitches.globallyPaused, providerIds: config.rpc.endpoints.map((item) => item.id), rpcReady: config.rpc.ready, broadcastEnabled: false, autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled });
+      return json({ ok: true, service: config.serviceName, mode: config.mode, chainId: config.chainId, appPath: config.appPath, apiPath: config.apiPath, globallyPaused: killSwitches.globallyPaused, providerIds: config.rpc.endpoints.map((item) => item.id), rpcReady: config.rpc.ready, broadcastEnabled: false, autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled, autoBuyExecutorAddress: config.autoBuyExecutorAddress });
     }
 
     if (route[0] === "gateway") {

@@ -55,7 +55,7 @@ export async function buildRuntime(env, { coordinated = true, fetchImpl = global
     policyGate, simulator: new SimulationQuorum({ rpcPool, maxGasEstimateSkewBps: config.rpc.maxGasEstimateSkewBps }), rpcPool,
     auditLog, intentStore: new D1IntentStore(db), confirmationSecret, clock, delegationStore,
     delegatedExecutor: config.delegatedSubmissionEnabled ? new ServiceBindingDelegatedExecutor(env.COPY_DELEGATED_EXECUTOR) : new UnconfiguredDelegatedExecutor(),
-    autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled,
+    autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled, autoBuyExecutorAddress: config.autoBuyExecutorAddress,
   });
   const service = coordinated
     ? createCoordinatedService({ localService, clock, stubFor: (userId) => env.COPY_USER.get(env.COPY_USER.idFromName(`copy-user:${userId}`)) })

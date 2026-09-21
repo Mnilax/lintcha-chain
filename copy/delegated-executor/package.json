@@ -1,0 +1,11 @@
+{
+  "name": "@lintcha/delegated-executor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@privy-io/node": "0.34.0"
+  }
+}
