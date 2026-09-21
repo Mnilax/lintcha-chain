@@ -1,0 +1,25 @@
+{
+  "schema": "lintcha.copy.venue.v1",
+  "chainId": 4663,
+  "venue": "Pons V2 Bonding Curve",
+  "router": "0x52067dce3cfec3621b88d4de3cc77374f8a44494",
+  "spender": "0x52067dce3cfec3621b88d4de3cc77374f8a44494",
+  "selectors": {
+    "autoBuy": ["0x59a87bc1"],
+    "manualSell": ["0xd04c6983"],
+    "manualApproval": ["0x095ea7b3"]
+  },
+  "runtimeCode": {
+    "bytes": 10229,
+    "sha256": "0xe6d84b05cfccae7ac67a395e435d0213fa635b7d49d2ff5e6daf9b5159115c64",
+    "blockTag": "latest",
+    "verifiedAt": "2026-09-21"
+  },
+  "evidence": {
+    "rpc": "https://rpc.mainnet.chain.robinhood.com",
+    "buyTransaction": "0x9e04e3960d3a778a610f1d2697a7a857cca505922e440318b4ffe878826a5c3c",
+    "buyBlock": "0x3ea8ce5",
+    "sellTransaction": "0x7d56b582f9ac5fb15487c4b61a7584b939b654af3c75977e81446b21684e4d33",
+    "sellBlock": "0x3ea9628"
+  }
+}
