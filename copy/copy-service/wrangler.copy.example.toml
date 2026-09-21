@@ -67,6 +67,7 @@ COPY_BROADCAST_ENABLED = "false"
 COPY_AUTO_BUY_ENABLED = "false"
 COPY_DELEGATED_SUBMISSION_ENABLED = "false"
 COPY_AUTO_BUY_EXECUTOR_ADDRESS = "" # reviewed deployed BUY-only wrapper; required before enabling auto-BUY
+COPY_DELEGATION_MAX_TTL_SECONDS = "604800" # seven days; user may choose a shorter permission
 COPY_ALLOW_CHAINS = "[4663]"
 COPY_ALLOW_ROUTERS = "[]"        # from the verified venue manifest only
 COPY_ALLOW_SPENDERS = "[]"

@@ -23,7 +23,10 @@ broadcast/auto/delegation flag remains false.
 - [ ] Global kill switch starts paused; `admin/kill-switch` pause/resume audited (local ✓).
 - [ ] Wallet bridge decision made (injected EIP-1193 only vs WalletConnect/Reown vs wallet Telegram SDK); Mini App CSP adjusted accordingly and re-reviewed.
 - [ ] Secure-sheet flow independently reviewed; device QA matrix executed (`copy/docs/DEVICE_QA_MATRIX.md`).
-- [ ] Auto-BUY delegation architecture and executor provider selected after capability/security review; exact wallet, chain, router, selector, per-transaction, daily-spend, slippage and expiry scope proven.
+- [ ] Privy Mini App bridge bundles the official SDK from the same origin (no remote script), opens explicit `delegateWallet` consent, and sends only public wallet metadata plus user-selected limits (local ✓ controller contract).
+- [ ] The user-facing control removes the Privy signer itself, not only the Copy D1 record; verify the supported Privy client flow on every target device. Until then `delegations/deactivate` is labelled only as Lintcha deactivation (local ✓ immediate Copy shutdown).
+- [ ] Auto-BUY activation is accepted only after the private executor re-reads Privy and matches the exact wallet address, active Ethereum state, signer id and BUY-only policy id (local ✓ verifier contract).
+- [ ] Auto-BUY delegation scope proves exact wallet, chain, router, selector, per-transaction, daily-spend, slippage and expiry; user values cannot exceed system caps (local ✓ HTTP contract).
 - [ ] Executor binding holds no user funds, has its own caps and kill switch, returns only a public transaction hash, and an ambiguous response is proven not to retry (local ✓ adapter contract).
 - [ ] Manual SELL review shows module label, chain, token, amount, minimum output, slippage, target, selector, simulation block and expiry (local ✓).
 - [ ] SELL approval exact and separate; trade freshly quoted and simulated with a live allowance read (local ✓).

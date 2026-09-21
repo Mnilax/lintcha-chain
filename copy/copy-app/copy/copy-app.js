@@ -63,6 +63,8 @@ export function createApi({ fetchImpl = globalThis.fetch, origin = globalThis.lo
   return Object.freeze({
     me: () => call("me"),
     registerWallet: (publicAddress) => call("wallet", { method: "POST", body: { publicAddress, walletKind: "EXTERNAL" } }),
+    activateDelegation: (body) => call("delegations/activate", { method: "POST", body }),
+    deactivateDelegation: (walletAddress) => call("delegations/deactivate", { method: "POST", body: { walletAddress } }),
     intent: (id) => call(`intents/${id}`),
     begin: (id, { token, revision }) => call(`intents/${id}/begin`, { method: "POST", body: { token, revision } }),
     submission: (id, { revision, transactionHash }) => call(`intents/${id}/submission`, { method: "POST", body: { revision, transactionHash } }),

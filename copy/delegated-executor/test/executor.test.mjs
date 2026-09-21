@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DelegatedExecutor, MemorySubmissionStore, PrivyDelegatedWalletClient, createExecutorHandler } from "../src/executor.mjs";
+import { DelegatedExecutor, MemorySubmissionStore, PrivyDelegatedWalletClient, PrivyDelegationVerifier, createExecutorHandler } from "../src/executor.mjs";
 import { buildExecutorRuntime } from "../src/worker.mjs";
 
 const EXECUTOR = "0x7777777777777777777777777777777777777777";
@@ -63,6 +63,18 @@ test("Privy adapter emits only an unsigned transaction request and validates its
   assert.doesNotMatch(JSON.stringify(calls[0][1].params), /private.?key|seed|mnemonic/i);
 });
 
+test("Privy delegation verification requires the exact wallet, signer and policy", async () => {
+  const getCalls = [];
+  const client = { wallets: () => ({ async getWalletByAddress(input) { getCalls.push(input); return { id: "wallet_fixture_1234", address: WALLET, chain_type: "ethereum", archived_at: null, policy_ids: [], additional_signers: [{ signer_id: "signer_lintcha_1", override_policy_ids: ["policy_buy_only_1"] }] }; } }) };
+  const verifier = new PrivyDelegationVerifier({ client, signerId: "signer_lintcha_1", policyId: "policy_buy_only_1", chainId: 4663 });
+  assert.deepEqual(await verifier.verify({ walletAddress: WALLET }), { architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", walletAddress: WALLET, chainId: 4663 });
+  assert.deepEqual(getCalls, [{ address: WALLET, include_archived: false }]);
+  await assert.rejects(verifier.verify({ walletAddress: EXECUTOR }), /WALLET_MISMATCH/);
+  await assert.rejects(verifier.verify({ walletAddress: WALLET, privateKey: "no" }), /SECRET/);
+  const wrongPolicy = new PrivyDelegationVerifier({ client, signerId: "signer_lintcha_1", policyId: "policy_wrong_1", chainId: 4663 });
+  await assert.rejects(wrongPolicy.verify({ walletAddress: WALLET }), /POLICY_NOT_ATTACHED/);
+});
+
 test("private service handler exposes submit only and never caches responses", async () => {
   const { executor } = current();
   const handler = createExecutorHandler(executor);
@@ -71,6 +83,15 @@ test("private service handler exposes submit only and never caches responses", a
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal((await response.json()).transactionHash, HASH);
+});
+
+test("private service exposes verified public delegation metadata but no health or secret surface", async () => {
+  const { executor } = current();
+  const handler = createExecutorHandler(executor, { async verify(payload) { assert.deepEqual(payload, { walletAddress: WALLET }); return { architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", walletAddress: WALLET, chainId: 4663 }; } });
+  const response = await handler(new Request("https://executor/verify-delegation", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ walletAddress: WALLET }) }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", walletAddress: WALLET, chainId: 4663 });
+  assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
 test("Worker runtime deploys fail-closed without Privy secrets and rejects Telegram secrets", async () => {

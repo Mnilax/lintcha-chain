@@ -50,12 +50,13 @@ export function assertDelegationAllows(delegation, { userId, walletAddress, tran
 export class MemoryDelegationStore {
   constructor(clock = () => Math.floor(Date.now() / 1000)) { this.rows = new Map(); this.clock = clock; }
   async put(input) { const row = validateDelegation(input, this.clock()); this.rows.set(`${row.userId}:${row.walletAddress}`, { ...row }); return structuredClone(row); }
-  async getActive(userId, walletAddress) { const row = this.rows.get(`${String(userId)}:${String(walletAddress).toLowerCase()}`); return row?.status === "ACTIVE" ? structuredClone(row) : null; }
+  async getActive(userId, walletAddress) { const row = this.rows.get(`${String(userId)}:${String(walletAddress).toLowerCase()}`); return row?.status === "ACTIVE" && row.expiresAt > this.clock() ? structuredClone(row) : null; }
   async revoke(userId, walletAddress) { const row = this.rows.get(`${String(userId)}:${String(walletAddress).toLowerCase()}`); if (row) { row.status = "REVOKED"; row.updatedAt = this.clock(); } }
 }
 
 export class UnconfiguredDelegatedExecutor {
   async submit() { throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED"); }
+  async verifyDelegation() { throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED"); }
 }
 
 /** Calls a separately controlled signer/broadcaster. Copy sends only public transaction data and an opaque authorization reference. */
@@ -69,5 +70,14 @@ export class ServiceBindingDelegatedExecutor {
     const body = await response.json().catch(() => null);
     if (!response.ok || !HASH.test(body?.transactionHash || "")) throw new Error("DELEGATED_SUBMISSION_UNCERTAIN");
     return Object.freeze({ transactionHash: body.transactionHash.toLowerCase() });
+  }
+  async verifyDelegation(payload) {
+    if (!this.binding?.fetch) throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED");
+    const response = await this.binding.fetch("https://delegated-executor/verify-delegation", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.architecture !== "PRIVY_TEE" || !ADDRESS.test(body?.walletAddress || "") || !/^privy-wallet:[a-zA-Z0-9_-]{8,128}$/.test(body?.authorizationRef || "") || !Number.isSafeInteger(body?.chainId)) throw new Error("DELEGATION_VERIFICATION_FAILED");
+    return Object.freeze({ architecture: body.architecture, walletAddress: body.walletAddress, authorizationRef: body.authorizationRef, chainId: body.chainId });
   }
 }

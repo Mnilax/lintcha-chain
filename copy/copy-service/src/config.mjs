@@ -44,6 +44,7 @@ export function loadCopyConfig(env = {}) {
   const autoBuyEnabled = flag(env.COPY_AUTO_BUY_ENABLED ?? env.COPY_AUTO_COPY_ENABLED, false);
   const delegatedSubmissionEnabled = flag(env.COPY_DELEGATED_SUBMISSION_ENABLED, false);
   const autoBuyExecutorAddress = env.COPY_AUTO_BUY_EXECUTOR_ADDRESS ? String(env.COPY_AUTO_BUY_EXECUTOR_ADDRESS).toLowerCase() : null;
+  const delegationMaxTtlSeconds = integer(env.COPY_DELEGATION_MAX_TTL_SECONDS, 604800, "DELEGATION_MAX_TTL_SECONDS");
   if (broadcastEnabled) throw new Error("SERVER_BROADCAST_FORBIDDEN");
   if (autoBuyEnabled !== delegatedSubmissionEnabled) throw new Error("AUTO_BUY_FLAGS_MUST_MATCH");
   if (autoBuyEnabled && (!autoBuyExecutorAddress || !ADDRESS.test(autoBuyExecutorAddress))) throw new Error("AUTO_BUY_EXECUTOR_REQUIRED");
@@ -69,6 +70,7 @@ export function loadCopyConfig(env = {}) {
     autoBuyEnabled,
     delegatedSubmissionEnabled,
     autoBuyExecutorAddress,
+    delegationMaxTtlSeconds,
     startsGloballyPaused: flag(env.COPY_GLOBAL_KILL_SWITCH, true),
     rpc: Object.freeze({
       endpoints: Object.freeze(endpoints.map(Object.freeze)),
@@ -108,5 +110,6 @@ export function publicConfig(config) {
     autoBuyEnabled: config.autoBuyEnabled,
     delegatedSubmissionEnabled: config.delegatedSubmissionEnabled,
     autoBuyExecutorAddress: config.autoBuyExecutorAddress,
+    delegationMaxTtlSeconds: config.delegationMaxTtlSeconds,
   });
 }
