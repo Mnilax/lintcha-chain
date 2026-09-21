@@ -10,6 +10,7 @@ node_modules/
 *.log
 *.jsonl
 build/
+copy/auto-buy-contract/artifacts/
 .wrangler/
 bot/.wrangler/
 src/i18n/en.json
