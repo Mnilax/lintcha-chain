@@ -96,13 +96,13 @@
       <article class="copy-mode copy-mode-primary"><h2 data-i18n="hero.mode.buy.t"></h2><p data-i18n="hero.mode.buy.d"></p></article>
       <article class="copy-mode"><h2 data-i18n="hero.mode.sell.t"></h2><p data-i18n="hero.mode.sell.d"></p></article>
     </div>
-    <aside class="core-entry" aria-labelledby="core-entry-title">
-      <span class="core-entry-kicker" data-i18n="hero.core.kicker"></span>
-      <h2 id="core-entry-title" data-i18n="hero.core.h"></h2>
-      <p data-i18n="launch.intro"></p>
-      <p class="core-entry-privacy" data-i18n="launch.privacy"></p>
-    </aside>
-    <aside class="proof-loop" data-proof-loop data-proof-delay="900" aria-labelledby="proof-loop-title">
+    <aside class="proof-loop copy-terminal" data-proof-loop data-proof-delay="620" aria-labelledby="proof-loop-title">
+      <div class="copy-terminal-bar">
+        <span class="copy-terminal-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span data-i18n="proof.window"></span>
+        <span class="copy-terminal-mode" data-i18n="proof.mode"></span>
+      </div>
+      <div class="copy-terminal-body">
       <div class="proof-loop-head">
         <div>
           <span class="proof-loop-kicker" data-i18n="proof.kicker"></span>
@@ -110,15 +110,28 @@
         </div>
         <button type="button" class="btn-quiet proof-loop-play" data-proof-play data-i18n="proof.play" data-i18n-attr="data-label-play:proof.play;data-label-pause:proof.pause;data-label-resume:proof.resume;data-label-replay:proof.replay"></button>
       </div>
+      <pre class="copy-terminal-logo" aria-hidden="true">█      █  █   █  █████   ███   █   █   ███
+█      █  ██  █    █    █   █  █   █  █   █
+█      █  █ █ █    █    █      █████  █████
+█      █  █  ██    █    █   █  █   █  █   █
+█████  █  █   █    █     ███   █   █  █   █</pre>
       <p class="proof-loop-note" data-i18n="proof.note"></p>
       <ol class="proof-loop-track">
-        <li data-proof-step data-i18n-attr="data-proof-label:proof.paste.status"><span data-i18n="proof.paste.t"></span><small data-i18n="proof.paste.d"></small></li>
-        <li data-proof-step data-i18n-attr="data-proof-label:proof.normalize.status"><span data-i18n="proof.normalize.t"></span><small data-i18n="proof.normalize.d"></small></li>
-        <li data-proof-step data-i18n-attr="data-proof-label:proof.compare.status"><span data-i18n="proof.compare.t"></span><small data-i18n="proof.compare.d"></small></li>
-        <li data-proof-step data-i18n-attr="data-proof-label:proof.read.status"><span data-i18n="proof.read.t"></span><small data-i18n="proof.read.d"></small></li>
-        <li data-proof-step data-i18n-attr="data-proof-label:proof.receipt.status"><span data-i18n="proof.receipt.t"></span><small data-i18n="proof.receipt.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.paste.status"><b aria-hidden="true">$</b><code data-i18n="proof.paste.t"></code><small data-i18n="proof.paste.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.normalize.status"><b aria-hidden="true">›</b><code data-i18n="proof.normalize.t"></code><small data-i18n="proof.normalize.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.compare.status"><b aria-hidden="true">›</b><code data-i18n="proof.compare.t"></code><small data-i18n="proof.compare.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.read.status"><b aria-hidden="true">›</b><code data-i18n="proof.read.t"></code><small data-i18n="proof.read.d"></small></li>
+        <li data-proof-step data-i18n-attr="data-proof-label:proof.receipt.status"><b aria-hidden="true">›</b><code data-i18n="proof.receipt.t"></code><small data-i18n="proof.receipt.d"></small></li>
       </ol>
+      <div class="copy-terminal-footer"><span aria-hidden="true">//</span> <span data-i18n="proof.footer"></span><i aria-hidden="true"></i></div>
       <span class="sr-only" data-proof-status></span>
+      </div>
+    </aside>
+    <aside class="core-entry" aria-labelledby="core-entry-title">
+      <span class="core-entry-kicker" data-i18n="hero.core.kicker"></span>
+      <h2 id="core-entry-title" data-i18n="hero.core.h"></h2>
+      <p data-i18n="launch.intro"></p>
+      <p class="core-entry-privacy" data-i18n="launch.privacy"></p>
     </aside>
   </section>
 
