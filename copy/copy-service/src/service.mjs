@@ -144,10 +144,10 @@ export class LintchaCopyService {
       await this.intentStore.supersede(claim.row, row);
     }
     try {
-      await this.policyGate.authorize({ intentId: id, userId, utcDay: day, direction: "BUY", operation: "TRADE", transaction: unsignedTransaction, quote: publicQuote, confirmationKind: "DELEGATED_AUTO_BUY", manualSell: false, dailySpendCapWei: delegation.maxDailySpendWei });
+      await this.policyGate.authorize({ intentId: id, userId, walletAddress: publicWalletAddress, utcDay: day, direction: "BUY", operation: "TRADE", transaction: unsignedTransaction, quote: publicQuote, confirmationKind: "DELEGATED_AUTO_BUY", manualSell: false, dailySpendCapWei: delegation.maxDailySpendWei });
       row.simulation = await this.simulator.simulate({ from: row.walletAddress, transaction: unsignedTransaction });
       if (this.clock() >= row.expiresAt) throw new Error("STALE_QUOTE");
-      this.policyGate.killSwitches.assertAllowed(userId);
+      this.policyGate.killSwitches.assertAllowed(userId, publicWalletAddress);
       assertDelegationAllows(await this.delegationStore.getActive(userId, publicWalletAddress), { userId, walletAddress: publicWalletAddress, transaction: unsignedTransaction, quote: publicQuote }, this.clock());
       this.#transition(row, "DELEGATED_SUBMISSION_PENDING");
       await this.intentStore.save(row);
@@ -202,7 +202,7 @@ export class LintchaCopyService {
       await this.intentStore.supersede(claim.row, row);
     }
     try {
-      await this.policyGate.authorize({ intentId: id, userId, utcDay: day, direction, operation, transaction: unsignedTransaction, quote: publicQuote, confirmationKind: "SECURE_SHEET_EXPLICIT", manualSell });
+      await this.policyGate.authorize({ intentId: id, userId, walletAddress: publicWalletAddress, utcDay: day, direction, operation, transaction: unsignedTransaction, quote: publicQuote, confirmationKind: "SECURE_SHEET_EXPLICIT", manualSell });
       row.simulation = await this.simulator.simulate({ from: row.walletAddress, transaction: unsignedTransaction });
       if (direction === "SELL" && operation === "TRADE") await this.#assertSellAllowance(row);
       this.#transition(row, "AWAITING_USER_CONFIRMATION");
@@ -240,7 +240,7 @@ export class LintchaCopyService {
     }
     if (row.revision !== revision || payload.revision !== revision) throw new Error("CONFIRMATION_REVISION_MISMATCH");
     if (row.state !== "AWAITING_USER_CONFIRMATION") throw new Error("CONFIRMATION_REPLAYED");
-    this.policyGate.killSwitches.assertAllowed(userId);
+    this.policyGate.killSwitches.assertAllowed(userId, row.walletAddress);
     this.#transition(row, "CLIENT_CONFIRMING");
     await this.intentStore.save(row);
     return Object.freeze({
@@ -418,7 +418,7 @@ export class LintchaCopyService {
 
   #review(row) {
     return Object.freeze({
-      module: "Lintcha Copy", label: "Lintcha Copy — trading", confirmation: "REQUIRED_EACH_TIME", direction: row.direction, operation: row.operation,
+      module: "Lintcha", label: "Lintcha — copy-trading", confirmation: "REQUIRED_EACH_TIME", direction: row.direction, operation: row.operation,
       token: row.quote.targetToken, amountIn: String(row.quote.amountIn), expectedOutput: String(row.quote.expectedOutput),
       minimumOutput: String(row.quote.minimumOutput), slippageBps: Number(row.quote.slippageBps), venue: row.quote.venue,
       chainId: row.transaction.chainId, target: row.transaction.to, value: row.transaction.value, selector: row.transaction.data.slice(0, 10),

@@ -33,7 +33,7 @@ export function loadCopyConfig(env = {}) {
   const mode = env.COPY_ENVIRONMENT || "local";
   if (!["local", "preproduction", "production"].includes(mode)) throw new Error("INVALID_COPY_ENVIRONMENT");
   const primaryId = env.COPY_RPC_PRIMARY_PROVIDER || "alchemy";
-  const secondaryId = env.COPY_RPC_SECONDARY_PROVIDER || "quicknode";
+  const secondaryId = env.COPY_RPC_SECONDARY_PROVIDER || "drpc";
   if (primaryId === secondaryId) throw new Error("INDEPENDENT_RPC_PROVIDERS_REQUIRED");
   const endpoints = [
     { id: primaryId, url: env.COPY_RPC_PRIMARY_URL || null },
@@ -47,6 +47,8 @@ export function loadCopyConfig(env = {}) {
   if (mode === "production" && endpoints.some((item) => !item.url)) throw new Error("TWO_RPC_ENDPOINTS_REQUIRED");
   const appPath = env.COPY_APP_PATH || "/copy/";
   if (!/^\/copy(?:\/|$)/.test(appPath)) throw new Error("COPY_ROUTE_MUST_BE_ISOLATED");
+  const apiPath = env.COPY_API_PATH || "/api/copy/";
+  if (!/^\/api\/copy\/$/.test(apiPath)) throw new Error("COPY_API_ROUTE_MUST_BE_ISOLATED");
   return Object.freeze({
     serviceName: "lintcha-copy",
     mode,
@@ -54,6 +56,7 @@ export function loadCopyConfig(env = {}) {
     dbNamespace: env.COPY_DB_NAMESPACE || "lintcha_copy",
     appOrigin: origin(env.COPY_APP_ORIGIN, mode),
     appPath,
+    apiPath,
     broadcastEnabled: false,
     autoBuyEnabled,
     delegatedSubmissionEnabled,
@@ -89,6 +92,7 @@ export function publicConfig(config) {
     dbNamespace: config.dbNamespace,
     appOrigin: config.appOrigin,
     appPath: config.appPath,
+    apiPath: config.apiPath,
     rpcReady: config.rpc.ready,
     providerIds: config.rpc.endpoints.map(({ id }) => id),
     broadcastEnabled: false,

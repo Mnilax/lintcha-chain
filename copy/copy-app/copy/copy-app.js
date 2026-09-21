@@ -1,10 +1,10 @@
-// Lintcha Copy — the secure sheet. Provider-neutral: any EIP-1193 wallet the host exposes. No storage, no
-// tracking, no third-party script. The only network target is this origin's /copy/api/. The module label in
+// Lintcha copy-trading — the secure sheet. Provider-neutral: any EIP-1193 wallet the host exposes. No storage, no
+// tracking, no third-party script. The only network target is this origin's /api/copy/. The module label in
 // index.html is static and is never touched from here.
 import { ConfirmEachSheetController, ExternalEip1193WalletAdapter } from "./confirm-each.mjs";
 
 export const CHAIN_ID = 4663;
-const API = "/copy/api";
+const API = "/api/copy";
 
 /** Telegram puts init data in the URL fragment (#tgWebAppData=…) for every Mini App; read it without any SDK. */
 export function parseTelegramLaunch(hash) {
@@ -32,7 +32,7 @@ export function shortAddress(address) { return `${address.slice(0, 6)}…${addre
 /** The exact fields a person reads before the wallet opens. Order is fixed so screenshots across devices compare. */
 export function reviewLines(review, nativeSymbol = "ETH") {
   const lines = [
-    ["Module", review.label || "Lintcha Copy — trading"],
+    ["Mode", review.label || "Lintcha — copy-trading"],
     ["Action", `${review.direction} · ${review.operation === "APPROVAL" ? "exact ERC-20 approval" : "trade"}`],
     ["Chain", `Robinhood Chain (${review.chainId})`],
     ["Token", review.token],
@@ -77,10 +77,10 @@ export function injectedProvider(windowLike = globalThis) {
 }
 
 export const OUTCOME_TEXT = Object.freeze({
-  SUBMITTED_BY_USER_WALLET: ["Submitted by your wallet", "Lintcha Copy is now reconciling the transaction hash against two RPC providers. Nothing is retried or re-sent automatically."],
+  SUBMITTED_BY_USER_WALLET: ["Submitted by your wallet", "Lintcha is now reconciling the transaction hash against two RPC providers. Nothing is retried or re-sent automatically."],
   CANCELLED: ["Cancelled", "Nothing was signed or submitted."],
   EXPIRED: ["Expired", "The review window closed before the wallet opened. Nothing was submitted. Wait for a fresh signal."],
-  WALLET_ERROR: ["Wallet did not complete", "The wallet reported an error. If it did submit something, Lintcha Copy will only ever reconcile a hash you report; nothing is re-sent."],
+  WALLET_ERROR: ["Wallet did not complete", "The wallet reported an error. If it did submit something, Lintcha will only reconcile a hash you report; nothing is re-sent."],
 });
 
 function $(root, selector) { return root.querySelector(selector); }
@@ -97,18 +97,12 @@ export async function boot({ document: doc = globalThis.document, windowLike = g
 
   async function home() {
     try { me = await api.me(); } catch (error) { return fail(root, error.message); }
-    $(root, "[data-mode]").textContent = me.user.mode === "AUTO_BUY" ? "auto-copy BUY" : me.user.mode === "CONFIRM_EACH" ? "legacy confirm-each" : "notifications only";
+    $(root, "[data-mode]").textContent = me.user.mode === "CONFIRM_EACH" ? "confirm each trade" : "notifications only";
     $(root, "[data-status]").textContent = me.globallyPaused ? "paused for everyone" : me.user.paused ? "paused" : "active";
     $(root, "[data-wallets]").textContent = me.wallets.length ? me.wallets.map((row) => `${row.walletKind.toLowerCase()} ${shortAddress(row.publicAddress)}`).join(" · ") : "No public address registered yet.";
-    const activeDelegations = Array.isArray(me.activeDelegations) ? me.activeDelegations : [];
-    $(root, "[data-auto-buy-status]").textContent = !me.autoBuyAvailable
-      ? "Auto-BUY is closed until the production delegation and provider gates pass."
-      : activeDelegations.length
-        ? `Active bounded permission for ${activeDelegations.map((row) => shortAddress(row.walletAddress)).join(" · ")}.`
-        : "No active bounded permission. Auto-BUY cannot submit anything.";
     const connect = $(root, "[data-action=connect-wallet]");
     connect.disabled = !provider;
-    $(root, "[data-wallet-note]").textContent = provider ? "Connecting shares only your public address. Seed phrases and private keys never enter this page or the server." : "No EIP-1193 wallet is exposed by this Telegram client. Lintcha Copy does not pick a wallet vendor for you; open the sheet where your wallet is available.";
+    $(root, "[data-wallet-note]").textContent = provider ? "Connecting shares only your public address. Seed phrases and private keys never enter this page or the server." : "No external EIP-1193 wallet is exposed by this Telegram client. You can still use the built-in secure-sheet wallet when enabled; an external connector is optional.";
     const list = $(root, "[data-intents]");
     list.textContent = "";
     const open = me.intents.filter((row) => row.state === "AWAITING_USER_CONFIRMATION");

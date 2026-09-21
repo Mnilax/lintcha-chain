@@ -20,7 +20,7 @@
     "verify": "node tools/verify-index.mjs",
     "smoke:production": "node tools/production-smoke.mjs",
     "test": "node tools/verify-vendor.mjs && node tests/config_contract_test.mjs && node tests/published_contract_test.mjs && node tests/chain_token_states.mjs && node tests/activate_token_test.mjs && node tests/token_activation_workflow_test.mjs && node tests/live_wall_test.mjs && node tests/deployer_history_test.mjs && node tests/mini_app_test.mjs && node tests/launch_test.js && node tests/verified_specimen_test.mjs && node tests/refusal_gallery_test.mjs && node tests/fact_receipt_svg_test.js && node tests/proof_loop_test.js && node tests/swarm_transition_test.mjs && node tests/launch_abi_test.mjs && node tests/launch_collector_state_test.mjs && node tests/launch_gate_test.mjs && node tests/launch_rpc_split_test.mjs && node tests/collection_guard_test.mjs && node tests/launch_index_test.mjs && node tests/identity_cli_test.mjs && node tests/fact_receipt_test.mjs && node tests/production_smoke_test.mjs",
-    "test:copy": "node --test copy/copy-service/test/*.test.mjs && node --test copy/copy-gateway/test/*.test.mjs && node --test copy/copy-app/test/*.test.mjs",
+    "test:copy": "node --test copy/copy-service/test/*.test.mjs && node --test copy/copy-gateway/test/*.test.mjs && node --test copy/copy-app/test/*.test.mjs && node --test copy/secure-sheet-crypto/test/*.test.mjs && node --test copy/trading/test/*.test.mjs",
     "activate-token": "node tools/activate-token.mjs",
     "identity": "node tools/identity.mjs",
     "i18n": "node tools/i18n-merge.mjs && node src/tools/i18n_check.js"

@@ -14,7 +14,7 @@ const STATUS = Object.freeze({
   CONFIRMATION_REVISION_MISMATCH: 409, CONFIRMATION_REPLAYED: 409, SUBMISSION_REPLAYED: 409, NOT_CANCELLABLE: 409, NOT_RECONCILABLE: 409, QUOTE_ALREADY_USED: 409,
   CONFIRMATION_EXPIRED: 410, SUBMISSION_TOO_LATE: 410, STALE_QUOTE: 410,
   INVALID_CONFIRMATION_TOKEN: 400, INVALID_TRANSACTION_HASH: 400, INVALID_PUBLIC_ADDRESS: 400, INVALID_WALLET_KIND: 400, INVALID_UNSIGNED_TRANSACTION: 400, INVALID_QUOTE: 400, INVALID_BODY: 400, INVALID_ROUTE: 404,
-  GLOBAL_BROADCAST_KILL_SWITCH: 423, USER_BROADCAST_KILL_SWITCH: 423, USER_PAUSED: 423, USER_NOT_CONFIRM_EACH: 409, USER_NOT_AUTO_BUY: 409, AUTO_BUY_DISABLED: 423, ACTIVE_DELEGATION_REQUIRED: 409, WALLET_NOT_REGISTERED: 409, WALLET_LIMIT_REACHED: 409,
+  GLOBAL_BROADCAST_KILL_SWITCH: 423, USER_BROADCAST_KILL_SWITCH: 423, WALLET_BROADCAST_KILL_SWITCH: 423, USER_PAUSED: 423, USER_NOT_CONFIRM_EACH: 409, USER_NOT_AUTO_BUY: 409, AUTO_BUY_DISABLED: 423, ACTIVE_DELEGATION_REQUIRED: 409, WALLET_NOT_REGISTERED: 409, WALLET_LIMIT_REACHED: 409,
   RATE_LIMITED: 429, ORIGIN_FORBIDDEN: 403, METHOD_NOT_ALLOWED: 405, UNSUPPORTED_MEDIA_TYPE: 415, BODY_TOO_LARGE: 413,
   SIGNED_OR_SECRET_MATERIAL_FORBIDDEN: 400,
 });
@@ -95,7 +95,7 @@ export class SignedServiceRequestVerifier {
  * There is no route that signs, broadcasts, or accepts key material.
  */
 export function createCopyHttpHandler({ config, service, surface, userStore, delegationStore = null, outbox, killSwitches, gatewayVerifier, serviceVerifier, adminVerifier = null, initDataVerifier, clock = () => Math.floor(Date.now() / 1000), rateLimiter = new FixedWindowRateLimiter(), persistKillSwitches = async () => {} }) {
-  const base = `${config.appPath.replace(/\/$/, "")}/api`;
+  const base = config.apiPath.replace(/\/$/, "");
 
   async function clientIdentity(request) {
     // Browsers send Origin on every POST and on cross-origin GETs, but not on same-origin GETs. So: a present
@@ -122,7 +122,7 @@ export function createCopyHttpHandler({ config, service, surface, userStore, del
 
     if (route[0] === "health" && route.length === 1) {
       if (method !== "GET") throw new HttpError("METHOD_NOT_ALLOWED");
-      return json({ ok: true, service: config.serviceName, mode: config.mode, chainId: config.chainId, appPath: config.appPath, globallyPaused: killSwitches.globallyPaused, providerIds: config.rpc.endpoints.map((item) => item.id), rpcReady: config.rpc.ready, broadcastEnabled: false, autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled });
+      return json({ ok: true, service: config.serviceName, mode: config.mode, chainId: config.chainId, appPath: config.appPath, apiPath: config.apiPath, globallyPaused: killSwitches.globallyPaused, providerIds: config.rpc.endpoints.map((item) => item.id), rpcReady: config.rpc.ready, broadcastEnabled: false, autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled });
     }
 
     if (route[0] === "gateway") {
@@ -241,6 +241,8 @@ export function createCopyHttpHandler({ config, service, surface, userStore, del
         else if (payload.scope === "GLOBAL" && payload.action === "RESUME") killSwitches.resumeGlobal();
         else if (payload.scope === "USER" && payload.action === "PAUSE" && /^\d+$/.test(payload.subjectId || "")) killSwitches.pauseUser(payload.subjectId);
         else if (payload.scope === "USER" && payload.action === "RESUME" && /^\d+$/.test(payload.subjectId || "")) killSwitches.resumeUser(payload.subjectId);
+        else if (payload.scope === "WALLET" && payload.action === "PAUSE" && ADDRESS.test(payload.subjectId || "")) killSwitches.pauseWallet(payload.subjectId);
+        else if (payload.scope === "WALLET" && payload.action === "RESUME" && ADDRESS.test(payload.subjectId || "")) killSwitches.resumeWallet(payload.subjectId);
         else throw new HttpError("INVALID_BODY");
         await persistKillSwitches(killSwitches.snapshot(), { actorId: String(payload.actorId || "owner").slice(0, 32), reason: String(payload.reason || "").slice(0, 200) });
         return json({ ok: true, killSwitches: killSwitches.snapshot() });

@@ -93,14 +93,16 @@ test("D1 audit sink resumes the hash chain; replay store is single-use until exp
   const switches = new D1KillSwitchStore(db);
   assert.equal(KillSwitches.load(await switches.rows()).globallyPaused, true);
   const live = new KillSwitches({ globallyPaused: true });
-  live.resumeGlobal(); live.pauseUser("7");
+  live.resumeGlobal(); live.pauseUser("7"); live.pauseWallet(WALLET);
   await switches.persist(live.snapshot(), { actorId: "owner", reason: "beta" });
   const reloaded = KillSwitches.load(await switches.rows());
   assert.equal(reloaded.globallyPaused, false);
   assert.equal(reloaded.isPaused("7"), true);
-  live.resumeUser("7");
+  assert.equal(reloaded.isPaused("42", WALLET), true);
+  live.resumeUser("7"); live.resumeWallet(WALLET);
   await switches.persist(live.snapshot(), { actorId: "owner", reason: "ok" });
   assert.equal(KillSwitches.load(await switches.rows()).isPaused("7"), false);
+  assert.equal(KillSwitches.load(await switches.rows()).isPaused("42", WALLET), false);
 });
 
 test("the whole service runs on the D1 adapters end to end", async () => {

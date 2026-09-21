@@ -10,7 +10,7 @@ import { fakeD1 } from "./fake-d1.mjs";
 import { BLOCK_HASH, HASH, ROUTER, TOKEN, WALLET, input, word } from "./helpers.mjs";
 
 const subtle = webcrypto.subtle;
-const ORIGIN = "https://copy.example.invalid";
+const ORIGIN = "https://lintcha.com";
 const GATEWAY_SECRET = "g".repeat(40);
 const ADMIN_SECRET = "a".repeat(40);
 const BOT_ID = "7342037359";
@@ -59,7 +59,7 @@ function fakeEnv(keys, overrides = {}) {
   return { env, instances };
 }
 
-const api = (path, init) => new Request(`${ORIGIN}/copy/api/${path}`, init);
+const api = (path, init) => new Request(`${ORIGIN}/api/copy/${path}`, init);
 const post = (path, body, headers = {}) => api(path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
 const signed = (path, schema, payload, secret = GATEWAY_SECRET) => post(path, signServiceRequest({ schema, requestId: randomBytes(16).toString("hex"), issuedAt: Math.floor(Date.now() / 1000), ...payload }, secret));
 
@@ -88,7 +88,7 @@ test("worker runs confirm-each BUY through D1 and the per-user Durable Object, a
   try {
     const envelope = (route, extra = {}, updateId = String(Date.now())) => signGatewayEnvelope({ schema: "lintcha.copy.gateway.v1", route, updateId, telegramUserId: "42", privateChatId: "99", locale: "ru", receivedAt: Math.floor(Date.now() / 1000), ...extra }, GATEWAY_SECRET);
     const start = await (await worker.fetch(post("gateway", await envelope("COPY_COMMAND", {}, "1")), env)).json();
-    assert.match(start.response.text, /^Lintcha Copy — trading/);
+    assert.match(start.response.text, /^Lintcha — copy-trading/);
     assert.equal((await worker.fetch(post("gateway", await envelope("COPY_COMMAND", {}, "1")), env)).status, 409);
     await worker.fetch(post("gateway", await envelope("COPY_CALLBACK", { callbackData: "copy.mode.confirm_each" }, "2")), env);
     await worker.fetch(post("gateway", await envelope("COPY_CALLBACK", { callbackData: "copy.resume" }, "3")), env);
@@ -101,7 +101,7 @@ test("worker runs confirm-each BUY through D1 and the per-user Durable Object, a
     assert.equal(instances.has("copy-user:42"), true);
     const view = await (await worker.fetch(api(`intents/${created.intent.intentId}`, { headers }), env)).json();
     const opened = await (await worker.fetch(post(`intents/${created.intent.intentId}/begin`, { token: view.intent.confirmationToken, revision: view.intent.revision }, headers), env)).json();
-    assert.equal(opened.intent.review.label, "Lintcha Copy — trading");
+    assert.equal(opened.intent.review.label, "Lintcha — copy-trading");
     const replay = await worker.fetch(post(`intents/${created.intent.intentId}/begin`, { token: view.intent.confirmationToken, revision: view.intent.revision }, headers), env);
     assert.equal(replay.status, 409);
     const submitted = await (await worker.fetch(post(`intents/${created.intent.intentId}/submission`, { revision: opened.intent.revision, transactionHash: HASH }, headers), env)).json();
@@ -117,7 +117,7 @@ test("worker runs confirm-each BUY through D1 and the per-user Durable Object, a
     assert.equal(seenUrls.every((url) => url.includes(".invalid/")), true);
     const outbox = (await env.COPY_DB.prepare("SELECT text FROM copy_outbox").all()).results;
     assert.equal(outbox.length, 1);
-    assert.match(outbox[0].text, /^Lintcha Copy — trading/);
+    assert.match(outbox[0].text, /^Lintcha — copy-trading/);
   } finally {
     globalThis.fetch = realFetch;
   }

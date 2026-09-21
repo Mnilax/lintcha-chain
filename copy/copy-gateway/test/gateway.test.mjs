@@ -31,7 +31,7 @@ test("gateway forwards only minimal Copy identity, not raw text or bot token", a
   assert.equal(envelope.route, "COPY_COMMAND");
   assert.equal(JSON.stringify(envelope).includes("secret words"), false);
   let received;
-  const result = await routeCopyUpdate({ update, nowSeconds: 100, serviceSecret: SECRET, copyAppOrigin: ORIGIN, copyClient: { async handle(payload) { received = payload; return { text: "Lintcha Copy", inlineKeyboard: [[{ text: "Open secure sheet", webAppUrl: `${ORIGIN}/copy/confirm` }]] }; } } });
+  const result = await routeCopyUpdate({ update, nowSeconds: 100, serviceSecret: SECRET, copyAppOrigin: ORIGIN, copyClient: { async handle(payload) { received = payload; return { text: "Lintcha — copy-trading", inlineKeyboard: [[{ text: "Open secure sheet", webAppUrl: `${ORIGIN}/copy/confirm` }]] }; } } });
   assert.equal(result.handled, true);
   assert.equal(result.chatId, 99);
   assert.equal(JSON.stringify(received).includes("token"), false);

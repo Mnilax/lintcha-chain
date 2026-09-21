@@ -18,9 +18,9 @@ const COPY_CALLBACK = /^(?:copy|trade|sell)\.[a-z0-9._-]{1,96}$/;
 
 /** Fixed Core-side wording. The Copy service cannot change these; they are what the user sees when Copy is unreachable. */
 export const GATEWAY_TEXTS = Object.freeze({
-  PRIVATE_ONLY: "Lintcha Copy answers only in a private chat with @lintchabot.",
-  UNAVAILABLE: "Lintcha Copy is temporarily unavailable. Nothing was signed or submitted. Lintcha Core commands keep working.",
-  DISABLED: "Lintcha Copy is not enabled on this bot yet. Lintcha Core commands keep working.",
+  PRIVATE_ONLY: "Lintcha copy-trading answers only in a private chat with @lintchabot.",
+  UNAVAILABLE: "Lintcha copy-trading is temporarily unavailable. Nothing was signed or submitted. Lintcha Core commands keep working.",
+  DISABLED: "Copy-trading is not enabled in Lintcha yet. Lintcha Core commands keep working.",
 });
 
 function clean(value, max = 96) {

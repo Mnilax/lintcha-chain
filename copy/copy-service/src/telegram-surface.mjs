@@ -5,20 +5,20 @@ import { USER_MODES } from "./stores.mjs";
  * exposes a wallet action in chat, and never lets Telegram confirm a SELL or create a delegation.
  */
 export const COPY_TEXTS = Object.freeze({
-  HEADER: "Lintcha Copy — trading",
-  BOUNDARY: "This is Lintcha Copy, a separate voluntary trading module. It is not read-only Lintcha Core.",
+  HEADER: "Lintcha — copy-trading",
+  BOUNDARY: "Copy-trading is an opt-in mode inside Lintcha. Lintcha Core remains read-only.",
   MODE_NOTIFY: "Mode: notifications only. Nothing is signed or submitted in this mode.",
   MODE_CONFIRM: "Mode: confirm each trade. Every BUY and every manual SELL opens the secure sheet for a separate review and wallet confirmation. Auto-SELL is not available.",
   MODE_AUTO: "Mode: auto-copy BUY. Matched BUYs may be submitted only inside your active delegated limits. SELL is always manual.",
   PAUSED: "Status: paused. No review is opened and nothing is submitted while paused.",
   ACTIVE: "Status: active.",
-  NEVER_SEED: "Never send a seed phrase or private key in Telegram. Lintcha Copy never asks for one.",
-  SELL_TELEGRAM_REFUSED: "SELL was not submitted. Telegram cannot confirm a SELL; review and confirm only inside the Lintcha Copy secure sheet.",
+  NEVER_SEED: "Never send a seed phrase or private key in Telegram. Lintcha never asks for one in chat.",
+  SELL_TELEGRAM_REFUSED: "SELL was not submitted. Telegram cannot confirm a SELL; review and confirm only inside the Lintcha secure sheet.",
   AUTO_SETUP: "Auto-copy is not active for this wallet yet. Open the secure sheet to review limits and create a bounded, revocable permission. Telegram cannot create it.",
   STALE: "This control is no longer valid. Open /copy again.",
-  GLOBAL_PAUSED: "Lintcha Copy is paused for everyone right now. Nothing is signed or submitted.",
-  REVIEW_BUY: "A source BUY matched your Lintcha Copy rule. Review the fresh simulation and confirm in the secure sheet, or ignore this message. Nothing happens without your wallet confirmation.",
-  REVIEW_SELL: "A manual SELL review is ready in Lintcha Copy. Approval and trade are separate confirmations inside the secure sheet. Telegram cannot sign or submit it.",
+  GLOBAL_PAUSED: "Lintcha copy-trading is paused for everyone right now. Nothing is signed or submitted.",
+  REVIEW_BUY: "A source BUY matched your Lintcha rule. Review the fresh simulation and confirm in the secure sheet, or ignore this message. Nothing happens without your wallet confirmation.",
+  REVIEW_SELL: "A manual SELL review is ready in Lintcha. Approval and trade are separate confirmations inside the secure sheet. Telegram cannot sign or submit it.",
 });
 
 function settingsText(user, globallyPaused) {
@@ -47,7 +47,7 @@ export class CopyTelegramSurface {
       inlineKeyboard: [
         [{ text: user.mode === "NOTIFY_ONLY" ? "• Notifications" : "Notifications", callbackData: "copy.mode.notify" }, { text: user.mode === "AUTO_BUY" ? "• Auto-copy BUY" : "Auto-copy BUY", callbackData: "copy.mode.auto_buy" }],
         [{ text: paused ? "Resume" : "Pause", callbackData: paused ? "copy.resume" : "copy.pause" }, { text: "Status", callbackData: "copy.status" }],
-        [{ text: "Open Lintcha Copy — trading", webAppUrl: this.appUrl }],
+        [{ text: "Open Lintcha secure sheet", webAppUrl: this.appUrl }],
       ],
     };
   }
@@ -93,7 +93,7 @@ export class CopyTelegramSurface {
     url.searchParams.set("intent", intentId);
     return {
       text: `${COPY_TEXTS.HEADER}\n${direction === "SELL" ? COPY_TEXTS.REVIEW_SELL : COPY_TEXTS.REVIEW_BUY}`,
-      inlineKeyboard: [[{ text: direction === "SELL" ? "Review SELL in Lintcha Copy" : "Review BUY in Lintcha Copy", webAppUrl: url.toString() }], [{ text: "Ignore", callbackData: `${direction === "SELL" ? "sell" : "trade"}.cancel` }]],
+      inlineKeyboard: [[{ text: direction === "SELL" ? "Review SELL in Lintcha" : "Review BUY in Lintcha", webAppUrl: url.toString() }], [{ text: "Ignore", callbackData: `${direction === "SELL" ? "sell" : "trade"}.cancel` }]],
     };
   }
 }

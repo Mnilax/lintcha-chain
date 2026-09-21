@@ -13,7 +13,7 @@ import { ConfirmEachSheetController, ExternalEip1193WalletAdapter } from "../../
 import { HASH, NOW, ROUTER, TOKEN, WALLET, approvalInput, fixture, input, sellTradeInput } from "./helpers.mjs";
 
 const subtle = webcrypto.subtle;
-const ORIGIN = "https://copy.example.invalid";
+const ORIGIN = "https://lintcha.com";
 const GATEWAY_SECRET = "g".repeat(40);
 const ADMIN_SECRET = "a".repeat(40);
 const BOT_ID = "7342037359";
@@ -53,7 +53,7 @@ async function stack(fixtureOptions = {}, configEnv = {}) {
     adminVerifier: new SignedServiceRequestVerifier({ secret: ADMIN_SECRET, schema: "lintcha.copy.admin.v1", replayStore }),
     initDataVerifier: new TelegramInitDataVerifier({ botId: BOT_ID, publicKeyHex: keys.publicKeyHex, subtle }),
   });
-  const call = (path, init = {}) => handler(new Request(`${ORIGIN}/copy/api/${path}`, init));
+  const call = (path, init = {}) => handler(new Request(`${ORIGIN}/api/copy/${path}`, init));
   const post = (path, body, headers = {}) => call(path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
   const signed = (path, schema, payload, secret = GATEWAY_SECRET) => post(path, signServiceRequest({ schema, requestId: randomBytes(16).toString("hex"), issuedAt: clock(), ...payload }, secret));
   const client = async (userId) => ({ origin: ORIGIN, "x-telegram-init-data": await initDataFor(keys.pair, userId, clock()) });
@@ -112,8 +112,8 @@ function wallet(sendHash = HASH) {
 test("end-to-end confirm-each BUY: Telegram settings → signal → outbox → Mini App review → wallet → reconciliation", async () => {
   const s = await stack();
   const start = await s.telegram(s.privateMessage("/start copy_site"), s.nextUpdate());
-  assert.match(start.response.text, /^Lintcha Copy — trading/);
-  assert.match(start.response.text, /not read-only Lintcha Core/);
+  assert.match(start.response.text, /^Lintcha — copy-trading/);
+  assert.match(start.response.text, /Lintcha Core remains read-only/);
   assert.equal(start.response.reply_markup.inline_keyboard.at(-1)[0].web_app.url, `${ORIGIN}/copy/`);
   await s.telegram(s.privateMessage("/start copy_site"), s.nextUpdate());
   const referralStats = await (await s.signed("admin/referrals", "lintcha.copy.admin.v1", {}, ADMIN_SECRET)).json();
@@ -130,7 +130,7 @@ test("end-to-end confirm-each BUY: Telegram settings → signal → outbox → M
   const registered = await s.post("wallet", { publicAddress: WALLET, walletKind: "EXTERNAL" }, await s.client("42"));
   assert.equal((await registered.json()).wallets[0].publicAddress, WALLET);
   const me = await (await s.call("me", { headers: await s.client("42") })).json();
-  assert.equal(me.label, "Lintcha Copy — trading");
+  assert.equal(me.label, "Lintcha — copy-trading");
   assert.equal(me.user.mode, "CONFIRM_EACH");
 
   const created = await (await s.signed("intents", "lintcha.copy.intent.v1", { userId: "42", ...input() })).json();
@@ -144,7 +144,7 @@ test("end-to-end confirm-each BUY: Telegram settings → signal → outbox → M
   const drained = await drainCopyOutbox({ serviceSecret: GATEWAY_SECRET, nowSeconds: s.clock(), copyAppOrigin: ORIGIN, requestId: "ab".repeat(8), copyClient: { async drain(signedRequest) { const body = await (await s.post("gateway/outbox", signedRequest)).json(); if (!body.ok) throw new Error(body.why); return body.rows; } }, send: async (row) => { delivered.push(row); return "accepted"; } });
   assert.equal(drained.sent, 1);
   assert.equal(delivered[0].chatId, "99");
-  assert.match(delivered[0].response.text, /^Lintcha Copy — trading\nA source BUY/);
+  assert.match(delivered[0].response.text, /^Lintcha — copy-trading\nA source BUY/);
   assert.equal(delivered[0].response.reply_markup.inline_keyboard[0][0].web_app.url, `${ORIGIN}/copy/?intent=${created.intent.intentId}`);
   const again = await drainCopyOutbox({ serviceSecret: GATEWAY_SECRET, nowSeconds: s.clock(), copyAppOrigin: ORIGIN, requestId: "cd".repeat(8), copyClient: { async drain(signedRequest) { return (await (await s.post("gateway/outbox", signedRequest)).json()).rows; } }, send: async () => "accepted" });
   assert.equal(again.sent, 0);
@@ -205,6 +205,8 @@ test("HTTP negative branches: origin, init data, paused users, notify-only users
   assert.equal((await s.call("me", { headers: { ...headers, "x-telegram-init-data": headers["x-telegram-init-data"].replace("first_name", "first_nam3") } })).status, 401);
   assert.equal((await s.call("me", { headers: { origin: ORIGIN, "x-telegram-init-data": await s.client("42").then(() => "") } })).status, 401);
   assert.equal((await s.call("nothing", { headers })).status, 404);
+  assert.equal((await s.handler(new Request(`${ORIGIN}/copy/api/me`, { headers }))).status, 404);
+  assert.equal((await s.handler(new Request(`${ORIGIN}/api/telegram`, { method: "POST" }))).status, 404);
   // A same-origin GET carries no Origin in browsers and is accepted; a POST without Origin never is.
   assert.equal((await s.call("me", { headers: { "x-telegram-init-data": headers["x-telegram-init-data"] } })).status, 200);
   assert.equal((await s.call("me", { headers: { "x-telegram-init-data": headers["x-telegram-init-data"], "sec-fetch-site": "cross-site" } })).status, 403);
@@ -245,6 +247,10 @@ test("HTTP negative branches: origin, init data, paused users, notify-only users
   const health = await (await s.call("health")).json();
   assert.equal(health.globallyPaused, true);
   assert.equal(JSON.stringify(health).includes("http"), false);
+
+  await s.signed("admin/kill-switch", "lintcha.copy.admin.v1", { scope: "GLOBAL", action: "RESUME" }, ADMIN_SECRET);
+  const walletPause = await (await s.signed("admin/kill-switch", "lintcha.copy.admin.v1", { scope: "WALLET", action: "PAUSE", subjectId: `0x${WALLET.slice(2).toUpperCase()}`, reason: "wallet drill" }, ADMIN_SECRET)).json();
+  assert.equal(walletPause.killSwitches.wallets[0].subjectId, WALLET);
 });
 
 test("rate limit and duplicate clicks from the Mini App fail closed without touching the wallet path", async () => {

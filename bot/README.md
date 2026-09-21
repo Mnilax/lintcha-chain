@@ -610,13 +610,13 @@ like anyone else.
 
 These statements describe Lintcha Core, not every feature reachable through the shared `@lintchabot` identity.
 
-## Lintcha Copy boundary
+## Copy-trading boundary
 
-`/copy` may route a private-chat user through a minimal gateway to the separately deployed Lintcha Copy service. The gateway forwards only a signed minimal identity envelope and namespaced Copy action; it does not give the Copy service the bot token or the raw Telegram update. All existing commands stay in Core.
+`/copy` may route a private-chat user through a minimal gateway to the internally isolated trading service at `lintcha.com/api/copy/`. The gateway forwards only a signed minimal identity envelope and namespaced action; it does not give the trading service the bot token or the raw Telegram update. All existing commands stay in Core.
 
-Lintcha Copy has its own Mini App route/origin, database, configuration, audit log and kill switches. Its user modes are notifications or bounded auto-BUY; SELL remains a separate manual secure-sheet action. Auto-BUY needs an active expiring delegation and passes simulation, allowlists and user caps before one submission through a separately controlled executor. Seed, private key, session key, recovery material, wallet vault and signed raw transaction never enter Telegram, Bot API, the Copy Worker, either database, analytics, logs or Git. Auto-SELL is disabled.
+Copy-trading is one public Lintcha feature with its own Mini App route, database namespace, configuration, audit log and kill switches. Its user modes are notifications or bounded auto-BUY; SELL remains a separate manual secure-sheet action. Auto-BUY needs an active expiring delegation and passes simulation, allowlists and user caps before one submission through a separately controlled executor. Seed, private key, session key, recovery material, wallet vault and signed raw transaction never enter Telegram, Bot API, the trading Worker, either database, analytics, logs or Git. Auto-SELL is disabled.
 
-A screen or message must name either “Lintcha Core — read-only” or “Lintcha Copy — trading” before showing the next action.
+A screen or message must name either “Lintcha Core — read-only” or “Lintcha — copy-trading” before showing the next action.
 
 That last one is load bearing rather than decorative: it is why there is no price API in
 here and why there will not be one. A dollar figure from a third party would make the

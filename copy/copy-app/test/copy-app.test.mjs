@@ -13,14 +13,13 @@ const css = read("copy", "copy-app.css");
 const headers = read("_headers");
 const count = (text, pattern) => (text.match(pattern) || []).length;
 
-test("the sheet carries an immutable 'Lintcha Copy — trading' label that the script never touches", () => {
-  assert.equal(count(html, /Lintcha Copy — trading<\/span>/g), 1);
+test("the sheet carries an immutable unified Lintcha copy-trading label that the script never touches", () => {
+  assert.equal(count(html, /Lintcha — copy-trading<\/span>/g), 1);
   assert.match(html, /<header class="module-label" data-module-label>/);
-  assert.match(html, /It is not read-only Lintcha Core\./);
-  assert.match(html, /Auto-BUY can act only inside an active bounded permission/);
+  assert.match(html, /Lintcha Core remains read-only\./);
   assert.equal(/data-module-label|module-name|module-boundary/.test(js), false);
   assert.match(html, /<meta name="robots" content="noindex,nofollow">/);
-  assert.match(html, /<title>Lintcha Copy — trading<\/title>/);
+  assert.match(html, /<title>Lintcha — copy-trading<\/title>/);
 });
 
 test("strict same-origin CSP, no third-party script, no storage, no analytics, no inline handlers", () => {
@@ -37,14 +36,14 @@ test("strict same-origin CSP, no third-party script, no storage, no analytics, n
   const resources = [...html.matchAll(/<(?:script|link|img)\b[^>]*(?:src|href)="([^"]+)"/gi)].map((match) => match[1]);
   assert.equal(resources.length > 0 && resources.every((url) => url.startsWith("/copy/")), true);
   assert.equal(/<(?:iframe|object|embed|form)\b/i.test(html), false);
-  assert.equal(/fetchImpl\(`\$\{origin\}\$\{API\}/.test(js) && /const API = "\/copy\/api"/.test(js), true);
+  assert.equal(/fetchImpl\(`\$\{origin\}\$\{API\}/.test(js) && /const API = "\/api\/copy"/.test(js), true);
 });
 
 test("the page separates review, explicit confirm and cancel, and the sheet controller is the single audited copy", () => {
   assert.match(html, /data-action="confirm"/);
   assert.match(html, /data-action="cancel"/);
   assert.match(html, /Separate confirmation\./);
-  assert.match(html, /SELL approval and trade are two separate manual confirmations/);
+  assert.match(html, /SELL is manual: approval and trade are two separate wallet confirmations/);
   assert.equal(read("copy", "confirm-each.mjs"), fs.readFileSync(path.join(root, "..", "secure-sheet-crypto", "src", "confirm-each.mjs"), "utf8"));
   assert.match(js, /new ExternalEip1193WalletAdapter\(provider\)/);
   assert.equal(/seed|mnemonic|privateKey/.test(js.replace(/\/\/.*$/gm, "").replace(/Seed phrases and private keys never enter/g, "")), false);
@@ -61,8 +60,8 @@ test("launch parsing, unit formatting and review lines are exact", () => {
   assert.equal(formatUnits("39322474350183024"), "0.039322");
   assert.equal(formatUnits("1000000000000000000"), "1");
   assert.equal(formatUnits("0"), "0");
-  const lines = reviewLines({ label: "Lintcha Copy — trading", direction: "BUY", operation: "TRADE", chainId: 4663, token: "0x" + "3".repeat(40), amountIn: "39322474350183024", minimumOutput: "1", slippageBps: 50, target: "0x" + "2".repeat(40), selector: "0x59a87bc1", value: "39322474350183024", simulationBlock: 65697020, expiresAt: 1700000000 });
-  assert.deepEqual(lines.map(([key]) => key), ["Module", "Action", "Chain", "Token", "Amount in", "Minimum out", "Slippage cap", "Target contract", "Selector", "Native value", "Simulated at block", "Expires"]);
+  const lines = reviewLines({ label: "Lintcha — copy-trading", direction: "BUY", operation: "TRADE", chainId: 4663, token: "0x" + "3".repeat(40), amountIn: "39322474350183024", minimumOutput: "1", slippageBps: 50, target: "0x" + "2".repeat(40), selector: "0x59a87bc1", value: "39322474350183024", simulationBlock: 65697020, expiresAt: 1700000000 });
+  assert.deepEqual(lines.map(([key]) => key), ["Mode", "Action", "Chain", "Token", "Amount in", "Minimum out", "Slippage cap", "Target contract", "Selector", "Native value", "Simulated at block", "Expires"]);
   assert.equal(lines[4][1], "0.039322 ETH");
   assert.equal(lines[6][1], "0.50%");
 });

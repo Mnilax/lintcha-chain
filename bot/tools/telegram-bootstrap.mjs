@@ -236,12 +236,19 @@ const verifiedBot = async request => {
       !optionalBoolean(me.can_join_groups) || !optionalBoolean(me.can_read_all_group_messages) ||
       !optionalBoolean(me.supports_inline_queries)) fail("identity");
   return {
+    id: me.id,
     username: EXPECTED_BOT_USERNAME,
     can_join_groups: me.can_join_groups === undefined ? null : me.can_join_groups,
     can_read_all_group_messages: me.can_read_all_group_messages === undefined ? null : me.can_read_all_group_messages,
     supports_inline_queries: me.supports_inline_queries === undefined ? null : me.supports_inline_queries
   };
 };
+
+/** Read-only identity lookup. Returns public bot identity only; never the token or API URL. */
+export async function productionBotIdentity(options = {}) {
+  const bot = await verifiedBot(requestOptions(options));
+  return { id: bot.id, username: bot.username };
+}
 
 export async function discoverProductionChat(options = {}) {
   const request = requestOptions(options);
@@ -369,7 +376,7 @@ export async function readMasked(label, input = process.stdin, output = process.
   });
 }
 
-const USAGE = "usage: telegram-bootstrap <discover|webhook-info|set-webhook|set-webhook-pretoken|delete-webhook>";
+const USAGE = "usage: telegram-bootstrap <bot-id|discover|webhook-info|set-webhook|set-webhook-pretoken|delete-webhook>";
 
 export async function runCli(argv = process.argv.slice(2), io = {}) {
   const input = io.input || process.stdin;
@@ -378,7 +385,7 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
   const prompt = io.prompt || readMasked;
   const fetchImpl = io.fetchImpl || globalThis.fetch;
   const tokenFetchImpl = io.tokenFetchImpl || fetchImpl;
-  if (!Array.isArray(argv) || argv.length !== 1 || !["discover", "webhook-info", "set-webhook", "set-webhook-pretoken", "delete-webhook"].includes(argv[0])) {
+  if (!Array.isArray(argv) || argv.length !== 1 || !["bot-id", "discover", "webhook-info", "set-webhook", "set-webhook-pretoken", "delete-webhook"].includes(argv[0])) {
     errorOutput.write(USAGE + "\n");
     return 1;
   }
@@ -393,7 +400,8 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
   try {
     token = await prompt("Bot token: ", input, output, BOT_TOKEN_INPUT_LIMIT);
     let result;
-    if (argv[0] === "discover") result = await discoverProductionChat({ token, fetchImpl });
+    if (argv[0] === "bot-id") result = { bot: await productionBotIdentity({ token, fetchImpl }) };
+    else if (argv[0] === "discover") result = await discoverProductionChat({ token, fetchImpl });
     else if (argv[0] === "webhook-info") result = await productionWebhookInfo({ token, fetchImpl });
     else if (argv[0] === "set-webhook" || argv[0] === "set-webhook-pretoken") {
       secret = await prompt("Webhook secret: ", input, output, WEBHOOK_SECRET_INPUT_LIMIT);

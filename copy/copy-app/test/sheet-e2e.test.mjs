@@ -66,14 +66,14 @@ test("Mini App boot → wallet registration → review → separate confirm → 
 
   await boot({ document: doc, windowLike, fetchImpl, clock });
   assert.equal(visible(), "home", get("[data-error]").textContent);
-  assert.equal(get("[data-mode]").textContent, "legacy confirm-each");
+  assert.equal(get("[data-mode]").textContent, "confirm each trade");
   assert.match(get("[data-wallets]").textContent, /No public address/);
   await get("[data-action=connect-wallet]").click();
   assert.match(get("[data-wallets]").textContent, /external 0x1111…1111/);
 
   // A signal from the producer side creates the intent; the sheet lists it after Back/refresh.
   const signal = signServiceRequest({ schema: "lintcha.copy.intent.v1", requestId: randomBytes(16).toString("hex"), issuedAt: clock(), userId: "42", ...input() }, SECRET);
-  const created = await (await handler(new Request(`${ORIGIN}/copy/api/intents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(signal) }))).json();
+  const created = await (await handler(new Request(`${ORIGIN}/api/copy/intents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(signal) }))).json();
   assert.equal(created.intent.state, "AWAITING_USER_CONFIRMATION");
   await get("[data-action=home]").click();
   const item = get("[data-intents]").children.at(-1);
@@ -81,7 +81,7 @@ test("Mini App boot → wallet registration → review → separate confirm → 
   const reviewing = item.children[2].click();
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(visible(), "review");
-  assert.match(get("[data-review-direction]").textContent, /^BUY — This is Lintcha Copy, not read-only Lintcha Core\./);
+  assert.match(get("[data-review-direction]").textContent, /^BUY — Copy-trading is an opt-in mode inside Lintcha\. Lintcha Core remains read-only\./);
   const fields = get("[data-review-fields]").children.map((node) => node.textContent);
   assert.equal(fields[fields.indexOf("Target contract") + 1], ROUTER);
   assert.equal(fields[fields.indexOf("Selector") + 1], "0x12345678");
@@ -94,7 +94,7 @@ test("Mini App boot → wallet registration → review → separate confirm → 
   const sent = walletCalls.find((call) => call.method === "eth_sendTransaction").params[0];
   assert.deepEqual(sent, { from: WALLET, to: ROUTER, value: "0x1f4", data: "0x12345678" });
   assert.equal((await current.service.getIntentForUser({ intentId: created.intent.intentId, userId: "42" })).state, "SUBMITTED_PENDING_RECONCILIATION");
-  assert.equal(requests.every((url) => url.startsWith(`${ORIGIN}/copy/api/`)), true);
+  assert.equal(requests.every((url) => url.startsWith(`${ORIGIN}/api/copy/`)), true);
   assert.equal(get("[data-review-fields]").textContent, "");
 });
 

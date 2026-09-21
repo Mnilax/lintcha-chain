@@ -11,7 +11,7 @@ const PONS_V2_BUY = "0x59a87bc1";
 const PONS_V2_SELL = "0xd04c6983";
 
 function serviceFor(fixture, { allowance = null, head = null, maxTx = "100000000000000000", maxDay = "200000000000000000", sellCap = "1000000000000000000000000000" } = {}) {
-  const providers = [fixtureProvider("alchemy", fixture, { allowance, head }), fixtureProvider("quicknode", fixture, { allowance, head })];
+  const providers = [fixtureProvider("alchemy", fixture, { allowance, head }), fixtureProvider("drpc", fixture, { allowance, head })];
   const rpcPool = new RpcPool({ providers, chainId: 4663, maxHeadSkewBlocks: 2 });
   const killSwitches = new KillSwitches({ globallyPaused: false });
   const spendLedger = new InMemorySpendLedger();
@@ -38,7 +38,7 @@ test("recorded Pons V2 mainnet BUY calldata passes policy, simulates at one comm
   assert.equal(opened.review.selector, PONS_V2_BUY);
   assert.equal(opened.review.target, fixture.source.curve.toLowerCase());
   assert.equal(opened.simulation.blockHash, fixture.block.hash.toLowerCase());
-  assert.equal(opened.simulation.providerIds.join(","), "alchemy,quicknode");
+  assert.equal(opened.simulation.providerIds.join(","), "alchemy,drpc");
   // Simulation used the same numeric block tag on both providers.
   for (const provider of providers) assert.equal(provider.calls.filter((call) => call.method === "eth_call")[0].params[1], fixture.block.number.replace(/^0x0*/, "0x"));
   await service.recordClientSubmission({ intentId: created.intentId, userId: "42", revision: opened.revision, transactionHash: fixture.transaction.hash });

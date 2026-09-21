@@ -4,7 +4,7 @@
 // only: no signing, no broadcast, no wallet. Exit code 2 = not accepted; the JSON report says why.
 //
 //   COPY_RPC_PRIMARY_URL / COPY_RPC_SECONDARY_URL        (secrets; from the owner's secret store, not from chat)
-//   COPY_RPC_PRIMARY_PROVIDER / COPY_RPC_SECONDARY_PROVIDER  vendor ids (default alchemy / quicknode)
+//   COPY_RPC_PRIMARY_PROVIDER / COPY_RPC_SECONDARY_PROVIDER  vendor ids (default alchemy / drpc)
 //   COPY_ACCEPT_MAX_LATENCY_MS (default 1500), COPY_ACCEPT_MAX_LAG_SECONDS (default 30), COPY_ACCEPT_BURST (default 20)
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -13,7 +13,7 @@ import { SimulationQuorum } from "../src/simulation.mjs";
 
 const env = process.env;
 const urls = [env.COPY_RPC_PRIMARY_URL, env.COPY_RPC_SECONDARY_URL];
-const ids = [env.COPY_RPC_PRIMARY_PROVIDER || "alchemy", env.COPY_RPC_SECONDARY_PROVIDER || "quicknode"];
+const ids = [env.COPY_RPC_PRIMARY_PROVIDER || "alchemy", env.COPY_RPC_SECONDARY_PROVIDER || "drpc"];
 const thresholds = { maxLatencyMs: Number(env.COPY_ACCEPT_MAX_LATENCY_MS || 1500), maxLagSeconds: Number(env.COPY_ACCEPT_MAX_LAG_SECONDS || 30), burst: Number(env.COPY_ACCEPT_BURST || 20) };
 const reasons = [];
 const report = { schemaVersion: 1, capturedAtUtc: new Date().toISOString(), chainId: 4663, providerIds: ids, thresholds, checks: {} };

@@ -50,11 +50,11 @@ compatibility_flags = ["nodejs_compat"]
 [secrets]
 required = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"]
 
-# The Copy Worker, reached by a service binding rather than the public internet. Uncomment when it exists.
-# Copy must never be reached through this Worker's own route or bindings; it has its own D1, object and secrets.
-# [[services]]
-# binding = "COPY_SERVICE"
-# service = "lintcha-copy"
+# The trading Worker is reached by a service binding for gateway traffic. Public Mini App API calls still use
+# the more-specific lintcha.com/api/copy/* route owned by that Worker. It has its own D1, object and secrets.
+[[services]]
+binding = "COPY_SERVICE"
+service = "lintcha-copy"
 
 # /api/* is intercepted before the assets worker; the root stays with the site, which is how the page and this
 # worker share one host. Confirmed by observation before the code was written.
@@ -216,12 +216,10 @@ RULE_DELIVERY_TOTAL = "1000"
 # One retry pass reads only this many durable rule notifications. Rows rotate by their last attempt, so a
 # dormant holder at the front cannot permanently hide later live work.
 RULE_DELIVERY_BATCH = "20"
-# ---------------------------------------------------------------- Lintcha Copy seam
-# Both empty on purpose: with either empty (or the COPY_GATEWAY_SECRET secret absent) Lintcha Copy is disabled and
-# this Worker answers `/copy` with silence. The origin is the exact HTTPS origin of the separate Copy Mini App,
-# used only to validate the buttons Copy sends back; the URL is used only when no COPY_SERVICE binding exists.
-# Neither value is a secret. Filling them is a separate owner decision after the Copy Worker is deployed.
-COPY_APP_ORIGIN = ""
+# ---------------------------------------------------------------- copy-trading seam
+# The origin validates every Mini App button. COPY_SERVICE_URL is only a fallback when the service binding is
+# unavailable. Without the separately staged COPY_GATEWAY_SECRET, the seam remains disabled and Core is unchanged.
+COPY_APP_ORIGIN = "https://lintcha.com"
 COPY_SERVICE_URL = ""
 
 # Known commands share one durable fixed window per Telegram user. Unknown updates are deduped without

@@ -4,7 +4,7 @@ import { defineCopyUserCoordinator } from "./coordinator.mjs";
 /**
  * Lintcha Copy Worker. Separate from `lintcha-chain` (site) and `lintcha-chain-api` (Core bot): its own name,
  * origin, D1 database, Durable Object namespace and secrets. It serves the Mini App (assets binding) and the
- * `/copy/api/*` routes, and runs the expiry/reconciliation sweep on its own cron. It has no bot token, no
+ * `/api/copy/*` routes, and runs the expiry/reconciliation sweep on its own cron. It has no bot token, no
  * key material. Optional auto-BUY submission goes only through a separately controlled service binding; this
  * Worker never receives a session key, seed, raw signed transaction or bot token.
  */
@@ -19,7 +19,7 @@ export default {
       return Response.json({ ok: false, why: /REQUIRED|MUST_NOT/.test(error.message) ? error.message : "misconfigured" }, { status: 503, headers: { "cache-control": "no-store" } });
     }
     const url = new URL(request.url);
-    const apiPrefix = `${runtime.config.appPath.replace(/\/$/, "")}/api/`;
+    const apiPrefix = runtime.config.apiPath;
     if (url.pathname.startsWith(apiPrefix)) return runtime.handler(request);
     // Static Mini App files are served by the assets binding before this handler; anything else is not ours.
     return new Response(null, { status: 404 });

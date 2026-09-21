@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-18",
+  "scope": "Read-only historical mainnet mechanism evidence; not a Lintcha transaction or testnet acceptance",
+  "chainId": 4663,
+  "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+  "transactionHash": "0x284d4741a8f6945a34f5f32c20e9ea1b9d836eb758d7e012c034f3e360d06ff1",
+  "blockNumber": 65685880,
+  "status": "ok",
+  "calldata": {
+    "commands": "0x100604",
+    "inputs": [
+      "0x",
+      "0x00000000000000000000000092fd66527192e3e61d4ddd13322aa222de86f9b5000000000000000000000000c2f08ddf35ca84819c8f5d33de6e0edbc87c46340000000000000000000000000000000000000000000000000000000000000046",
+      "0x00000000000000000000000092fd66527192e3e61d4ddd13322aa222de86f9b50000000000000000000000003228c0383ab0e553c4b49784a67f1c606f2b76920000000000000000000000000000000000000000000000000f5f7936d9f14a81"
+    ],
+    "decodedCommands": ["V4_SWAP", "PAY_PORTION", "SWEEP"]
+  },
+  "asset": {
+    "address": "0x92fd66527192e3e61d4ddd13322aa222de86f9b5",
+    "symbolAtCapture": "SGOV"
+  },
+  "grossRouterOutput": {
+    "value": "1150047559564472297",
+    "logIndex": 47,
+    "from": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+    "to": "0x8876789976decbfcbbbe364623c63652db8c0904"
+  },
+  "feeTransfer": {
+    "value": "8050332916951306",
+    "logIndex": 49,
+    "recipient": "0xc2f08ddf35ca84819c8f5d33de6e0edbc87c4634",
+    "bips": 70
+  },
+  "userTransfer": {
+    "value": "1141997226647520991",
+    "logIndex": 51,
+    "recipient": "0x3228c0383ab0e553c4b49784a67f1c606f2b7692"
+  },
+  "invariants": {
+    "feeEqualsFloorGrossTimesBips": true,
+    "grossEqualsFeePlusUser": true,
+    "sameAsset": true,
+    "atomicSingleReceipt": true
+  },
+  "sources": [
+    "https://8crv4vmq6tiu1yqr.blockscout.com/api/v2/transactions/0x284d4741a8f6945a34f5f32c20e9ea1b9d836eb758d7e012c034f3e360d06ff1",
+    "https://github.com/Uniswap/universal-router/blob/main/contracts/libraries/Commands.sol",
+    "https://github.com/Uniswap/universal-router/blob/main/contracts/modules/Payments.sol"
+  ],
+  "limitations": [
+    "The observed fee is 70 bips, not Lintcha's configured 100 bips.",
+    "This is a third-party historical mainnet transaction, not a Lintcha testnet transaction.",
+    "The example uses a V4 swap command; V2 exact-path integration still requires its own lifecycle evidence.",
+    "Token-tax and non-standard ERC-20 behavior are not established by this receipt."
+  ]
+}

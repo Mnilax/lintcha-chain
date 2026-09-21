@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-18T01:35:00.000Z",
+  "source": {
+    "chainId": 4663,
+    "venue": "Pons V2 Bonding Curve",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "trustedForProductionResearch": true
+  },
+  "expectation": {
+    "direction": "SELL"
+  },
+  "context": {
+    "ponsV2Launch": {
+      "factory": "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e",
+      "token": "0x02498066411904F466d037570511a48B67BE1611",
+      "curve": "0x52067DcE3CFEC3621b88D4DE3cC77374F8A44494",
+      "pairToken": "0x0000000000000000000000000000000000000000",
+      "transactionHash": "0x46fd7249fa7440c89e9bca6f5cdfe7b71c1e2bfc1b3c0a16566d2fba67b7c6b2",
+      "eventTopic": "0x8d4aad4953d0ca700d468f3753aa14432d1b35b43ec6409f051fb6aa43a89607",
+      "blockNumber": 65697020,
+      "logIndex": 44
+    }
+  },
+  "transaction": {
+    "hash": "0x7d56b582f9ac5fb15487c4b61a7584b939b654af3c75977e81446b21684e4d33",
+    "blockNumber": "0x3ea9628",
+    "blockHash": "0x7f49fa6c6b18a8dc8c17258a58958f4ba74fee83f7d9a2b4df14b94993d31646",
+    "from": "0x8B216cc896f32BcabCA3649Ca918D532F72010eF",
+    "to": "0x52067DcE3CFEC3621b88D4DE3cC77374F8A44494",
+    "value": "0",
+    "input": "0xd04c69830000000000000000000000000000000000000000000db91655330e2f16995335000000000000000000000000000000000000000000000000007364d9b2fd617e0000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef"
+  },
+  "receipt": {
+    "transactionHash": "0x7d56b582f9ac5fb15487c4b61a7584b939b654af3c75977e81446b21684e4d33",
+    "blockNumber": "0x3ea9628",
+    "blockHash": "0x7f49fa6c6b18a8dc8c17258a58958f4ba74fee83f7d9a2b4df14b94993d31646",
+    "status": "0x1",
+    "gasUsed": "75827",
+    "logs": [
+      {
+        "address": "0x02498066411904F466d037570511a48B67BE1611",
+        "topics": [
+          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+          "0x0000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef",
+          "0x00000000000000000000000052067dce3cfec3621b88d4de3cc77374f8a44494"
+        ],
+        "data": "0x0000000000000000000000000000000000000000000db91655330e2f16995335",
+        "logIndex": "0x1b"
+      },
+      {
+        "address": "0x52067DcE3CFEC3621b88D4DE3cC77374F8A44494",
+        "topics": [
+          "0x8113d738abdcb6b38357e9d53a54a7157861a09031b453651f0fe7fe151f59df",
+          "0x0000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef",
+          "0x0000000000000000000000008b216cc896f32bcabca3649ca918d532f72010ef"
+        ],
+        "data": "0x0000000000000000000000000000000000000000000db91655330e2f169953350000000000000000000000000000000000000000000000000087c1f10ecfbdfe00000000000000000000000000000000000000000000000000015f0cc742beaf0000000000000000000000000000000000000000000000000000000000000000",
+        "logIndex": "0x1c"
+      }
+    ]
+  },
+  "block": {
+    "number": "0x3ea9628",
+    "hash": "0x7f49fa6c6b18a8dc8c17258a58958f4ba74fee83f7d9a2b4df14b94993d31646",
+    "parentHash": "0x3cf2fbf06de03e4b9dd754d23497d5e933251884046cd227c9f2b7cbeb65b1e5",
+    "timestamp": "2026-09-17T21:56:03Z"
+  }
+}
