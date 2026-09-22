@@ -35,9 +35,17 @@ t.ok(Array.isArray(silent) && silent.length === 0, "disabled: /copy in private i
 t.ok((await handleUpdate(callback("copy.pause"), { env: {}, kv: fakeKV() })).length === 0, "disabled: a Copy callback is silence");
 t.ok((await handleUpdate({ update_id: 8, callback_query: { id: "1", data: "anything", from: { id: 7 }, message: { chat: { id: 100, type: "private" } } } }, { env: {}, kv: fakeKV() })).length === 0, "a foreign callback query is silence, enabled or not");
 t.ok(!KNOWN_COMMANDS.includes("copy") && COPY_COMMANDS.length === 1, "copy is not a Core command; it is claimed only while the seam is configured");
-t.ok(textOf(await handleUpdate(privateCopy("/start"), { env: {}, kv: fakeKV() })).includes("Lintcha Core"), "/start still answers as Core");
 {
-  const fallback = await handleUpdate(privateCopy("/start copy_site"), { env: {}, kv: fakeKV() });
+  // Core's /start reads token.json; answer it locally so the test never touches the network (live fetches left
+  // open handles that crashed Node on Windows at exit and broke `npm run deploy`).
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ address: null, pons: null, uniswap: null }), { status: 200, headers: { "content-type": "application/json" } });
+  let plain, fallback;
+  try {
+    plain = await handleUpdate(privateCopy("/start"), { env: {}, kv: fakeKV() });
+    fallback = await handleUpdate(privateCopy("/start copy_site"), { env: {}, kv: fakeKV() });
+  } finally { globalThis.fetch = realFetch; }
+  t.ok(textOf(plain).includes("Lintcha Core"), "/start still answers as Core");
   t.ok(fallback.length === 1 && /copy-trading/.test(JSON.stringify(fallback[0])), "disabled: the site deep link gets Core's /start answer instead of silence");
 }
 
