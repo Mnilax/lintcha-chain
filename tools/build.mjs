@@ -293,6 +293,9 @@ function render(tplName, lang, extra) {
     alt_en: abs(LOCALE_PATHS.en), alt_es: abs(LOCALE_PATHS.es), alt_pt: abs(LOCALE_PATHS.pt),
     rel_en: LOCALE_PATHS.en, rel_es: LOCALE_PATHS.es, rel_pt: LOCALE_PATHS.pt,
     contract_row: contractRow(), token_section: tokenSection(lang), launch_band: launchBand(), repo: REPO, anchor_method: "#s" + NUM.method,
+    // the prose that depends on the token's state: one key per state, picked here from the same validated token.json,
+    // so an activated page never keeps the pre-launch sentence and a dormant page never claims a live token
+    site_status_key: token.address ? "hero.status.live" : "hero.status.dormant", road_token_key: token.address ? "road.token.live.p" : "road.token.p",
     charts: landed("viz") ? charts(index, numbers, T, TO, lang) : "", ornament: landed("viz") ? ornament(T) : "",
     method_norm: landed("method") ? normalization(T, engine.L) : "", method_alias: landed("method") ? alias(T, engine.Links) : "",
     method_skeleton: landed("method") ? skeleton(T, engine.Skeleton) : "", method_index: landed("method") ? indexTable(T, numbers, engine.L, nf) : "",

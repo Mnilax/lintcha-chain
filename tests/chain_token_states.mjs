@@ -190,6 +190,28 @@ ok(count(c, /token-btn-pons/g) === 1 && count(c, /token-btn-uni/g) === 1 && c.in
 ok(count(c, /class="buy"/g) === 1, "still one filled button on the page");
 ok(count(c, /class="band"/g) === 1 && slot(c, "band-address") === address, "one band, the same address");
 
+console.log("token-state prose: the status line and the roadmap token paragraph follow token.json");
+// The hero status line and the roadmap's token paragraph have one string per state, and the build picks the key from
+// the same validated token.json that switches the contract row and the band. The check reads the visible page (the
+// i18n island is data for the language control, not text on the page) in every locale of states a, b and c: a dormant
+// page carries the dormant sentences and not one live sentence; an activated page carries the live sentences and not
+// one pre-launch sentence, the unrendered lore paragraph included, so a launch can never leave "if it launches" up.
+const visible = html => html.replace(/<script id="i18n-data"[^>]*>[\s\S]*?<\/script>/, "");
+const textOf = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const DORMANT_KEYS = ["hero.status.dormant", "road.token.p", "lore.token.p"], LIVE_KEYS = ["hero.status.live", "road.token.live.p"];
+for (const [name, live] of [["a", false], ["b", true], ["c", true]]) {
+  for (const [lang, locale] of Object.entries(LOCALES)) {
+    const strings = JSON.parse(fs.readFileSync(path.join(root, "src", "i18n-src", `chain.${lang}.json`), "utf8"));
+    const page = visible(fs.readFileSync(path.join(tmp, name, locale.file), "utf8"));
+    const statusKey = live ? "hero.status.live" : "hero.status.dormant", roadKey = live ? "road.token.live.p" : "road.token.p";
+    ok(count(page, /data-site-status/g) === 1 && page.includes(`<p class="copy-availability" data-site-status data-i18n="${statusKey}">${textOf(strings[statusKey])}</p>`),
+      `state ${name}, ${lang}: one status line under the hero, keyed ${statusKey}`);
+    ok(page.includes(`<p class="sec-p" data-i18n="${roadKey}">${textOf(strings[roadKey])}</p>`), `state ${name}, ${lang}: the roadmap token paragraph is ${roadKey}`);
+    const wrong = (live ? DORMANT_KEYS : LIVE_KEYS).filter(key => page.includes(`data-i18n="${key}"`) || page.includes(textOf(strings[key])));
+    ok(wrong.length === 0, `state ${name}, ${lang}: no ${live ? "pre-launch" : "post-launch"} sentence on the page` + (wrong.length ? ": " + wrong.join(", ") : ""));
+  }
+}
+
 console.log("links: both X accounts and Telegram filled");
 const l = build("links", { address, pons, uniswap: null }, { x: [{ href: xAccount, label: "@first" }, { href: xAccountTwo, label: "@second" }], telegram });
 const hrefs = outHrefs(l);
@@ -227,6 +249,8 @@ if (treeState && treeState.address === null) {
   else ok(count(tree, new RegExp(`class="token-btn token-btn-uni" href="${re(attr(treeState.uniswap))}"`, "g")) === 1,
     "a configured uniswap destination renders exactly once");
 }
+ok(treeLocales.every(page => page.includes(`data-site-status data-i18n="${treeState && treeState.address ? "hero.status.live" : "hero.status.dormant"}"`) &&
+  page.includes(`data-i18n="${treeState && treeState.address ? "road.token.live.p" : "road.token.p"}"`)), "every tree locale carries the status line and token paragraph of the tree's own token state");
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
 ok(count(tree, /class="out(?: [^"]*)?"/g) === 5 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === "https://x.com/lintchadotcom" && outHrefs(tree)[3] === TELEGRAM_DEFAULT && outHrefs(tree)[4] === "https://t.me/lintchabot?start=copy_site" &&
