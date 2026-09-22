@@ -35,8 +35,12 @@ export const HOLD_PAGE = "https://lintcha.com/hold";
 // ---------------------------------------------------------------- section eight source, with the invariant edits above
 
 const START_AS_GIVEN = [
-  "Lintcha Core is the read-only room half of lintcha. It reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with.",
+  "Lintcha — copy-trading on Robinhood Chain.",
   "",
+  "/copy — follow wallets and launchpad BUYs. Get alerts, or auto-copy matched BUYs inside the caps you set. SELL stays manual. Auto-BUY switches on only after every safety gate passes.",
+  "Funds stay in your own wallet. Never send a seed or private key in Telegram.",
+  "",
+  "$LINTCHA",
   "/ca — the contract",
   "/price — price and market cap, when the venue can be read",
   "/stats — what the feed has seen",
@@ -46,49 +50,45 @@ const START_AS_GIVEN = [
   "/verify — sign once, nothing moves",
   "/me — your holding and what it is worth",
   "",
-  "Lintcha Core never messages you first, asks for a key, seed or spending approval, holds funds or trades. Everything Core says is read from the chain, and its code is in the repository with the rest.",
-  "",
-  "/copy opens copy-trading inside Lintcha. Choose notifications or bounded auto-BUY; SELL stays manual. Never send a seed or private key in Telegram."
+  "Lintcha Core, the read-only half, never messages you first, asks for a key, seed or spending approval, holds funds or trades. Everything Core says is read from the chain, and its code is in the repository with the rest."
 ].join("\n");
 
 // The one addition. The feed shows buys and not sells, which is a choice about which facts reach the reader,
 // and this project's whole argument elsewhere is that it does not make choices like that. So it is said here
 // with the reason, in the open, rather than left for somebody to notice.
 const START_ON_SELLS = [
-  "The feed posts the buys it can prove, not sells. Sells are counted, and /stats shows them; they never land in the room. That is a choice about which facts reach you, and it is written here rather than left for you to find: everything else this project does refuses to pick which facts to show, and the feed is the one place we picked."
+  "The feed posts the buys it can prove, not sells. Sells are counted, and /stats shows them; they never land in the room. That is a choice about which facts reach you, so it is said here."
 ].join("\n");
 
-export const INLINE_DISCOVERY = "Type @lintchabot in any chat to share the Mini App, Read, Live, Deployer, Run or the current token status without leaving the conversation.";
+export const INLINE_DISCOVERY = "Type @lintchabot in any chat to share lintcha cards without leaving the conversation.";
 
 export const START = START_AS_GIVEN + "\n\n" + START_ON_SELLS + "\n\n" + INLINE_DISCOVERY;
 
 const START_PRETOKEN_AS_GIVEN = [
-  "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is online for the project while its token-dependent half sleeps.",
+  "Lintcha — copy-trading on Robinhood Chain.",
   "",
-  "Available now",
-  "/start — this status",
+  "/copy — follow wallets and launchpad BUYs. Get alerts, or auto-copy matched BUYs inside the caps you set. SELL stays manual. Auto-BUY switches on only after every safety gate passes.",
+  "Funds stay in your own wallet. Never send a seed or private key in Telegram.",
+  "",
   "/site — the site and repository",
   "",
-  "After one verified token address appears on the site",
-  "/ca — the contract",
-  "/price — price and market cap, when the venue can be read",
-  "/stats — what the feed has seen",
-  "holder verification and private watch rules",
+  "$LINTCHA does not exist yet. When one verified address appears on the site, /ca, /price, /stats and holder verification switch on. Until then they say so and publish no placeholder. There is no presale and no list to join.",
   "",
-  "$LINTCHA does not exist yet. Until it does, those token commands say so and publish no placeholder. There is no presale and no list to join.",
-  "",
-  "Lintcha Core never messages you first, asks for a key, seed or spending approval, holds funds or trades. /copy, when enabled, is a separate voluntary module."
+  "Lintcha Core, the read-only half, never messages you first, asks for a key, seed or spending approval, holds funds or trades."
 ].join("\n");
 export const START_PRETOKEN = START_PRETOKEN_AS_GIVEN + "\n\n" + INLINE_DISCOVERY;
 
 const START_TOKEN_STATE_UNREADABLE_AS_GIVEN = [
-  "lintcha reads what a launch on Robinhood Chain wrote about itself and says what those strings are shared with. This bot is online, but it cannot read the site's token document just now.",
+  "Lintcha — copy-trading on Robinhood Chain.",
+  "",
+  "/copy — follow wallets and launchpad BUYs. Get alerts, or auto-copy matched BUYs inside the caps you set. SELL stays manual. Auto-BUY switches on only after every safety gate passes.",
+  "Funds stay in your own wallet. Never send a seed or private key in Telegram.",
   "",
   "/site — the site and repository",
   "",
-  "I will not say from memory whether the token-dependent half is active. Try the token commands again after the site can be read.",
+  "I cannot read the site's token document just now, so I will not say from memory whether the $LINTCHA commands are active. Try them again in a moment.",
   "",
-  "Lintcha Core never messages you first, asks for a key, seed or spending approval, holds funds or trades. /copy, when enabled, is a separate voluntary module."
+  "Lintcha Core, the read-only half, never messages you first, asks for a key, seed or spending approval, holds funds or trades."
 ].join("\n");
 export const START_TOKEN_STATE_UNREADABLE = START_TOKEN_STATE_UNREADABLE_AS_GIVEN + "\n\n" + INLINE_DISCOVERY;
 
@@ -99,13 +99,13 @@ export const startText = state => state === "active" ? START
 export const GREETING = [
   "This room is the tape. Every buy the feed can prove lands here as it clears the venue the bot can read. Nobody here will message you first, and nobody will ever ask you for your seed. One contract; any other address with this name is not ours.",
   "",
-  "/ca for the contract, /price when the venue can be read, /site for everything else."
+  "/ca for the contract, /price when the venue can be read, /site for everything else. Copy-trading lives in a direct message: /copy."
 ].join("\n");
 
 export const GREETING_PRETOKEN = [
   "This is the public lintcha room. The bot is online before the token; the token-dependent tape stays asleep until the site carries one verified contract.",
   "",
-  "/start for status, /site for the product and source. /ca, /price, /stats and holder actions publish no placeholder before activation.",
+  "/start for status, /site for the product and source, /copy in a direct message for copy-trading. /ca, /price, /stats and holder actions publish no placeholder before activation.",
   "",
   "Nobody here will message you first, and nobody will ever ask for your key or seed. There is no presale and no list to join."
 ].join("\n");
@@ -113,7 +113,7 @@ export const GREETING_PRETOKEN = [
 export const GREETING_TOKEN_STATE_UNREADABLE = [
   "This is the public lintcha room. The bot is online, but it cannot read the site's token document just now, so it will not claim that the token-dependent tape is active.",
   "",
-  "/start for status, /site for the product and source. Try the token commands again after the site can be read.",
+  "/start for status, /site for the product and source, /copy in a direct message for copy-trading. Try the token commands again after the site can be read.",
   "",
   "Nobody here will message you first, and nobody will ever ask for your key or seed."
 ].join("\n");

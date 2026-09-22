@@ -30,11 +30,16 @@ t.ok(T.siteText({ pons: "https://example.invalid/?x=&lt;tag&gt;", uniswap: null 
 
 // ---------------------------------------------------------------- section eight, word for word
 const GIVEN = {
-  // Section eight, as amended for the shared identity: the read-only half is named Lintcha Core, and the one
-  // line about copy-trading names the opt-in Lintcha mode before any control appears. Owner-approved wording.
-  start: `Lintcha Core is the read-only room half of lintcha. It reads what a launch on
-    Robinhood Chain wrote about itself and says what those strings are shared with.
+  // Section eight, as amended when copy-trading became the main product (owner request, 2026-09-22): /copy leads,
+  // the $LINTCHA and holder commands follow, and the read-only half is named Lintcha Core in one closing line.
+  start: `Lintcha — copy-trading on Robinhood Chain.
 
+    /copy — follow wallets and launchpad BUYs. Get alerts, or auto-copy matched BUYs
+    inside the caps you set. SELL stays manual. Auto-BUY switches on only after every
+    safety gate passes.
+    Funds stay in your own wallet. Never send a seed or private key in Telegram.
+
+    $LINTCHA
     /ca — the contract
     /price — price and market cap, when the venue can be read
     /stats — what the feed has seen
@@ -44,18 +49,15 @@ const GIVEN = {
     /verify — sign once, nothing moves
     /me — your holding and what it is worth
 
-    Lintcha Core never messages you first, asks for a key, seed or spending
-    approval, holds funds or trades. Everything Core says is read from the chain,
-    and its code is in the repository with the rest.
-
-    /copy opens copy-trading inside Lintcha. Choose
-    notifications or bounded auto-BUY; SELL stays manual. Never send a seed or private
-    key in Telegram.`,
+    Lintcha Core, the read-only half, never messages you first, asks for a key, seed or
+    spending approval, holds funds or trades. Everything Core says is read from the chain,
+    and its code is in the repository with the rest.`,
   greeting: `This room is the tape. Every buy the feed can prove lands here as it clears the venue the bot can read.
     Nobody here will message you first, and nobody will ever ask you for
     your seed. One contract; any other address with this name is not ours.
 
-    /ca for the contract, /price when the venue can be read, /site for everything else.`,
+    /ca for the contract, /price when the venue can be read, /site for everything else.
+    Copy-trading lives in a direct message: /copy.`,
   verify: `Prove you hold $LINTCHA.
 
     Open the link, connect the wallet that holds the tokens, and sign one
@@ -87,7 +89,7 @@ t.ok(sameWords(T.NO_TOKEN_YET, GIVEN.noToken), "the no token text is word for wo
 
 // the shape of the two that are lists as well as prose
 t.ok(T.START.includes("/ca — the contract"), "/start keeps each command on its own line");
-t.ok(T.START.split("\n").filter(l => l.startsWith("/")).length === 7, "seven command lines in /start: four for the room, two for a holder, one naming copy-trading");
+t.ok(T.START.split("\n").filter(l => l.startsWith("/")).length === 7, "seven command lines in /start: copy-trading first, four for the room, two for a holder");
 t.ok(T.GREETING.includes("\n\n/ca for the contract"), "the greeting keeps its last line apart");
 t.ok(T.startText("active") === T.START && T.greetingText("active") === T.GREETING,
   "active status retains the full feed and holder texts");

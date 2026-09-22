@@ -36,7 +36,10 @@ t.ok((await handleUpdate(callback("copy.pause"), { env: {}, kv: fakeKV() })).len
 t.ok((await handleUpdate({ update_id: 8, callback_query: { id: "1", data: "anything", from: { id: 7 }, message: { chat: { id: 100, type: "private" } } } }, { env: {}, kv: fakeKV() })).length === 0, "a foreign callback query is silence, enabled or not");
 t.ok(!KNOWN_COMMANDS.includes("copy") && COPY_COMMANDS.length === 1, "copy is not a Core command; it is claimed only while the seam is configured");
 t.ok(textOf(await handleUpdate(privateCopy("/start"), { env: {}, kv: fakeKV() })).includes("Lintcha Core"), "/start still answers as Core");
-t.ok((await handleUpdate(privateCopy("/start copy_site"), { env: {}, kv: fakeKV() })).length === 0, "the site deep link stays silent when Copy is disabled");
+{
+  const fallback = await handleUpdate(privateCopy("/start copy_site"), { env: {}, kv: fakeKV() });
+  t.ok(fallback.length === 1 && /copy-trading/.test(JSON.stringify(fallback[0])), "disabled: the site deep link gets Core's /start answer instead of silence");
+}
 
 // Claims: a Copy callback is metered to its presser; a foreign callback is not known.
 const claim = telegramCommandClaimOf(callback("copy.pause"), "lintchabot", { copy: true });
