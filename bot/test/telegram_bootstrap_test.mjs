@@ -63,7 +63,7 @@ const generic = error => error && error.message === "telegram bootstrap failed" 
 t.ok(EXPECTED_BOT_USERNAME === "lintchabot" && DISCOVERY_CHAT === "@lintcha", "production identity constants are exact");
 t.ok(PRODUCTION_WEBHOOK_URL === "https://lintcha.com/api/telegram", "the production webhook target is exact HTTPS");
 t.ok(PRODUCTION_TOKEN_JSON_URL === "https://lintcha.com/token.json", "webhook activation reads only the fixed public token document");
-t.ok(JSON.stringify(PRODUCTION_ALLOWED_UPDATES) === JSON.stringify(["message", "edited_message", "inline_query"]), "only handled update kinds are requested");
+t.ok(JSON.stringify(PRODUCTION_ALLOWED_UPDATES) === JSON.stringify(["message", "edited_message", "inline_query", "callback_query"]), "only handled update kinds are requested, Copy button presses included");
 t.ok(validBotToken(TOKEN) && !validBotToken("") && !validBotToken("no-colon") && !validBotToken("0:suffix") &&
   !validBotToken("01:suffix") && !validBotToken("1:") && !validBotToken("1:two:colons") &&
   !validBotToken("1:bad/token"), "bot tokens require one colon, a nonzero decimal prefix and a nonempty path-safe suffix");
@@ -163,7 +163,7 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
   t.ok(calls.length === 2 && calls[0].url.endsWith("/getMe") && calls[1].url.endsWith("/setWebhook") &&
     JSON.stringify(body) === JSON.stringify({
       url: PRODUCTION_WEBHOOK_URL,
-      allowed_updates: ["message", "edited_message", "inline_query"],
+      allowed_updates: ["message", "edited_message", "inline_query", "callback_query"],
       drop_pending_updates: false,
       secret_token: SECRET
     }) && result.url === PRODUCTION_WEBHOOK_URL,
@@ -252,13 +252,13 @@ t.ok(validWebhookSecret(SECRET) && validWebhookSecret("a".repeat(WEBHOOK_SECRET_
   t.ok(calls.every(call => call.init.redirect === "error"), "every Bot API request refuses HTTP redirects");
   t.ok(JSON.stringify(body) === JSON.stringify({
     url: "https://lintcha.com/api/telegram",
-    allowed_updates: ["message", "edited_message", "inline_query"],
+    allowed_updates: ["message", "edited_message", "inline_query", "callback_query"],
     drop_pending_updates: false,
     secret_token: SECRET
   }), "setWebhook sends the exact production URL, update list, preservation flag and secret");
   t.ok(JSON.stringify(result) === JSON.stringify({
     url: "https://lintcha.com/api/telegram",
-    allowed_updates: ["message", "edited_message", "inline_query"],
+    allowed_updates: ["message", "edited_message", "inline_query", "callback_query"],
     drop_pending_updates: false
   }) && !JSON.stringify(result).includes(SECRET) && !JSON.stringify(result).includes(TOKEN), "set output contains safe fields only");
 }

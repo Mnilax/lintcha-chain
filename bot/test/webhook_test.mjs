@@ -128,7 +128,7 @@ t.ok(r.status === 200, "the right header is two hundred");
 t.ok(waited.length === 0, "the response is durably completed before the webhook acknowledges it");
 await Promise.all(waited);
 t.ok(net.sent.length === 1, "one message went out");
-t.ok(String(net.sent[0].text).startsWith("lintcha reads what a launch"), "and it is the /start text");
+t.ok(String(net.sent[0].text).startsWith("Lintcha — copy-trading on Robinhood Chain."), "and it is the /start text");
 
 waited.length = 0;
 const sentAfterFirst = net.sent.length;
