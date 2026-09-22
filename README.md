@@ -54,11 +54,36 @@
 
 ## Copy-trading
 
+Pick what to follow on Robinhood Chain, choose what happens when it moves, and keep the exit in your own hands.
+
+| Mode | What happens |
+| --- | --- |
+| **Notify only** | Follow activity without preparing a transaction. You choose when to do anything next. |
+| **Auto-copy BUY** | Matched BUYs are copied automatically within the caps, allowlists, slippage and expiry you set. |
+| **Manual SELL** | No automatic selling. Approval and trade are reviewed and confirmed as separate wallet actions. |
+
+**What you can follow.** A public wallet you add, or supported public BUY activity from launchpads such as pons. Every venue enters through an explicit allowlisted adapter. Lintcha does not invent a portfolio, rank traders or follow an account behind your back, and nothing is copied until your rule for that source is active.
+
+**What a copied BUY has to pass.** A matching transaction is only the trigger:
+
+1. **Match the source** — only activity from the wallet, venue, chain and BUY pattern named by your rule.
+2. **Simulate current state** — a fresh quote and estimate, with independent RPC providers required to agree before anything is signed.
+3. **Enforce your limits** — anything outside your per-trade and daily spend, slippage, router, spender, selector or expiry boundary is rejected.
+4. **Submit once, then reconcile** — a permitted BUY is broadcast once; unknown, dropped or replaced states are reconciled without a blind automatic retry.
+
+**What stays yours.** Funds stay in your self-custody wallet. No seed or private key enters Telegram or the Lintcha backend. Auto-BUY runs on a narrow, expiring, revocable permission; a per-user stop halts it immediately, and the service keeps a global broadcast stop. Every SELL starts from a fresh quote and needs its own wallet confirmation — there is no auto-SELL path.
+
+**Status.** Copy-trading lives in [`copy/`](copy/) and is being prepared for production. Auto-BUY stays off until the delegated-wallet, provider, simulation, contract-review and activation gates pass.
+
+[Open copy-trading in @lintchabot](https://t.me/lintchabot?start=copy_site)
+
+### Under the hood
+
 Copy supports notifications and a bounded auto-BUY path. An automatic BUY must match a selected source, pass two-provider simulation, fit both project and user caps, use an allowlisted chain, router and selector, and fit an active expiring delegation. Submission is one-shot: an uncertain result is reconciled manually and never broadcast again automatically.
 
 The implementation uses a user-owned Privy embedded wallet with a revocable TEE signer plus an immutable Lintcha BUY-only Pons wrapper. The wrapper independently enforces factory provenance, per-trade and daily limits, slippage, expiry and pause state. Provider setup, independent contract review, the first dust acceptance transaction, deployment and public activation remain separate owner-approved actions; there is no closed-beta requirement.
 
-## What lintcha-chain does
+## Lintcha Core: what the read-only tools do
 
 A launch presents a name, ticker, description, links, logo URI and creator fee recipient. Those fields can be reused, intentionally or otherwise. lintcha-chain makes that reuse visible without turning it into a verdict.
 
