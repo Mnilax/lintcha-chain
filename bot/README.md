@@ -98,7 +98,7 @@ when what actually happened was a network fault.
    Add `@lintchabot` to the public [lintcha room](https://t.me/lintcha) as an ordinary member,
    and confirm in Telegram itself that the target is a group or supergroup (not a channel) and
    that ordinary members, including the bot, may post. The webhook subscribes to `message`,
-   `edited_message` and `inline_query`; a channel is not a supported room.
+   `edited_message`, `inline_query` and `callback_query` (Copy buttons); a channel is not a supported room.
 
    Read the existing webhook before making any change, then discover the numeric room id without
    putting the bot token in argv, an environment variable, a file or shell history:
@@ -197,7 +197,7 @@ when what actually happened was a network fault.
    `https://lintcha.com/token.json` with a hard deadline, byte ceiling, no redirects and no cache. Pre-token
    mode requires the complete three-null document and refuses an active one; active mode requires a valid non-null
    address and refuses the dormant document. A malformed or unavailable document is a hard stop in either mode.
-   The helper fixes the webhook URL, requests only `message`, `edited_message` and `inline_query`, and
+   The helper fixes the webhook URL, requests only `message`, `edited_message`, `inline_query` and `callback_query` (Copy buttons), and
    explicitly keeps pending updates. It accepts both
    credentials only through masked TTY prompts; do not put either one in argv, environment variables or files.
 
