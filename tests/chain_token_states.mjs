@@ -207,7 +207,7 @@ for (const [name, live] of [["a", false], ["b", true], ["c", true]]) {
     ok(count(page, /data-site-status/g) === 1 && page.includes(`<p class="copy-availability" data-site-status data-i18n="${statusKey}">${textOf(strings[statusKey])}</p>`),
       `state ${name}, ${lang}: one status line under the hero, keyed ${statusKey}`);
     ok(page.includes(`<p class="sec-p" data-i18n="${roadKey}">${textOf(strings[roadKey])}</p>`), `state ${name}, ${lang}: the roadmap token paragraph is ${roadKey}`);
-    ok(!/private beta|beta privada/i.test(page), `state ${name}, ${lang}: no private-beta claim in visible page`);
+    ok(!/\bbeta\b/i.test(page), `state ${name}, ${lang}: no beta claim in visible page`);
     const wrong = (live ? DORMANT_KEYS : LIVE_KEYS).filter(key => page.includes(`data-i18n="${key}"`) || page.includes(textOf(strings[key])));
     ok(wrong.length === 0, `state ${name}, ${lang}: no ${live ? "pre-launch" : "post-launch"} sentence on the page` + (wrong.length ? ": " + wrong.join(", ") : ""));
   }
