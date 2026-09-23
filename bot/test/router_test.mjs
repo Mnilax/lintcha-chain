@@ -6,6 +6,7 @@
 import { handleUpdate, commandOf, ourBotJoined, KNOWN_COMMANDS, PUBLIC_COMMANDS, PRIVATE_COMMANDS } from "../src/router.js";
 import { forgetToken, forgetDecimals, setGate, SEL } from "../src/chain.js";
 import { putSession } from "../src/verify.js";
+import { watchKey, WATCH_TTL_SECONDS } from "../src/wallet-watch.js";
 import * as T from "../src/texts.js";
 import { harness, fakeKV, fakeGate, fakeGateFn, fakeNetwork, wordHex, launchRecordHex, FIXTURE, TOKEN_ADDRESS, VENUE_ADDRESS, WALLET_ADDRESS } from "./fakes.mjs";
 
@@ -41,6 +42,25 @@ t.ok(KNOWN_COMMANDS.includes("rules"), "and rules");
 t.ok(KNOWN_COMMANDS.includes("unrule"), "and unrule");
 t.ok(PRIVATE_COMMANDS.includes("rule"), "and all three are for a direct message only, like the other holder commands");
 
+// A public source address is saved independently of token activation and never enables trading.
+const watchKV = fakeKV();
+const sourceA = "0x" + "a".repeat(40);
+const sourceB = "0x" + "b".repeat(40);
+let watchReply = textOf(await handleUpdate(msg(sourceA.toUpperCase().replace(/^0X/, "0x")), { env: {}, kv: watchKV }));
+t.ok(watchReply.includes("Saved public source wallet") && watchReply.includes("BUY trade alerts are not active yet") &&
+  watchKV.ttlOf(watchKey(7)) === WATCH_TTL_SECONDS, "a bare public address saves a bounded source list with a 30-day TTL and no alert claim");
+watchReply = textOf(await handleUpdate(msg("/watch " + sourceB), { env: {}, kv: watchKV }));
+t.ok(watchReply.includes("Saved public source wallet"), "/watch adds a second public source");
+watchReply = textOf(await handleUpdate(msg("/watches"), { env: {}, kv: watchKV }));
+t.ok(watchReply.includes(sourceA) && watchReply.includes(sourceB) && watchReply.includes("BUY trade alerts are not active yet"), "/watches lists only saved source addresses and honest availability");
+watchReply = textOf(await handleUpdate(msg("/unwatch " + sourceA), { env: {}, kv: watchKV }));
+t.ok(watchReply.includes("Removed public source wallet") && !(await watchKV.get(watchKey(7))).includes(sourceA), "/unwatch removes one source");
+watchReply = textOf(await handleUpdate(msg("/watch 0x" + "0".repeat(40)), { env: {}, kv: watchKV }));
+t.ok(watchReply.includes("40 hex digits") && !(await watchKV.get(watchKey(7))).includes("0x" + "0".repeat(40)), "zero address is refused");
+t.ok((await handleUpdate(msg(sourceA, "supergroup"), { env: {}, kv: watchKV })).length === 0, "a bare address in a room is ignored");
+watchReply = textOf(await handleUpdate(msg("/forget"), { env: {}, kv: watchKV }));
+t.ok(watchReply.includes("watchlist deletion was accepted") && await watchKV.get(watchKey(7)) === null, "/forget clears saved source addresses before token activation");
+
 // ---------------------------------------------------------------- an unknown command is silence
 forgetToken();
 for (const text of ["/moon", "/top", "/ruler", "/unruly", "/help", "just talking", "/", "//"]) {
@@ -55,7 +75,7 @@ for (const c of KNOWN_COMMANDS) {
   const a = await handleUpdate(msg("/" + c), { env: {}, kv: fakeKV() });
   t.ok(a.length >= 1 && typeof a[0].text === "string" && a[0].text.trim().length > 0, `/${c} answers`);
 }
-t.ok(PUBLIC_COMMANDS.length === 5 && PRIVATE_COMMANDS.length === 6, "five commands answer anywhere and six in a direct message");
+t.ok(PUBLIC_COMMANDS.length === 5 && PRIVATE_COMMANDS.length === 9, "five commands answer anywhere and nine in a direct message");
 forgetToken();
 let body = textOf(await handleUpdate(msg("/start"), { env: {}, kv: fakeKV() }));
 t.ok(body === T.START_PRETOKEN && !/Every buy lands here|The feed posts buys/.test(body),
@@ -99,7 +119,7 @@ t.ok(body === T.START_TOKEN_STATE_UNREADABLE, "/start names an unreadable token 
 const offlineForget = fakeKV();
 await putSession(offlineForget, 7, FIXTURE.address);
 body = textOf(await handleUpdate(msg("/forget"), { env: {}, kv: offlineForget }));
-t.ok(body === T.FORGET_RULES_UNCONFIRMED && await offlineForget.get("session:7") === null, "/forget deletes a stored session while the site is unreadable and says rules were not confirmed");
+t.ok(body.startsWith(T.FORGET_RULES_UNCONFIRMED) && body.includes("watchlist deletion was accepted") && await offlineForget.get("session:7") === null, "/forget deletes a stored session and watched sources while the site is unreadable");
 net.siteOk = true;
 
 forgetToken();
@@ -107,7 +127,7 @@ net.site = { address: null, pons: null, uniswap: null };
 const prelaunchForget = fakeKV();
 await putSession(prelaunchForget, 7, FIXTURE.address);
 body = textOf(await handleUpdate(msg("/forget"), { env: {}, kv: prelaunchForget }));
-t.ok(body === T.FORGET_RULES_UNCONFIRMED && await prelaunchForget.get("session:7") === null, "/forget deletes a stored session before the token exists and says rules were not confirmed");
+t.ok(body.startsWith(T.FORGET_RULES_UNCONFIRMED) && body.includes("watchlist deletion was accepted") && await prelaunchForget.get("session:7") === null, "/forget deletes a stored session and watched sources before the token exists");
 
 // ---------------------------------------------------------------- holder commands only in a direct message
 for (const c of PRIVATE_COMMANDS) {
@@ -296,8 +316,8 @@ t.ok(body === T.SITE_UNREADABLE && [...unsafeHold.m.keys()].filter(k => k.starts
 const fk = fakeKV();
 await putSession(fk, 7, FIXTURE.address);
 const forgetWatch = { async forget() { return { ok: true }; } };
-t.ok(textOf(await handleUpdate(msg("/forget"), { env: {}, kv: fk, watch: forgetWatch })) === T.FORGOTTEN, "/forget gets both deletion acknowledgements");
-t.ok(textOf(await handleUpdate(msg("/forget"), { env: {}, kv: fk, watch: forgetWatch })) === T.FORGOTTEN, "/forget is idempotent and repeats both deletion requests");
+t.ok(textOf(await handleUpdate(msg("/forget"), { env: {}, kv: fk, watch: forgetWatch })).startsWith(T.FORGOTTEN), "/forget gets the deletion acknowledgements");
+t.ok(textOf(await handleUpdate(msg("/forget"), { env: {}, kv: fk, watch: forgetWatch })).startsWith(T.FORGOTTEN), "/forget is idempotent and repeats deletion requests");
 
 // ---------------------------------------------------------------- the feed command without a feed
 body = textOf(await handleUpdate(msg("/stats"), { env: {}, kv: fakeKV(), tape: null }));

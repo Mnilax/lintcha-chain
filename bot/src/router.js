@@ -29,10 +29,11 @@ import { requiredHttpsUrlOf } from "../../lib/config-contract.mjs";
 import { botUsernameOf } from "./config.js";
 import { inlineActionFor, inlineKindsFor, inlineQueryOf } from "./inline.js";
 import { copyActionsFor } from "./copy.js";
+import { bareWatchAddress, publicWatchAddress, watchedWallets, addWatchedWallet, removeWatchedWallet, forgetWatchedWallets, MAX_WATCHED_WALLETS } from "./wallet-watch.js";
 
 /** the commands that answer anywhere, and the ones that only answer in a direct message */
 export const PUBLIC_COMMANDS = ["start", "ca", "price", "stats", "site"];
-export const PRIVATE_COMMANDS = ["verify", "me", "forget", "rule", "rules", "unrule"];
+export const PRIVATE_COMMANDS = ["verify", "me", "forget", "rule", "rules", "unrule", "watch", "watches", "unwatch"];
 export const KNOWN_COMMANDS = [...PUBLIC_COMMANDS, ...PRIVATE_COMMANDS];
 /** Lintcha Copy's one command. Not a Core command: it is claimed only while the seam is configured and is answered by ./copy.js, never here. */
 export const COPY_COMMANDS = ["copy"];
@@ -116,6 +117,8 @@ export async function handleUpdate(update, deps) {
   if (!msg || !msg.chat) return [];
   const chat = msg.chat.id;
   const cmd = commandOf(msg.text, env.BOT_USERNAME);
+  const bareAddress = isPrivate(msg) ? bareWatchAddress(msg.text) : null;
+  if (bareAddress) return await watchActions(kv, chat, msg, "watch", bareAddress);
   if (!cmd) return [];
   if (!KNOWN_COMMANDS.includes(cmd)) return [];                      // silence, on purpose
   if (PRIVATE_COMMANDS.includes(cmd) && !isPrivate(msg)) return [send(chat, T.PRIVATE_ONLY)];
@@ -123,6 +126,7 @@ export async function handleUpdate(update, deps) {
   // Forgetting stored data must not depend on the site, the token or the chain being readable. It is intentionally
   // dispatched before every network-backed gate so the privacy promise still works during an outage and before launch.
   if (cmd === "forget") return await forgetActions(kv, watch, chat, msg);
+  if (cmd === "watch" || cmd === "watches" || cmd === "unwatch") return await watchActions(kv, chat, msg, cmd, argsOf(msg.text));
   if (cmd === "start") {
     const token = await readToken(env);
     const actions = [send(chat, T.startText(tokenStateOf(token)))];
@@ -319,19 +323,47 @@ async function unruleActions(kv, watch, chat, msg) {
 
 async function forgetActions(kv, watch, chat, msg) {
   const who = (msg.from && msg.from.id) || chat;
-  // The two stores are independent. A failure or lost response from either must not suppress the other
-  // deletion, and an acknowledgement is not upgraded into a claim about the operation that was not seen.
+  // Each deletion runs independently. An acknowledgement is never upgraded into a claim about a store
+  // whose response was lost. KV can briefly serve an older cached copy even after accepting deletion.
   const session = kv && typeof kv.delete === "function"
     ? Promise.resolve().then(() => dropSession(kv, who)).then(() => true, () => false)
     : Promise.resolve(false);
   const rules = watch && typeof watch.forget === "function"
     ? Promise.resolve().then(() => watch.forget(who)).then(r => !!(r && r.ok), () => false)
     : Promise.resolve(false);
-  const [sessionOk, rulesOk] = await Promise.all([session, rules]);
-  if (sessionOk && rulesOk) return [send(chat, T.FORGOTTEN)];
-  if (sessionOk) return [send(chat, T.FORGET_RULES_UNCONFIRMED)];
-  if (rulesOk) return [send(chat, T.FORGET_SESSION_UNCONFIRMED)];
-  return [send(chat, T.FORGET_UNCONFIRMED)];
+  const watched = Promise.resolve().then(() => forgetWatchedWallets(kv, who)).then(() => true, () => false);
+  const [sessionOk, rulesOk, watchedOk] = await Promise.all([session, rules, watched]);
+  const base = sessionOk && rulesOk ? T.FORGOTTEN : sessionOk ? T.FORGET_RULES_UNCONFIRMED :
+    rulesOk ? T.FORGET_SESSION_UNCONFIRMED : T.FORGET_UNCONFIRMED;
+  return [send(chat, base + (watchedOk
+    ? " The public source-wallet watchlist deletion was accepted. Its KV cache may briefly serve an older copy."
+    : " I could not confirm deletion of your public source-wallet watchlist. Retry /forget."))];
+}
+
+async function watchActions(kv, chat, msg, command, argument) {
+  const who = (msg.from && msg.from.id) || chat;
+  const inactive = "BUY trade alerts are not active yet.";
+  if (command === "watches") {
+    try {
+      const addresses = await watchedWallets(kv, who);
+      const lines = addresses.length
+        ? ["Saved public source wallets:", ...addresses.map((address) => "• " + code(address))]
+        : ["No public source wallets saved. Send a 0x wallet address or /watch 0x... to add one."];
+      lines.push("", inactive, "The list expires up to 30 days after its last change. /forget requests deletion.");
+      return [send(chat, lines.join("\n"))];
+    } catch { return [send(chat, "The source-wallet list is temporarily unavailable. Try again.")]; }
+  }
+  const address = publicWatchAddress(argument);
+  if (!address) return [send(chat, `Send /${command} followed by one public 0x wallet address (40 hex digits). No keys or seed phrases. ${inactive}`)];
+  try {
+    if (command === "watch") {
+      const result = await addWatchedWallet(kv, who, address);
+      if (result.full) return [send(chat, `Your source-wallet list is full (${MAX_WATCHED_WALLETS} addresses). Remove one with /unwatch 0x... ${inactive}`)];
+      return [send(chat, `${result.added ? "Saved" : "Already saved"} public source wallet ${code(address)}. ${inactive} /watches shows the list. It expires up to 30 days after its last change.`)];
+    }
+    const result = await removeWatchedWallet(kv, who, address);
+    return [send(chat, `${result.removed ? "Removed" : "Not found in your list:"} public source wallet ${code(address)}. ${inactive}`)];
+  } catch { return [send(chat, "The source-wallet list is temporarily unavailable. Nothing was confirmed saved or removed. Try again.")]; }
 }
 
 export { esc };
