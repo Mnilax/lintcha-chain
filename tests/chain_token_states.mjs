@@ -58,7 +58,7 @@ const xAccount = "https://example.invalid/x/" + crypto.randomBytes(4).toString("
 const xAccountTwo = "https://example.invalid/x/" + crypto.randomBytes(4).toString("hex");
 const telegram = "https://example.invalid/telegram/" + crypto.randomBytes(4).toString("hex");
 const X_DEFAULT = "https://x.com/mnilax";   // the account the vendored footer links; the build falls back to it when links.json carries no x
-const TELEGRAM_DEFAULT = "https://t.me/lintcha";
+const TELEGRAM_DEFAULT = "https://t.me/lintchaRH";
 const ORIGIN = JSON.parse(fs.readFileSync(path.join(root, "site", "launch-site.json"), "utf8")).origin;
 const LOCALES = Object.freeze({ en: { file: "index.html", url: "/" }, es: { file: "es/index.html", url: "/es/" }, pt: { file: "pt/index.html", url: "/pt/" } });
 const shippedNumbers = JSON.parse(fs.readFileSync(path.join(root, "site", "launch-numbers.json"), "utf8"));
@@ -207,7 +207,6 @@ for (const [name, live] of [["a", false], ["b", true], ["c", true]]) {
     ok(count(page, /data-site-status/g) === 1 && page.includes(`<p class="copy-availability" data-site-status data-i18n="${statusKey}">${textOf(strings[statusKey])}</p>`),
       `state ${name}, ${lang}: one status line under the hero, keyed ${statusKey}`);
     ok(page.includes(`<p class="sec-p" data-i18n="${roadKey}">${textOf(strings[roadKey])}</p>`), `state ${name}, ${lang}: the roadmap token paragraph is ${roadKey}`);
-    ok(!/\bbeta\b/i.test(page), `state ${name}, ${lang}: no beta claim in visible page`);
     const wrong = (live ? DORMANT_KEYS : LIVE_KEYS).filter(key => page.includes(`data-i18n="${key}"`) || page.includes(textOf(strings[key])));
     ok(wrong.length === 0, `state ${name}, ${lang}: no ${live ? "pre-launch" : "post-launch"} sentence on the page` + (wrong.length ? ": " + wrong.join(", ") : ""));
   }

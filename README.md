@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://lintcha.com/">
-    <img src="assets/banner.png" width="100%" alt="lintcha — Copy-first trading with read-only Core tools">
+    <img src="assets/banner.png" width="100%" alt="Echo Bat beside the Lintcha copy-trading bot banner for Robinhood Chain.">
   </a>
 </p>
 
@@ -32,7 +32,7 @@
   ·
   <a href="https://t.me/lintchabot?start=copy_site">Telegram Bot</a>
   ·
-  <a href="https://t.me/lintcha">Telegram room</a>
+  <a href="https://t.me/lintchaRH">Telegram channel</a>
 </p>
 
 <p align="center">
@@ -81,7 +81,7 @@ Pick what to follow on Robinhood Chain, choose what happens when it moves, and k
 
 Copy supports notifications and a bounded auto-BUY path. An automatic BUY must match a selected source, pass two-provider simulation, fit both project and user caps, use an allowlisted chain, router and selector, and fit an active expiring delegation. Submission is one-shot: an uncertain result is reconciled manually and never broadcast again automatically.
 
-The implementation uses a user-owned Privy embedded wallet with a revocable TEE signer plus an immutable Lintcha BUY-only Pons wrapper. The wrapper independently enforces factory provenance, per-trade and daily limits, slippage, expiry and pause state. Provider setup, independent contract review, the first dust acceptance transaction, deployment and public activation remain separate owner-approved actions; there is no closed-beta requirement.
+The implementation uses a user-owned Privy embedded wallet with a revocable TEE signer plus an immutable Lintcha BUY-only Pons wrapper. The wrapper independently enforces factory provenance, per-trade and daily limits, slippage, expiry and pause state. Provider setup, independent contract review, the first dust acceptance transaction, deployment and public activation remain separate owner-approved actions.
 
 ## Lintcha Core: what the read-only tools do
 

@@ -12,7 +12,7 @@ No RPC credential, bot token, wallet credential, session key, signature or trans
 5. **Caps**: approve dust acceptance values for per-BUY spend, daily spend, slippage and manual-SELL token limits. Pons V2 is the only pinned venue; Uniswap remains excluded until equivalent evidence exists.
 6. **Security and device QA**: nominate an independent reviewer for the threat model, seam, secure sheet and runbook; execute `copy/docs/DEVICE_QA_MATRIX.md` with a dust wallet.
 7. **Public activation**: only after the preceding evidence, publish the existing `https://lintcha.com/copy/*` asset route and `https://lintcha.com/api/copy/*` Worker route, enable the Core service binding, deploy the current Core Worker, and verify health/outbox/webhook end to end while the global kill switch remains paused.
-8. **Activation**: fund only the owner-controlled dust wallet, create the first revocable delegation, run one BUY plus revocation while public trading remains paused, reconcile it through both RPCs, then separately approve the global public resume. There is no closed-beta phase.
+8. **Activation**: fund only the owner-controlled dust wallet, create the first revocable delegation, run one BUY plus revocation while public trading remains paused, reconcile it through both RPCs, then separately approve the global public resume.
 
 Never send bot token, RPC URLs, API keys, seed, mnemonic or private key in Telegram or this workspace. No wallet is funded until its own gate is approved.
 
