@@ -14,6 +14,7 @@ const STATUS = Object.freeze({
   CONFIRMATION_REVISION_MISMATCH: 409, CONFIRMATION_REPLAYED: 409, SUBMISSION_REPLAYED: 409, NOT_CANCELLABLE: 409, NOT_RECONCILABLE: 409, QUOTE_ALREADY_USED: 409,
   CONFIRMATION_EXPIRED: 410, SUBMISSION_TOO_LATE: 410, STALE_QUOTE: 410,
   INVALID_CONFIRMATION_TOKEN: 400, INVALID_TRANSACTION_HASH: 400, INVALID_PUBLIC_ADDRESS: 400, INVALID_WALLET_KIND: 400, INVALID_UNSIGNED_TRANSACTION: 400, INVALID_QUOTE: 400, INVALID_BODY: 400, INVALID_ROUTE: 404,
+  INVALID_DELEGATION_CAP: 400, INVALID_DELEGATION_EXPIRY: 400, INVALID_DELEGATION_SLIPPAGE: 400, DELEGATION_VERIFICATION_FAILED: 409,
   GLOBAL_BROADCAST_KILL_SWITCH: 423, USER_BROADCAST_KILL_SWITCH: 423, WALLET_BROADCAST_KILL_SWITCH: 423, USER_PAUSED: 423, USER_NOT_CONFIRM_EACH: 409, USER_NOT_AUTO_BUY: 409, AUTO_BUY_DISABLED: 423, ACTIVE_DELEGATION_REQUIRED: 409, WALLET_NOT_REGISTERED: 409, WALLET_LIMIT_REACHED: 409,
   RATE_LIMITED: 429, ORIGIN_FORBIDDEN: 403, METHOD_NOT_ALLOWED: 405, UNSUPPORTED_MEDIA_TYPE: 415, BODY_TOO_LARGE: 413,
   SIGNED_OR_SECRET_MATERIAL_FORBIDDEN: 400,
@@ -94,7 +95,7 @@ export class SignedServiceRequestVerifier {
  *   Operator      → HMAC(admin secret): /admin/kill-switch, /admin/reconcile
  * There is no route that signs, broadcasts, or accepts key material.
  */
-export function createCopyHttpHandler({ config, service, surface, userStore, delegationStore = null, outbox, killSwitches, gatewayVerifier, serviceVerifier, adminVerifier = null, initDataVerifier, clock = () => Math.floor(Date.now() / 1000), rateLimiter = new FixedWindowRateLimiter(), persistKillSwitches = async () => {} }) {
+export function createCopyHttpHandler({ config, service, surface, userStore, delegationStore = null, delegationVerifier = null, outbox, killSwitches, gatewayVerifier, serviceVerifier, adminVerifier = null, initDataVerifier, clock = () => Math.floor(Date.now() / 1000), rateLimiter = new FixedWindowRateLimiter(), persistKillSwitches = async () => {} }) {
   const base = config.apiPath.replace(/\/$/, "");
 
   async function clientIdentity(request) {
@@ -203,6 +204,46 @@ export function createCopyHttpHandler({ config, service, surface, userStore, del
       if (body.seed || body.mnemonic || body.privateKey || body.vaultRecord) throw new HttpError("SIGNED_OR_SECRET_MATERIAL_FORBIDDEN");
       await userStore.upsert({ telegramUserId: identity.telegramUserId });
       return json({ ok: true, wallets: await userStore.addWallet({ telegramUserId: identity.telegramUserId, publicAddress: body.publicAddress.toLowerCase(), walletKind: body.walletKind || "EXTERNAL", publicLabel: typeof body.publicLabel === "string" ? body.publicLabel.replace(/[<>\u0000-\u001f]/g, "").slice(0, 32) : null }) });
+    }
+
+    if (route[0] === "delegations" && route.length === 2) {
+      if (method !== "POST") throw new HttpError("METHOD_NOT_ALLOWED");
+      const identity = await clientIdentity(request);
+      const body = await readJson(request);
+      if (body.privateKey || body.authorizationPrivateKey || body.sessionKey || body.signature || body.seed || body.mnemonic || body.signedTransaction || body.rawTransaction) throw new HttpError("SIGNED_OR_SECRET_MATERIAL_FORBIDDEN");
+      if (!delegationStore || !delegationVerifier || !config.autoBuyEnabled || !config.delegatedSubmissionEnabled) throw new HttpError("AUTO_BUY_DISABLED");
+      const walletAddress = String(body.walletAddress || "").toLowerCase();
+      if (!ADDRESS.test(walletAddress)) throw new HttpError("INVALID_PUBLIC_ADDRESS");
+      const wallets = await userStore.wallets(identity.telegramUserId);
+      if (!wallets.some((row) => row.publicAddress === walletAddress)) throw new HttpError("WALLET_NOT_REGISTERED");
+      if (route[1] === "deactivate") {
+        await delegationStore.revoke(identity.telegramUserId, walletAddress);
+        const user = await userStore.get(identity.telegramUserId);
+        if (user?.mode === "AUTO_BUY") await userStore.upsert({ telegramUserId: identity.telegramUserId, mode: "NOTIFY_ONLY" });
+        return json({ ok: true, active: false, walletAddress });
+      }
+      if (route[1] !== "activate") throw new HttpError("INVALID_ROUTE");
+      let maxTransactionWei, maxDailySpendWei;
+      try {
+        if (!/^\d{1,80}$/.test(body.maxTransactionWei || "") || !/^\d{1,80}$/.test(body.maxDailySpendWei || "")) throw new Error();
+        maxTransactionWei = BigInt(body.maxTransactionWei);
+        maxDailySpendWei = BigInt(body.maxDailySpendWei);
+      } catch { throw new HttpError("INVALID_DELEGATION_CAP"); }
+      const systemTransactionCap = BigInt(config.policy.maxTransactionWei);
+      const systemDailyCap = BigInt(config.policy.maxDailySpendWei);
+      if (maxTransactionWei <= 0n || maxDailySpendWei < maxTransactionWei || maxTransactionWei > systemTransactionCap || maxDailySpendWei > systemDailyCap) throw new HttpError("INVALID_DELEGATION_CAP");
+      if (!Number.isSafeInteger(body.maxSlippageBps) || body.maxSlippageBps < 0 || body.maxSlippageBps > config.policy.maxSlippageBps) throw new HttpError("INVALID_DELEGATION_SLIPPAGE");
+      const now = clock();
+      if (!Number.isSafeInteger(body.expiresAt) || body.expiresAt <= now || body.expiresAt > now + config.delegationMaxTtlSeconds) throw new HttpError("INVALID_DELEGATION_EXPIRY");
+      const verified = await delegationVerifier.verifyDelegation({ walletAddress });
+      if (verified.walletAddress !== walletAddress || verified.chainId !== config.chainId) throw new HttpError("DELEGATION_VERIFICATION_FAILED");
+      const delegation = await delegationStore.put({
+        userId: identity.telegramUserId, walletAddress, architecture: verified.architecture, authorizationRef: verified.authorizationRef,
+        status: "ACTIVE", chainId: config.chainId, routers: [config.autoBuyExecutorAddress], selectors: ["0xa59ac6dd"],
+        maxTransactionWei: maxTransactionWei.toString(), maxDailySpendWei: maxDailySpendWei.toString(), maxSlippageBps: body.maxSlippageBps, expiresAt: body.expiresAt,
+      });
+      await userStore.upsert({ telegramUserId: identity.telegramUserId, mode: "AUTO_BUY" });
+      return json({ ok: true, active: true, delegation: { walletAddress: delegation.walletAddress, architecture: delegation.architecture, chainId: delegation.chainId, maxTransactionWei: delegation.maxTransactionWei, maxDailySpendWei: delegation.maxDailySpendWei, maxSlippageBps: delegation.maxSlippageBps, expiresAt: delegation.expiresAt } });
     }
 
     if (route[0] === "intents" && INTENT_ID.test(route[1] || "")) {

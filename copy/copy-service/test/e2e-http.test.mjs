@@ -31,7 +31,7 @@ async function initDataFor(pair, userId, authDate = NOW) {
   return params.toString();
 }
 
-async function stack(fixtureOptions = {}, configEnv = {}) {
+async function stack(fixtureOptions = {}, configEnv = {}, runtimeOptions = {}) {
   const keys = await telegramKeys();
   const current = fixture(fixtureOptions);
   const config = loadCopyConfig({ COPY_APP_ORIGIN: ORIGIN, COPY_ENVIRONMENT: "preproduction", ...configEnv });
@@ -42,7 +42,7 @@ async function stack(fixtureOptions = {}, configEnv = {}) {
   const delegationStore = current.service.delegationStore;
   const surface = new CopyTelegramSurface({ userStore, delegationStore, killSwitches: current.killSwitches, appOrigin: ORIGIN, appPath: "/copy/", service: current.service, autoBuyAvailable: config.autoBuyEnabled });
   const handler = createCopyHttpHandler({
-    config, service: current.service, surface, userStore, delegationStore, outbox, killSwitches: current.killSwitches, clock,
+    config, service: current.service, surface, userStore, delegationStore, delegationVerifier: runtimeOptions.delegationVerifier || null, outbox, killSwitches: current.killSwitches, clock,
     gatewayVerifier: new GatewayRequestVerifier({ secret: GATEWAY_SECRET, replayStore }),
     serviceVerifier: {
       outbox: new SignedServiceRequestVerifier({ secret: GATEWAY_SECRET, schema: "lintcha.copy.outbox.v1", replayStore }),
@@ -65,6 +65,35 @@ async function stack(fixtureOptions = {}, configEnv = {}) {
   const nextUpdate = () => ++updateId;
   return { ...current, keys, config, userStore, outbox, handler, call, post, signed, client, telegram, privateMessage, callback, nextUpdate, clock };
 }
+
+test("Mini App activation stores only server-verified public delegation metadata and deactivation disables auto-BUY", async () => {
+  const delegations = new MemoryDelegationStore(() => NOW);
+  const verified = [];
+  const s = await stack(
+    { service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { return { transactionHash: HASH }; } } } },
+    { COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER, COPY_ALLOW_ROUTERS: JSON.stringify([ROUTER]), COPY_ALLOW_SELECTORS: JSON.stringify(["0xa59ac6dd"]), COPY_MAX_TRANSACTION_WEI: "1000", COPY_MAX_DAILY_SPEND_WEI: "3000", COPY_MAX_SLIPPAGE_BPS: "100" },
+    { delegationVerifier: { async verifyDelegation(input) { verified.push(input); return { architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", walletAddress: input.walletAddress, chainId: 4663 }; } } },
+  );
+  const headers = await s.client("42");
+  await s.post("wallet", { publicAddress: WALLET, walletKind: "EXTERNAL" }, headers);
+  const body = { walletAddress: WALLET, maxTransactionWei: "500", maxDailySpendWei: "1500", maxSlippageBps: 50, expiresAt: NOW + 3600 };
+  const activated = await (await s.post("delegations/activate", body, headers)).json();
+  assert.equal(activated.active, true);
+  assert.equal(activated.delegation.architecture, "PRIVY_TEE");
+  assert.equal((await s.userStore.get("42")).mode, "AUTO_BUY");
+  assert.deepEqual(verified, [{ walletAddress: WALLET }]);
+  assert.equal(JSON.stringify(activated).includes("authorizationRef"), false);
+  const active = await delegations.getActive("42", WALLET);
+  assert.equal(active.selectors[0], "0xa59ac6dd");
+  assert.equal(active.routers[0], ROUTER);
+  assert.equal(active.maxTransactionWei, "500");
+  assert.equal((await s.post("delegations/activate", { ...body, maxTransactionWei: "1001" }, headers)).status, 400);
+  assert.equal((await s.post("delegations/activate", { ...body, privateKey: "never" }, headers)).status, 400);
+  const deactivated = await (await s.post("delegations/deactivate", { walletAddress: WALLET }, headers)).json();
+  assert.equal(deactivated.active, false);
+  assert.equal(await delegations.getActive("42", WALLET), null);
+  assert.equal((await s.userStore.get("42")).mode, "NOTIFY_ONLY");
+});
 
 test("end-to-end bounded auto-BUY activates only after delegation and submits once", async () => {
   const delegations = new MemoryDelegationStore(() => NOW);

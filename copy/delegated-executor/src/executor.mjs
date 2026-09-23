@@ -13,6 +13,43 @@ export function parsePrivyWalletRef(value) {
   return match[1];
 }
 
+function publicVerificationInput(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("INVALID_DELEGATION_VERIFICATION");
+  for (const forbidden of ["privateKey", "seed", "mnemonic", "signature", "signedTransaction", "rawTransaction", "authorizationPrivateKey"]) {
+    if (payload[forbidden]) throw new Error("SECRET_OR_SIGNED_MATERIAL_FORBIDDEN");
+  }
+  const walletAddress = String(payload.walletAddress || "").toLowerCase();
+  if (!ADDRESS.test(walletAddress)) throw new Error("INVALID_WALLET_ADDRESS");
+  return Object.freeze({ walletAddress });
+}
+
+function policyIds(value) {
+  if (Array.isArray(value)) return value.map(String);
+  return value ? [String(value)] : [];
+}
+
+/** Reads only public Privy wallet metadata and proves the configured signer + policy are attached. */
+export class PrivyDelegationVerifier {
+  constructor({ client, signerId, policyId, chainId }) {
+    if (!client?.wallets || !/^[a-zA-Z0-9_-]{8,160}$/.test(signerId || "") || !/^[a-zA-Z0-9_-]{8,160}$/.test(policyId || "") || !Number.isSafeInteger(chainId)) throw new Error("INVALID_DELEGATION_VERIFIER_CONFIG");
+    this.client = client;
+    this.signerId = signerId;
+    this.policyId = policyId;
+    this.chainId = chainId;
+  }
+  async verify(payload) {
+    const input = publicVerificationInput(payload);
+    const wallet = await this.client.wallets().getWalletByAddress({ address: input.walletAddress, include_archived: false });
+    if (!wallet || !/^[a-zA-Z0-9_-]{8,128}$/.test(wallet.id || "") || String(wallet.address || "").toLowerCase() !== input.walletAddress) throw new Error("PRIVY_WALLET_MISMATCH");
+    if (wallet.chain_type !== "ethereum" || wallet.archived_at) throw new Error("PRIVY_WALLET_NOT_ACTIVE");
+    const signer = (wallet.additional_signers || []).find((item) => item?.signer_id === this.signerId);
+    if (!signer) throw new Error("PRIVY_SIGNER_NOT_DELEGATED");
+    const attachedPolicies = new Set([...policyIds(wallet.policy_ids), ...policyIds(signer.override_policy_ids)]);
+    if (!attachedPolicies.has(this.policyId)) throw new Error("PRIVY_POLICY_NOT_ATTACHED");
+    return Object.freeze({ architecture: "PRIVY_TEE", authorizationRef: `privy-wallet:${wallet.id}`, walletAddress: input.walletAddress, chainId: this.chainId });
+  }
+}
+
 export function validateSubmission(payload, config, now = Math.floor(Date.now() / 1000)) {
   if (!payload || typeof payload !== "object") throw new Error("INVALID_SUBMISSION");
   for (const forbidden of ["privateKey", "seed", "mnemonic", "signature", "signedTransaction", "rawTransaction"]) {
@@ -114,15 +151,16 @@ export class DelegatedExecutor {
   }
 }
 
-export function createExecutorHandler(executor) {
+export function createExecutorHandler(executor, delegationVerifier = null) {
   return async function handle(request) {
     const url = new URL(request.url);
-    if (request.method !== "POST" || url.pathname !== "/submit") return new Response(JSON.stringify({ ok: false, why: "NOT_FOUND" }), { status: 404, headers: { "content-type": "application/json" } });
+    if (request.method !== "POST" || !["/submit", "/verify-delegation"].includes(url.pathname)) return new Response(JSON.stringify({ ok: false, why: "NOT_FOUND" }), { status: 404, headers: { "content-type": "application/json" } });
     try {
-      const result = await executor.submit(await request.json());
+      if (url.pathname === "/verify-delegation" && !delegationVerifier) throw new Error("DELEGATION_VERIFIER_NOT_CONFIGURED");
+      const result = url.pathname === "/submit" ? await executor.submit(await request.json()) : await delegationVerifier.verify(await request.json());
       return new Response(JSON.stringify(result), { status: 200, headers: { "content-type": "application/json", "cache-control": "no-store" } });
     } catch (error) {
-      const status = error.message === "EXECUTOR_KILL_SWITCH_ACTIVE" ? 423 : error.message === "EXECUTOR_RECONCILIATION_REQUIRED" ? 409 : 400;
+      const status = error.message === "EXECUTOR_KILL_SWITCH_ACTIVE" ? 423 : error.message === "EXECUTOR_RECONCILIATION_REQUIRED" ? 409 : error.message === "DELEGATION_VERIFIER_NOT_CONFIGURED" ? 503 : 400;
       return new Response(JSON.stringify({ ok: false, why: error.message }), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
     }
   };

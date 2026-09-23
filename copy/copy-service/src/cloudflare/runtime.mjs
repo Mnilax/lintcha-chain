@@ -51,10 +51,11 @@ export async function buildRuntime(env, { coordinated = true, fetchImpl = global
   const policyGate = new ExecutionPolicyGate({ config: config.policy, killSwitches, spendLedger: new D1SpendLedger(db) });
   const auditLog = await HashChainedAuditLog.resume({ sink: new D1AuditSink(db), clock: () => Date.now() });
   const delegationStore = new D1DelegationStore(db, clock);
+  const delegatedExecutor = config.delegatedSubmissionEnabled ? new ServiceBindingDelegatedExecutor(env.COPY_DELEGATED_EXECUTOR) : new UnconfiguredDelegatedExecutor();
   const localService = new LintchaCopyService({
     policyGate, simulator: new SimulationQuorum({ rpcPool, maxGasEstimateSkewBps: config.rpc.maxGasEstimateSkewBps }), rpcPool,
     auditLog, intentStore: new D1IntentStore(db), confirmationSecret, clock, delegationStore,
-    delegatedExecutor: config.delegatedSubmissionEnabled ? new ServiceBindingDelegatedExecutor(env.COPY_DELEGATED_EXECUTOR) : new UnconfiguredDelegatedExecutor(),
+    delegatedExecutor,
     autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled, autoBuyExecutorAddress: config.autoBuyExecutorAddress,
   });
   const service = coordinated
@@ -65,7 +66,7 @@ export async function buildRuntime(env, { coordinated = true, fetchImpl = global
   const replayStore = new D1ReplayStore(db);
   const surface = new CopyTelegramSurface({ userStore, delegationStore, killSwitches, appOrigin: config.appOrigin, appPath: config.appPath, service, autoBuyAvailable: config.autoBuyEnabled });
   const handler = createCopyHttpHandler({
-    config, service, surface, userStore, delegationStore, outbox, killSwitches, clock,
+    config, service, surface, userStore, delegationStore, delegationVerifier: delegatedExecutor, outbox, killSwitches, clock,
     gatewayVerifier: new GatewayRequestVerifier({ secret: gatewaySecret, replayStore }),
     serviceVerifier: {
       outbox: new SignedServiceRequestVerifier({ secret: gatewaySecret, schema: "lintcha.copy.outbox.v1", replayStore }),

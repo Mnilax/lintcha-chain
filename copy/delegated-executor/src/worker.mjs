@@ -1,5 +1,5 @@
 import { PrivyClient } from "@privy-io/node";
-import { D1SubmissionStore, DelegatedExecutor, PrivyDelegatedWalletClient, createExecutorHandler } from "./executor.mjs";
+import { D1SubmissionStore, DelegatedExecutor, PrivyDelegatedWalletClient, PrivyDelegationVerifier, createExecutorHandler } from "./executor.mjs";
 
 const FORBIDDEN = /^(?:BOT_TOKEN|TELEGRAM_BOT_TOKEN|TELEGRAM_WEBHOOK_SECRET|SEED|MNEMONIC|PRIVATE_KEY|WALLET_VAULT)$/i;
 
@@ -16,12 +16,15 @@ export function buildExecutorRuntime(env, { clock = () => Math.floor(Date.now() 
   const globallyPaused = flag(env.EXECUTOR_GLOBAL_PAUSED, true);
   if (!env.EXECUTOR_DB) throw new Error("EXECUTOR_DB_REQUIRED");
   let walletClient = { async send() { throw new Error("PRIVY_NOT_CONFIGURED"); } };
+  let delegationVerifier = null;
   if (enabled) {
-    if (!env.PRIVY_APP_ID || !env.PRIVY_APP_SECRET || !env.PRIVY_AUTHORIZATION_PRIVATE_KEY) throw new Error("PRIVY_EXECUTOR_SECRETS_REQUIRED");
+    if (!env.PRIVY_APP_ID || !env.PRIVY_APP_SECRET || !env.PRIVY_AUTHORIZATION_PRIVATE_KEY || !env.PRIVY_AUTHORIZATION_SIGNER_ID || !env.PRIVY_POLICY_ID) throw new Error("PRIVY_EXECUTOR_SECRETS_REQUIRED");
+    const client = new PrivyClient({ appId: env.PRIVY_APP_ID, appSecret: env.PRIVY_APP_SECRET, requestExpiry: { defaultMs: 120_000, defaultIntentMs: 120_000 } });
     walletClient = new PrivyDelegatedWalletClient({
-      client: new PrivyClient({ appId: env.PRIVY_APP_ID, appSecret: env.PRIVY_APP_SECRET, requestExpiry: { defaultMs: 120_000, defaultIntentMs: 120_000 } }),
+      client,
       authorizationPrivateKey: env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
     });
+    delegationVerifier = new PrivyDelegationVerifier({ client, signerId: env.PRIVY_AUTHORIZATION_SIGNER_ID, policyId: env.PRIVY_POLICY_ID, chainId: Number(env.EXECUTOR_CHAIN_ID || 4663) });
   }
   const executor = new DelegatedExecutor({
     config: {
@@ -36,7 +39,7 @@ export function buildExecutorRuntime(env, { clock = () => Math.floor(Date.now() 
     walletClient,
     clock,
   });
-  return createExecutorHandler(executor);
+  return createExecutorHandler(executor, delegationVerifier);
 }
 
 export default { fetch(request, env) { try { return buildExecutorRuntime(env)(request); } catch { return new Response(JSON.stringify({ ok: false, why: "EXECUTOR_UNAVAILABLE" }), { status: 503, headers: { "content-type": "application/json", "cache-control": "no-store" } }); } } };
