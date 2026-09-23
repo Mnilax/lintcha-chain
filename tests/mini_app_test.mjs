@@ -37,7 +37,7 @@ if (!publishedToken.address) {
   ok(!/data-token-address|data-copy-address/.test(html) && /The token is not published yet\./.test(html), "the dormant build exposes no empty contract slot or token action");
 } else {
   const tokenButtons = html.match(/<div class="token-btns">([\s\S]*?)<\/div>/)?.[1] ?? "";
-  ok(count(html, new RegExp(publishedToken.address, "gi")) === 1 && /data-token-address/.test(html) && /data-copy-address/.test(html) && !/The token is not published yet\./.test(html), "the published contract appears once with a copy control");
+  ok(count(html, new RegExp(`data-token-address>${publishedToken.address}<`, "gi")) === 1 && /data-token-address/.test(html) && /data-copy-address/.test(html) && !/The token is not published yet\./.test(html), "the published contract appears once with a copy control");
   ok(publishedToken.pons ? tokenButtons.includes(`href="${publishedToken.pons}"`) : !/href=/.test(tokenButtons), "the pons action appears only with a canonical pons URL");
   if (publishedToken.uniswap) ok(tokenButtons.includes(`href="${publishedToken.uniswap}"`), "the optional Uniswap action uses its configured URL");
 }
