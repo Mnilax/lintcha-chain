@@ -1,13 +1,15 @@
 // lintcha-chain, the token block's three states and the header cluster's links, built and checked without touching the
-// tree. site/token.json may carry either the explicit all-null dormant state or one exact active state; site/links.json
+// tree. site/token.json may carry the all-null dormant state, a verified address awaiting its canonical venue link,
+// or one exact linked state; site/links.json
 // names only accounts that really exist (no placeholder, no zeroes, no empty slot in the tree); this test
 // writes a temporary token.json with an address made up at run time, builds all three locale pages into a temporary
 // directory with --token and --out, and checks what each state renders:
 //   a. all null           no contract row, no buy button, no token section, no launch band, the cluster is GITHUB, X
 //                         on the default account and the configured TELEGRAM, the made-up address nowhere in the page
-//   b. address and pons   one filled BUY button in the header cluster, the contract row, section seventeen with the
+//   b. address only       contract, copy buttons and token section; no buy link anywhere
+//   c. address and pons   one filled BUY button in the header cluster, the contract row, section eight with the
 //                         pons button only, two live tiles showing a dash, the launch band under the footer
-//   c. pons and uniswap   both buttons, the uniswap one an outline
+//   d. pons and uniswap   both buttons, the uniswap one an outline
 // A fourth build takes a temporary links.json with two labelled X accounts and Telegram and checks the cluster: four
 // outbound items, GITHUB then both X accounts then TELEGRAM. States a, b and c pass no --links, so they render against
 // the tree's own site/links.json and the shipped default is what is under test there.
@@ -164,51 +166,70 @@ const dated = labels.filter(l => DATED.some(re => re.test(l)));
 ok(labels.length === roadItems + 3, "every stop and every phase name on the line carries its label: " + labels.length);
 ok(dated.length === 0, "no label on the line carries a date, a year, a quarter, a month or a deadline" + (dated.length ? ": " + JSON.stringify(dated) : ""));
 
-console.log("state b: address and pons");
-const b = build("b", { address, pons, uniswap: null });
-ok(count(b, /class="buy"/g) === 1 && b.includes(`class="buy" href="${pons}"`), "one filled buy button, to the pons link");
-// three address slots: the contract row, the token section, the band; two copy buttons: the row's and the band's
-ok(count(b, /class="contract"/g) === 1 && count(b, /data-token-address>[^<]*</g) === 3, "the contract row, the section and the band carry the address");
-// The optional token block remains mechanically one number after the compact seven-section page.
-ok(count(b, /class="sec token-sec" id="s08"/g) === 1, "the optional token section is section eight");
-ok(count(b, /data-sec="07"/g) === 1 && count(b, /data-sec="08"/g) === 1 && count(b, /data-sec="09"/g) === 0, "the token is numbered straight after the last homepage section, with no gap");
-ok(count(b, /token-btn-pons/g) === 1 && count(b, /token-btn-uni/g) === 0, "pons button only");
-ok(count(b, /badge-live/g) === 2 && count(b, /class="cell-v" data-i18n="token.dash">—</g) === 2, "two live tiles, each a dash");
-ok(count(b, /data-copy-address/g) === 2, "two copy buttons: the contract row's and the band's");
-ok(count(b, /class="band"/g) === 1 && count(b, /class="band-copy"/g) === 1, "one launch band, with one copy button");
-ok(slot(b, "band-address") === address && slot(b, "band-address") === slot(b, "contract-address"), "the band carries the contract row's address");
-ok(b.indexOf('class="band"') > b.indexOf("</footer>"), "the band sits under the footer");
-ok(count(b, /class="out(?: [^"]*)?"/g) === 5 && outHrefs(b)[1] === X_DEFAULT && outHrefs(b)[2] === "https://x.com/lintchadotcom" && outHrefs(b)[3] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: social links and BOT remain configured");
+console.log("state b: verified address, venue link pending");
+const b = build("b", { address, pons: null, uniswap: null });
+ok(!!tokenConfigOf({ address, pons: null, uniswap: null }) && !tokenConfigOf({ address, pons: null, uniswap }), "the contract accepts address-only and refuses an unbound secondary venue");
+ok(count(b, /class="buy"|token-btn-pons|token-btn-uni/g) === 0 && !b.includes(pons), "address-only publication does not invent a buy destination");
+ok(count(b, /class="contract"/g) === 1 && count(b, /data-token-address>[^<]*</g) === 3 && count(b, /data-copy-address/g) === 2, "address-only publication carries three exact address slots and two copy controls");
+ok(count(b, /class="sec token-sec" id="s08"/g) === 1 && count(b, /class="band"/g) === 1, "address-only publication includes the token section and launch band");
+ok(count(b, new RegExp(`data-token-address>${re(address)}<`, "g")) === 3, "all address-only slots carry the exact verified address");
 for (const lang of ["es", "pt"]) {
   const localized = fs.readFileSync(path.join(tmp, "b", lang, "index.html"), "utf8");
+  ok(count(localized, new RegExp(`data-token-address>${re(address)}<`, "g")) === 3 && count(localized, /class="buy"|token-btn-pons|token-btn-uni/g) === 0,
+    `${lang}: address-only publication has the contract and no venue button`);
+}
+const appB = fs.readFileSync(path.join(tmp, "b", "app", "index.html"), "utf8");
+ok(count(appB, new RegExp(`data-token-address>${re(address)}<`, "g")) === 1 && count(appB, /data-copy-address/g) === 1 && count(appB, /token-btn-pons|token-btn-uni/g) === 0,
+  "the address-only Mini App offers one exact copyable address and no venue link");
+
+console.log("state c: address and pons");
+const c = build("c", { address, pons, uniswap: null });
+ok(count(c, /class="buy"/g) === 1 && c.includes(`class="buy" href="${pons}"`), "one filled buy button, to the pons link");
+// three address slots: the contract row, the token section, the band; two copy buttons: the row's and the band's
+ok(count(c, /class="contract"/g) === 1 && count(c, /data-token-address>[^<]*</g) === 3, "the contract row, the section and the band carry the address");
+// The optional token block remains mechanically one number after the compact seven-section page.
+ok(count(c, /class="sec token-sec" id="s08"/g) === 1, "the optional token section is section eight");
+ok(count(c, /data-sec="07"/g) === 1 && count(c, /data-sec="08"/g) === 1 && count(c, /data-sec="09"/g) === 0, "the token is numbered straight after the last homepage section, with no gap");
+ok(count(c, /token-btn-pons/g) === 1 && count(c, /token-btn-uni/g) === 0, "pons button only");
+ok(count(c, /badge-live/g) === 2 && count(c, /class="cell-v" data-i18n="token.dash">—</g) === 2, "two live tiles, each a dash");
+ok(count(c, /data-copy-address/g) === 2, "two copy buttons: the contract row's and the band's");
+ok(count(c, /class="band"/g) === 1 && count(c, /class="band-copy"/g) === 1, "one launch band, with one copy button");
+ok(slot(c, "band-address") === address && slot(c, "band-address") === slot(c, "contract-address"), "the band carries the contract row's address");
+ok(c.indexOf('class="band"') > c.indexOf("</footer>"), "the band sits under the footer");
+ok(count(c, /class="out(?: [^"]*)?"/g) === 5 && outHrefs(c)[1] === X_DEFAULT && outHrefs(c)[2] === "https://x.com/lintchadotcom" && outHrefs(c)[3] === TELEGRAM_DEFAULT, "the cluster is unchanged by the token: social links and BOT remain configured");
+for (const lang of ["es", "pt"]) {
+  const localized = fs.readFileSync(path.join(tmp, "c", lang, "index.html"), "utf8");
   ok(count(localized, new RegExp(`data-token-address>${re(address)}<`, "g")) === 3 && count(localized, new RegExp(`href="${re(attr(pons))}"`, "g")) === 2 && !/token-btn-uni/.test(localized), `${lang}: the active page carries the exact same pons-only token state`);
 }
 
-console.log("state c: pons and uniswap");
-const c = build("c", { address, pons, uniswap });
-ok(count(c, /token-btn-pons/g) === 1 && count(c, /token-btn-uni/g) === 1 && c.includes(`href="${uniswap}"`), "both buttons, the uniswap one an outline");
-ok(count(c, /class="buy"/g) === 1, "still one filled button on the page");
-ok(count(c, /class="band"/g) === 1 && slot(c, "band-address") === address, "one band, the same address");
+console.log("state d: pons and uniswap");
+const d = build("d", { address, pons, uniswap });
+ok(count(d, /token-btn-pons/g) === 1 && count(d, /token-btn-uni/g) === 1 && d.includes(`href="${uniswap}"`), "both buttons, the uniswap one an outline");
+ok(count(d, /class="buy"/g) === 1, "still one filled button on the page");
+ok(count(d, /class="band"/g) === 1 && slot(d, "band-address") === address, "one band, the same address");
 
 console.log("token-state prose: the status line and the roadmap token paragraph follow token.json");
-// The hero status line and the roadmap's token paragraph have one string per state, and the build picks the key from
-// the same validated token.json that switches the contract row and the band. The check reads the visible page (the
-// i18n island is data for the language control, not text on the page) in every locale of states a, b and c: a dormant
-// page carries the dormant sentences and not one live sentence; an activated page carries the live sentences and not
-// one pre-launch sentence, the unrendered lore paragraph included, so a launch can never leave "if it launches" up.
+// The hero status line and roadmap token paragraph have one string per state, selected from token.json. In particular,
+// address-only pages must not claim that a Pons destination is live or retain the dormant pre-launch sentence.
 const visible = html => html.replace(/<script id="i18n-data"[^>]*>[\s\S]*?<\/script>/, "");
 const textOf = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const DORMANT_KEYS = ["hero.status.dormant", "road.token.p", "lore.token.p"], LIVE_KEYS = ["hero.status.live", "road.token.live.p"];
-for (const [name, live] of [["a", false], ["b", true], ["c", true]]) {
+const stateProse = {
+  a: ["hero.status.dormant", "road.token.p"],
+  b: ["hero.status.address", "road.token.address.p"],
+  c: ["hero.status.live", "road.token.live.p"],
+  d: ["hero.status.live", "road.token.live.p"]
+};
+const allStateKeys = [...new Set(Object.values(stateProse).flat()), "lore.token.p"];
+for (const [name, [statusKey, roadKey]] of Object.entries(stateProse)) {
   for (const [lang, locale] of Object.entries(LOCALES)) {
     const strings = JSON.parse(fs.readFileSync(path.join(root, "src", "i18n-src", `chain.${lang}.json`), "utf8"));
     const page = visible(fs.readFileSync(path.join(tmp, name, locale.file), "utf8"));
-    const statusKey = live ? "hero.status.live" : "hero.status.dormant", roadKey = live ? "road.token.live.p" : "road.token.p";
-    ok(count(page, /data-site-status/g) === 1 && page.includes(`<p class="copy-availability" data-site-status data-i18n="${statusKey}">${textOf(strings[statusKey])}</p>`),
+    ok(typeof strings[statusKey] === "string" && count(page, /data-site-status/g) === 1 && page.includes(`<p class="copy-availability" data-site-status data-i18n="${statusKey}">${textOf(strings[statusKey])}</p>`),
       `state ${name}, ${lang}: one status line under the hero, keyed ${statusKey}`);
-    ok(page.includes(`<p class="sec-p" data-i18n="${roadKey}">${textOf(strings[roadKey])}</p>`), `state ${name}, ${lang}: the roadmap token paragraph is ${roadKey}`);
-    const wrong = (live ? DORMANT_KEYS : LIVE_KEYS).filter(key => page.includes(`data-i18n="${key}"`) || page.includes(textOf(strings[key])));
-    ok(wrong.length === 0, `state ${name}, ${lang}: no ${live ? "pre-launch" : "post-launch"} sentence on the page` + (wrong.length ? ": " + wrong.join(", ") : ""));
+    ok(typeof strings[roadKey] === "string" && page.includes(`<p class="sec-p" data-i18n="${roadKey}">${textOf(strings[roadKey])}</p>`), `state ${name}, ${lang}: the roadmap token paragraph is ${roadKey}`);
+    const wrong = allStateKeys.filter(key => key !== statusKey && key !== roadKey &&
+      (page.includes(`data-i18n="${key}"`) || (typeof strings[key] === "string" && page.includes(textOf(strings[key])))));
+    ok(wrong.length === 0, `state ${name}, ${lang}: no prose from another token phase` + (wrong.length ? ": " + wrong.join(", ") : ""));
   }
 }
 
@@ -238,19 +259,22 @@ if (treeState && treeState.address === null) {
   ok(count(tree, /class="contract"|class="buy"|token-sec|class="band"/g) === 0, "the dormant page carries no token block and no band");
   ok(count(tree, /data-token-address|data-copy-address/g) === 0, "the dormant page carries no address or copy slot");
 } else if (treeState) {
-  const a = re(treeState.address), p = re(attr(treeState.pons));
-  ok(count(tree, /class="contract"/g) === 1 && count(tree, /class="buy"/g) === 1 && count(tree, /class="sec token-sec"/g) === 1 && count(tree, /class="band"/g) === 1,
-    "the active page carries one contract row, primary buy, token section and band");
+  const a = re(treeState.address), p = treeState.pons === null ? null : re(attr(treeState.pons));
+  ok(count(tree, /class="contract"/g) === 1 && count(tree, /class="sec token-sec"/g) === 1 && count(tree, /class="band"/g) === 1,
+    "the published page carries one contract row, token section and band");
   ok(count(tree, new RegExp(`data-token-address>${a}<`, "g")) === 3 && count(tree, /data-copy-address/g) === 2,
     "the active page carries only its exact configured address in all three slots and two copy buttons");
-  ok(count(tree, new RegExp(`class="buy" href="${p}"`, "g")) === 1 && count(tree, new RegExp(`class="token-btn token-btn-pons" href="${p}"`, "g")) === 1,
-    "the active page carries the exact configured pons URL in both primary destinations");
+  if (p === null) ok(count(tree, /class="buy"|token-btn-pons|token-btn-uni/g) === 0, "the address-only tree has no buy destination");
+  else ok(count(tree, new RegExp(`class="buy" href="${p}"`, "g")) === 1 && count(tree, new RegExp(`class="token-btn token-btn-pons" href="${p}"`, "g")) === 1,
+    "the linked page carries the exact configured pons URL in both primary destinations");
   if (treeState.uniswap === null) ok(count(tree, /token-btn-uni/g) === 0, "a null uniswap destination renders no secondary button");
   else ok(count(tree, new RegExp(`class="token-btn token-btn-uni" href="${re(attr(treeState.uniswap))}"`, "g")) === 1,
     "a configured uniswap destination renders exactly once");
 }
-ok(treeLocales.every(page => page.includes(`data-site-status data-i18n="${treeState && treeState.address ? "hero.status.live" : "hero.status.dormant"}"`) &&
-  page.includes(`data-i18n="${treeState && treeState.address ? "road.token.live.p" : "road.token.p"}"`)), "every tree locale carries the status line and token paragraph of the tree's own token state");
+const treeStatusKey = treeState?.pons ? "hero.status.live" : treeState?.address ? "hero.status.address" : "hero.status.dormant";
+const treeRoadKey = treeState?.pons ? "road.token.live.p" : treeState?.address ? "road.token.address.p" : "road.token.p";
+ok(treeLocales.every(page => page.includes(`data-site-status data-i18n="${treeStatusKey}"`) &&
+  page.includes(`data-i18n="${treeRoadKey}"`)), "every tree locale carries the status line and token paragraph of the tree's own token state");
 ok(!tree.includes(address), "the made-up address is not in the tree's page");
 ok(!tree.includes(xAccount) && !tree.includes(telegram), "the made-up accounts are not in the tree's page");
 ok(count(tree, /class="out(?: [^"]*)?"/g) === 5 && outHrefs(tree)[1] === X_DEFAULT && outHrefs(tree)[2] === "https://x.com/lintchadotcom" && outHrefs(tree)[3] === TELEGRAM_DEFAULT && outHrefs(tree)[4] === "https://t.me/lintchabot?start=copy_site" &&

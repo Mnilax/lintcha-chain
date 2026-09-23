@@ -212,8 +212,13 @@ forgetToken();
 net.site = { address: "not an address", pons: null, uniswap: null };
 tok = await readToken({});
 t.ok(tok.ok === false && tok.address === undefined, "a malformed activation document is unreadable rather than an absent token");
+forgetToken();
+net.site = { address: TOKEN_ADDRESS, pons: null, uniswap: null };
+tok = await readToken({});
+t.ok(tok.ok === true && tok.address === TOKEN_ADDRESS && tok.pons === null,
+  "the verified address is readable before its canonical venue link arrives");
+
 for (const site of [
-  { address: TOKEN_ADDRESS, pons: null, uniswap: null },
   { address: TOKEN_ADDRESS, pons: "javascript:alert(1)", uniswap: null },
   { address: TOKEN_ADDRESS, pons: " https://example.invalid/pons", uniswap: null },
   { address: "0x" + "0".repeat(40), pons: "https://example.invalid/pons", uniswap: null },

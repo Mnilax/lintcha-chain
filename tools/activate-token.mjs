@@ -1,6 +1,7 @@
-// One guarded token activation switch. The command accepts only the public contract address and its primary pons HTTPS URL:
+// One guarded token activation switch. Publish a verified public contract address first; add its primary pons
+// HTTPS URL later, after the owner supplies it:
 //
-//   node tools/activate-token.mjs <CA> <PONS_HTTPS_URL>
+//   node tools/activate-token.mjs <CA> [PONS_HTTPS_URL]
 //
 // The bot deliberately has no second token-address setting. This command proves the address against the configured
 // chain, builds and checks a complete temporary repository copy, and only then replaces the authored activation
@@ -77,13 +78,15 @@ function nextReadme(raw, address) {
   fail("the README token line is missing, duplicated or names another address");
 }
 
-function activationInput(address, pons) {
+function activationInput(address, pons = null) {
   const config = tokenConfigOf({ address, pons, uniswap: null });
-  if (!config || !config.address || !config.pons || config.uniswap !== null) {
-    fail("expected one nonzero contract address and one canonical HTTPS pons URL");
+  if (!config || !config.address || config.uniswap !== null) {
+    fail("expected one nonzero contract address and an optional canonical HTTPS pons URL");
   }
-  const boundAddress = new RegExp(`(?<![0-9a-f])${escapePattern(config.address)}(?![0-9a-f])`, "i");
-  if (!boundAddress.test(config.pons)) fail("the canonical pons URL does not contain the exact contract address");
+  if (config.pons !== null) {
+    const boundAddress = new RegExp(`(?<![0-9a-f])${escapePattern(config.address)}(?![0-9a-f])`, "i");
+    if (!boundAddress.test(config.pons)) fail("the canonical pons URL does not contain the exact contract address");
+  }
   return config;
 }
 
@@ -140,7 +143,11 @@ function verifyRendered(root, config, readmeBytes) {
   const notFound = fs.readFileSync(path.join(root, "site", "404.html"), "utf8");
   const app = fs.readFileSync(path.join(root, "site", "app", "index.html"), "utf8");
   const address = escapePattern(config.address);
-  const href = escapePattern(escapeAttribute(config.pons));
+  const href = config.pons === null ? null : escapePattern(escapeAttribute(config.pons));
+  const exactBuy = page => config.pons === null
+    ? count(page, /class="buy"|class="token-btn token-btn-pons"/g) === 0
+    : count(page, new RegExp(`class="buy" href="${href}"`, "g")) === 1 &&
+      count(page, new RegExp(`class="token-btn token-btn-pons" href="${href}"`, "g")) === 1;
   const comparisonPages = [
     path.join(root, "site", "index.html"),
     path.join(root, "site", "es", "index.html"),
@@ -150,23 +157,22 @@ function verifyRendered(root, config, readmeBytes) {
     const page = fs.readFileSync(file, "utf8");
     if (count(page, new RegExp(`data-token-address>${address}<`, "g")) !== 3 ||
         count(page, /data-copy-address/g) !== 2 ||
-        count(page, new RegExp(`class="buy" href="${href}"`, "g")) !== 1 ||
-        count(page, new RegExp(`class="token-btn token-btn-pons" href="${href}"`, "g")) !== 1 ||
+        !exactBuy(page) ||
         /token-btn-uni/.test(page)) {
-      fail("a comparison page did not render the exact pons-only activation state");
+      fail("a comparison page did not render the exact requested token state");
     }
   }
   if (count(notFound, new RegExp(`data-token-address>${address}<`, "g")) !== 1 ||
       count(notFound, /data-copy-address/g) !== 1 ||
-      count(notFound, new RegExp(`class="buy" href="${href}"`, "g")) !== 1 ||
+      (config.pons === null ? /class="buy"/.test(notFound) : count(notFound, new RegExp(`class="buy" href="${href}"`, "g")) !== 1) ||
       /token-btn-uni/.test(notFound)) {
     fail("the not-found page did not render the exact activation header");
   }
   if (count(app, new RegExp(`data-token-address>${address}<`, "g")) !== 1 ||
       count(app, /data-copy-address/g) !== 1 ||
-      count(app, new RegExp(`class="token-btn token-btn-pons" href="${href}"`, "g")) !== 1 ||
+      (config.pons === null ? /token-btn-pons/.test(app) : count(app, new RegExp(`class="token-btn token-btn-pons" href="${href}"`, "g")) !== 1) ||
       /token-btn-uni/.test(app)) {
-    fail("the Mini App did not render the exact pons-only activation state");
+    fail("the Mini App did not render the exact requested token state");
   }
 
   const readme = readmeBytes.toString("utf8");
@@ -249,12 +255,15 @@ function restore(snapshot) {
   if (failed.length) fail("activation failed and its local rollback could not restore every touched file");
 }
 
-export async function activateToken(address, pons, options = {}) {
+export async function activateToken(address, pons = null, options = {}) {
   const root = path.resolve(options.root || ROOT);
   const config = activationInput(address, pons);
   const current = readActivation(root);
-  if (current.value.address !== null && JSON.stringify(current.value) !== JSON.stringify(config)) {
-    fail("token.json already carries another activation");
+  if (current.value.address !== null) {
+    if (current.value.address !== config.address) fail("token.json already carries another contract address");
+    if (current.value.uniswap !== null || (current.value.pons !== null && current.value.pons !== config.pons)) {
+      fail("token.json already carries a different venue configuration");
+    }
   }
   const readmeFile = path.join(root, README_REL);
   const readmeRaw = bytes(readmeFile);
@@ -294,12 +303,12 @@ export async function activateToken(address, pons, options = {}) {
 export async function runCli(argv = process.argv.slice(2), io = {}) {
   const output = io.output || process.stdout;
   const errorOutput = io.errorOutput || process.stderr;
-  if (!Array.isArray(argv) || argv.length !== 2) {
-    errorOutput.write("usage: activate-token <CA> <PONS_HTTPS_URL>\n");
+  if (!Array.isArray(argv) || argv.length < 1 || argv.length > 2) {
+    errorOutput.write("usage: activate-token <CA> [PONS_HTTPS_URL]\n");
     return 1;
   }
   try {
-    const result = await activateToken(argv[0], argv[1]);
+    const result = await activateToken(argv[0], argv.length === 2 ? argv[1] : null);
     output.write(`activate-token: ${result.changed ? "prepared" : "already prepared"} ${result.address}\n`);
     return 0;
   } catch (error) {

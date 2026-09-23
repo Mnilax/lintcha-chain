@@ -1,7 +1,6 @@
-# token-activation: turn the dormant public token document into one chain-proved pons-only activation.
-# The operator supplies only the two public values. The RPC endpoint remains a protected environment secret, is required rather
-# than allowed to fall back, and exists in the environment of the activation step only. The job never prints either
-# public input: they belong in the reviewed diff, not in workflow logs, commit metadata or PR prose.
+# token-activation: publish the chain-proved address first, then add its canonical Pons URL when supplied.
+# The RPC endpoint remains a protected environment secret and exists in the activation step only.
+# Public inputs belong in the reviewed diff, not in workflow logs, commit metadata or PR prose.
 name: token-activation
 
 on:
@@ -12,8 +11,8 @@ on:
         required: true
         type: string
       pons_url:
-        description: Public canonical Pons HTTPS URL containing that address
-        required: true
+        description: Optional canonical Pons HTTPS URL containing that address; leave blank for address-only publication
+        required: false
         type: string
 
 permissions:
@@ -83,18 +82,18 @@ jobs:
           try { event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8")); }
           catch { fail(); }
           const address = event && event.inputs && event.inputs.contract_address;
-          const pons = event && event.inputs && event.inputs.pons_url;
+          const pons = event && event.inputs && event.inputs.pons_url || null;
           const config = tokenConfigOf({ address, pons, uniswap: null });
-          if (!config || !config.address || !config.pons || config.uniswap !== null) fail();
+          if (!config || !config.address || config.uniswap !== null) fail();
           const commandValue = value => value.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
-          for (const value of new Set([address, config.address, pons, config.pons])) {
+          for (const value of new Set([address, config.address, pons, config.pons].filter(Boolean))) {
             process.stdout.write(`::add-mask::${commandValue(value)}\n`);
           }
           fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "token-activation-ca.txt"), config.address + "\n", { flag: "wx", mode: 0o600 });
-          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "token-activation-pons.txt"), config.pons + "\n", { flag: "wx", mode: 0o600 });
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, "token-activation-pons.txt"), (config.pons || "") + "\n", { flag: "wx", mode: 0o600 });
           NODE
 
-      - name: Prove and prepare the pons-only activation without logging its inputs
+      - name: Prove and prepare the address or Pons update without logging its inputs
         env:
           LINTCHA_CHAIN_RPC_URL: ${{ secrets.LINTCHA_CHAIN_RPC_URL }}
         shell: bash
@@ -109,7 +108,11 @@ jobs:
           fi
           IFS= read -r TOKEN_CA < "${RUNNER_TEMP}/token-activation-ca.txt"
           IFS= read -r TOKEN_PONS_URL < "${RUNNER_TEMP}/token-activation-pons.txt"
-          node tools/activate-token.mjs "${TOKEN_CA}" "${TOKEN_PONS_URL}" > /dev/null
+          if [ -n "${TOKEN_PONS_URL}" ]; then
+            node tools/activate-token.mjs "${TOKEN_CA}" "${TOKEN_PONS_URL}" > /dev/null
+          else
+            node tools/activate-token.mjs "${TOKEN_CA}" > /dev/null
+          fi
 
       - name: Recheck the product boundary after activation
         run: |
@@ -149,25 +152,23 @@ jobs:
                 ;;
             esac
           done < "${status_file}"
-          for required_path in README.md site/token.json; do
-            if ! grep -Fqx " M ${required_path}" "${status_file}"; then
-              echo "abort: activation did not modify every required authored and rendered path"
-              exit 1
-            fi
-          done
+          if ! grep -Fqx " M site/token.json" "${status_file}"; then
+            echo "abort: activation did not modify the public token document"
+            exit 1
+          fi
           git diff --check > /dev/null
           sed 's/^ M //' "${status_file}" | sort > "${paths_file}"
 
           gh auth setup-git --hostname github.com > /dev/null
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add --pathspec-from-file="${paths_file}"
+          git add -- README.md site/token.json
           git diff --cached --name-only | sort > "${staged_file}"
           if ! cmp -s "${paths_file}" "${staged_file}" || ! git diff --quiet; then
             echo "abort: the staged paths do not exactly equal the status-derived allowlist"
             exit 1
           fi
-          git commit -m "token: guarded activation" > /dev/null
+          git commit -m "token: guarded public token update" > /dev/null
           generated_sha=$(git rev-parse HEAD)
           if [ -n "$(git status --porcelain=v1 --untracked-files=all)" ]; then
             echo "abort: the generated activation commit did not leave a clean tree"
@@ -176,7 +177,7 @@ jobs:
 
           branch="automation/token-activation-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git push origin "HEAD:refs/heads/${branch}" > /dev/null
-          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "token: guarded activation" --body "Manual token activation prepared by the repository guard. This draft contains only the public activation document and README line. The localized pages are rebuilt from source. It becomes ready only after the explicitly dispatched test and vendor workflows pass for its unchanged head while main remains unchanged.")
+          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "token: guarded public token update" --body "Manual public token update prepared by the repository guard. This draft contains only the token document and, for initial address publication, the README contract line. The localized pages are rebuilt from source. It becomes ready only after the explicitly dispatched test and vendor workflows pass for its unchanged head while main remains unchanged.")
 
           gh workflow run test.yml --ref "${branch}" > /dev/null
           gh workflow run vendor.yml --ref "${branch}" > /dev/null

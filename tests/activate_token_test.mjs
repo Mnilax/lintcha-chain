@@ -135,6 +135,36 @@ try {
   const again = await attempt(live);
   ok(again.changed === false && digest(live) === firstDigest, "repeating the exact activation is content-idempotent");
 
+  const addressFirst = fixture(); made.push(addressFirst);
+  const addressOnly = await attemptValues(addressFirst, ADDRESS_INPUT, null);
+  const addressToken = JSON.parse(fs.readFileSync(path.join(addressFirst, "site", "token.json"), "utf8"));
+  const addressPages = ["index.html", "es/index.html", "pt/index.html", "404.html", "app/index.html"]
+    .map(relative => fs.readFileSync(path.join(addressFirst, "site", relative), "utf8"));
+  ok(addressOnly.changed === true && addressOnly.address === ADDRESS && addressOnly.pons === null &&
+    JSON.stringify(addressToken) === JSON.stringify({ address: ADDRESS, pons: null, uniswap: null }),
+  "the first phase publishes the verified address without inventing a venue");
+  ok(addressPages.every(page => page.includes(`data-token-address>${ADDRESS}<`) &&
+    !/class="buy"|token-btn-pons|token-btn-uni/.test(page)),
+  "every rendered token surface shows the address without a buy destination");
+  const addressDigest = digest(addressFirst);
+  const addressAgain = await attemptValues(addressFirst, ADDRESS_INPUT, null);
+  ok(addressAgain.changed === false && digest(addressFirst) === addressDigest,
+    "repeating the address-only phase is content-idempotent");
+  const addressReadme = fs.readFileSync(path.join(addressFirst, "README.md"));
+  const withPons = await attemptValues(addressFirst, ADDRESS_INPUT, PONS);
+  const ponsToken = JSON.parse(fs.readFileSync(path.join(addressFirst, "site", "token.json"), "utf8"));
+  ok(withPons.changed === true && withPons.pons === PONS && ponsToken.pons === PONS &&
+    Buffer.compare(addressReadme, fs.readFileSync(path.join(addressFirst, "README.md"))) === 0,
+  "the second phase adds the owner-supplied pons URL to the same address without editing README");
+  const withPonsDigest = digest(addressFirst);
+  ok(await rejects(() => attemptValues(addressFirst, ADDRESS_INPUT, null)) && digest(addressFirst) === withPonsDigest,
+    "the second phase cannot remove an already published buy URL");
+  ok(await rejects(() => attemptValues(addressFirst, ADDRESS_INPUT, "https://example.invalid/pons/" + ADDRESS + "?other=buy")) &&
+    digest(addressFirst) === withPonsDigest,
+  "the second phase cannot silently replace an already published buy URL");
+  ok(await rejects(() => attemptValues(addressFirst, "0x" + "b".repeat(40), null)) && digest(addressFirst) === withPonsDigest,
+    "neither phase can replace the published contract address");
+
   const fresh = fixture(); made.push(fresh);
   for (const lang of ["en", "es", "pt"]) fs.rmSync(path.join(fresh, "src", "i18n", lang + ".json"));
   const freshResult = await attempt(fresh);
@@ -217,8 +247,8 @@ try {
     "a failed real build rolls back both authored files and every build output already touched");
 
   let usage = "";
-  const status = await runCli([ADDRESS_INPUT], { output: { write() {} }, errorOutput: { write(value) { usage += value; } } });
-  ok(status === 1 && usage === "usage: activate-token <CA> <PONS_HTTPS_URL>\n", "the public CLI accepts exactly two positional values");
+  const status = await runCli([], { output: { write() {} }, errorOutput: { write(value) { usage += value; } } });
+  ok(status === 1 && usage === "usage: activate-token <CA> [PONS_HTTPS_URL]\n", "the public CLI requires one address and accepts an optional buy URL");
 } finally {
   setGate(null);
   for (const dir of made) {

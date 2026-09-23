@@ -7,9 +7,12 @@ const address = "0x" + "aB".repeat(20);
 const canonical = address.toLowerCase();
 
 ok(JSON.stringify(tokenConfigOf({ address: null, pons: null, uniswap: null })) === JSON.stringify({ address: null, pons: null, uniswap: null }), "the explicit all-null pre-launch state is valid");
+ok(JSON.stringify(tokenConfigOf({ address, pons: null, uniswap: null })) === JSON.stringify({ address: canonical, pons: null, uniswap: null }), "a verified address can precede the primary link");
 ok(JSON.stringify(tokenConfigOf({ address, pons: "https://example.invalid/pons", uniswap: "https://example.invalid/pool" })) === JSON.stringify({ address: canonical, pons: "https://example.invalid/pons", uniswap: "https://example.invalid/pool" }), "an active state canonicalizes one address and two HTTPS destinations");
 ok(tokenConfigOf({ address: canonical, pons: "https://example.invalid/pons", uniswap: null }).address === canonical, "the primary-link-only active state is valid");
 const encodedToken = value => new TextEncoder().encode(JSON.stringify(value));
+ok(tokenConfigBytesOf(encodedToken({ address, pons: null, uniswap: null })).address === canonical,
+  "the shared byte reader accepts a verified address before its primary link");
 ok(tokenConfigBytesOf(encodedToken({ address, pons: "https://example.invalid/pons", uniswap: null })).address === canonical,
   "the shared byte reader accepts the same complete UTF-8 activation document");
 const longToken = { address: canonical, pons: "https://example.invalid/" + "a".repeat(TOKEN_CONFIG_BODY_LIMIT), uniswap: null };
@@ -26,7 +29,7 @@ for (const [label, value] of [
   ["extra key", { address: null, pons: null, uniswap: null, other: null }],
   ["malformed address", { address: "not-an-address", pons: "https://example.invalid/pons", uniswap: null }],
   ["zero address", { address: "0x" + "0".repeat(40), pons: "https://example.invalid/pons", uniswap: null }],
-  ["address without primary link", { address: canonical, pons: null, uniswap: null }],
+  ["secondary link before primary link", { address: canonical, pons: null, uniswap: "https://example.invalid/pool" }],
   ["link before address", { address: null, pons: "https://example.invalid/pons", uniswap: null }],
   ["empty link", { address: canonical, pons: "", uniswap: null }],
   ["link whitespace", { address: canonical, pons: " https://example.invalid/pons", uniswap: null }],
