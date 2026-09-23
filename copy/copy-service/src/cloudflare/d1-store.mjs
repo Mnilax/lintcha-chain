@@ -2,7 +2,7 @@
  * D1 adapters for every store contract the service uses. They speak the D1 prepared-statement API only
  * (`prepare().bind().run()/first()/all()`), so the same code runs against the node:sqlite shim in tests.
  *
- * Concurrency note (owner decision recorded in ТЗ §7): D1 alone gives no compare-and-set across statements.
+ * Concurrency note (owner decision recorded in copy service spec section 7): D1 alone gives no compare-and-set across statements.
  * Every mutating call for one user is therefore serialized through that user's Durable Object
  * (cloudflare/coordinator.mjs). These adapters assume that ordering and add only what SQL can guarantee:
  * unique replay keys, unique dedupe keys, primary-key idempotence.

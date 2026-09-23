@@ -10,12 +10,12 @@ const plainObject = value => !!value && typeof value === "object" && !Array.isAr
 const ALL = Object.freeze(["app", "read", "live", "deployer", "run", "token"]);
 
 const KEYWORDS = Object.freeze({
-  app: ["app", "mini", "telegram", "tool", "приложение", "мини"],
-  read: ["read", "check", "compare", "launch", "identity", "проверить", "сравнить", "запуск"],
-  live: ["live", "wall", "names", "tickers", "launches", "лайв", "имена", "тикеры"],
-  deployer: ["deployer", "dev", "history", "wallet", "history", "деплоер", "история", "кошелек", "кошелёк"],
-  run: ["run", "source", "repo", "github", "code", "api", "cli", "исходники", "репозиторий", "код"],
-  token: ["token", "ca", "contract", "address", "lintcha", "$lintcha", "токен", "контракт", "адрес"]
+  app: ["app", "mini", "telegram", "tool"],
+  read: ["read", "check", "compare", "launch", "identity"],
+  live: ["live", "wall", "names", "tickers", "launches"],
+  deployer: ["deployer", "dev", "history", "wallet"],
+  run: ["run", "source", "repo", "github", "code", "api", "cli"],
+  token: ["token", "ca", "contract", "address", "lintcha", "$lintcha"]
 });
 
 /** A structurally valid inline query, reduced to the only fields the product uses. */
@@ -38,7 +38,7 @@ const termsOf = query => query.replace(/\$/g, " $").split(/[^\p{L}\p{N}_$-]+/u).
 export function inlineKindsFor(query) {
   if (typeof query !== "string" || !query.trim()) return [...ALL];
   const terms = termsOf(query);
-  if (terms.includes("all") || terms.includes("lintcha") || terms.includes("все") || terms.includes("всё")) return [...ALL];
+  if (terms.includes("all") || terms.includes("lintcha")) return [...ALL];
   return ALL.filter(kind => terms.some(term => KEYWORDS[kind].some(keyword =>
     term === keyword || (term.length >= 2 && keyword.startsWith(term))
   )));

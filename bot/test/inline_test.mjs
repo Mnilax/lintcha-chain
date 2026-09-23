@@ -41,9 +41,9 @@ t.ok(JSON.stringify(inlineKindsFor("")) === JSON.stringify(allKinds) &&
   "an empty query or the product name exposes the whole small palette");
 t.ok(JSON.stringify(inlineKindsFor("liv")) === JSON.stringify(["live"]) &&
   JSON.stringify(inlineKindsFor("wallet")) === JSON.stringify(["deployer"]) &&
-  JSON.stringify(inlineKindsFor("тик")) === JSON.stringify(["live"]) &&
+  JSON.stringify(inlineKindsFor("tick")) === JSON.stringify(["live"]) &&
   JSON.stringify(inlineKindsFor("$lintcha")) === JSON.stringify(["token"]),
-  "English, Russian, typed prefixes and the token spelling select only their fixed cards");
+  "English typed prefixes and the token spelling select only their fixed cards");
 t.ok(inlineKindsFor("private words nobody reflects").length === 0,
   "unknown query words produce no article instead of being reflected into a result");
 
