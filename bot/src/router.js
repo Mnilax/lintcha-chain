@@ -7,8 +7,8 @@
 //   room that replies to everything starting with a slash is a bot that argues with other bots.
 //
 //   Nothing is invented when the chain or the site cannot be read. There are three different states and they
-//   get three different sentences: the token does not exist yet, the site could not be read, the chain could
-//   not be read. Collapsing them would mean telling somebody there is no token when in fact there is a network
+//   get three different sentences: no verified address is published, the site could not be read, the chain could
+//   not be read. Collapsing them would mean claiming an address is unpublished when in fact there is a network
 //   fault, which is the exact failure this project spends its whole page arguing against.
 //
 // The three rule commands sit with the other holder commands, in a direct message, behind a live session, and
@@ -125,11 +125,15 @@ export async function handleUpdate(update, deps) {
   if (cmd === "forget") return await forgetActions(kv, watch, chat, msg);
   if (cmd === "start") {
     const token = await readToken(env);
-    return [send(chat, T.startText(tokenStateOf(token)))];
+    const actions = [send(chat, T.startText(tokenStateOf(token)))];
+    if (isPrivate(msg)) actions.push({ kind: "send-photo", chat, photo: "start" });
+    return actions;
   }
   if (cmd === "site") {
     const token = await readToken(env);
-    return [send(chat, T.siteText(token.ok ? token : null))];
+    const actions = [send(chat, T.siteText(token.ok ? token : null))];
+    if (isPrivate(msg)) actions.push({ kind: "send-photo", chat, photo: "site" });
+    return actions;
   }
 
   // everything below needs to know whether there is a token at all

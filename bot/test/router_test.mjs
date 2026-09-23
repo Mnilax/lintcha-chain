@@ -60,12 +60,16 @@ forgetToken();
 let body = textOf(await handleUpdate(msg("/start"), { env: {}, kv: fakeKV() }));
 t.ok(body === T.START_PRETOKEN && !/Every buy lands here|The feed posts buys/.test(body),
   "/start uses the explicit pre-token status and makes no live feed claim while the address is null");
+const privateStart = await handleUpdate(msg("/start"), { env: {}, kv: fakeKV() });
+const roomStart = await handleUpdate(msg("/start", "supergroup"), { env: {}, kv: fakeKV() });
+t.ok(privateStart.length === 2 && privateStart[1].kind === "send-photo" && privateStart[1].photo === "start" &&
+  roomStart.length === 1, "the start banner follows the private text only, never a room reply");
 
 // ---------------------------------------------------------------- three null: no address, no zero, no dash
 for (const c of ["ca", "price", "me", "verify", "stats", "rule", "rules", "unrule"]) {
   forgetToken();
   const body = textOf(await handleUpdate(msg("/" + c), { env: {}, kv: fakeKV() }));
-  t.ok(body === T.NO_TOKEN_YET, `/${c} gives the sentence about the token not existing yet`);
+  t.ok(body === T.NO_TOKEN_YET, `/${c} waits for the verified address to be published`);
   t.ok(!/0x[0-9a-fA-F]{6}/.test(body), `/${c} prints no address`);
   t.ok(!/\d/.test(body), `/${c} prints no figure at all, so no zero can stand in for a price`);
   t.ok(!/—|--/.test(body.replace(/\$LINTCHA/g, "")), `/${c} prints no dash in place of a number`);
@@ -77,13 +81,17 @@ body = textOf(await handleUpdate(msg("/site"), { env: {}, kv: fakeKV() }));
 t.ok(body.includes("lintcha.com"), "/site names the site");
 t.ok(body.includes("github.com/Mnilax/lintcha-chain"), "/site names the repository");
 t.ok(/no chart to link yet/.test(body), "/site says there is no chart yet");
+const privateSite = await handleUpdate(msg("/site"), { env: {}, kv: fakeKV() });
+const roomSite = await handleUpdate(msg("/site", "supergroup"), { env: {}, kv: fakeKV() });
+t.ok(privateSite.length === 2 && privateSite[1].kind === "send-photo" && privateSite[1].photo === "site" &&
+  roomSite.length === 1, "the command guide follows /site only in a direct chat");
 
 // ---------------------------------------------------------------- a site that cannot be read is a third state
 forgetToken();
 net.siteOk = false;
 body = textOf(await handleUpdate(msg("/ca"), { env: {}, kv: fakeKV() }));
 t.ok(body === T.SITE_UNREADABLE, "an unreadable site has its own sentence");
-t.ok(body !== T.NO_TOKEN_YET, "and it is not the one about the token not existing");
+t.ok(body !== T.NO_TOKEN_YET, "and it is not the unpublished-address response");
 forgetToken();
 body = textOf(await handleUpdate(msg("/start"), { env: {}, kv: fakeKV() }));
 t.ok(body === T.START_TOKEN_STATE_UNREADABLE, "/start names an unreadable token document instead of guessing its state");

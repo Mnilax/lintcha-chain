@@ -30,7 +30,7 @@
 // that command carries the bot token, so it is not written here, not in the README and not in the repository.
 
 import { handleUpdate, commandOf, ourBotJoined, KNOWN_COMMANDS, COPY_COMMANDS } from "./router.js";
-import { answerCallbackQueryResult, answerInlineQueryResult, sendMessage, sendMessageResult } from "./telegram.js";
+import { answerCallbackQueryResult, answerInlineQueryResult, sendMessage, sendMessageResult, sendPhotoResult } from "./telegram.js";
 import { copyRoute } from "./copy-gateway.js";
 import { copyConfigOf, drainCopyOutboxFor } from "./copy.js";
 import { inlineQueryOf } from "./inline.js";
@@ -533,6 +533,14 @@ async function deliverTelegramUpdate(updateId, update, initial, updates, env) {
       }
       // A stale or otherwise terminal query id cannot recover. Completing it prevents a permanent webhook
       // retry loop; accepted and terminal inline answers are both final for this update.
+      state = await updates.advance(updateId, state.nextAction, sending.leaseUntil);
+      if (!state) return false;
+      continue;
+    }
+    if (action.kind === "send-photo") {
+      const delivery = await sendPhotoResult(env, action.chat, action.photo);
+      if (delivery === "uncertain") return false; // The upload may have reached Telegram; keep the lease.
+      // The text and buttons were already sent. A definite photo refusal is terminal for this decoration.
       state = await updates.advance(updateId, state.nextAction, sending.leaseUntil);
       if (!state) return false;
       continue;

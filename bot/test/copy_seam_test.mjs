@@ -46,7 +46,8 @@ t.ok(!KNOWN_COMMANDS.includes("copy") && COPY_COMMANDS.length === 1, "copy is no
     fallback = await handleUpdate(privateCopy("/start copy_site"), { env: {}, kv: fakeKV() });
   } finally { globalThis.fetch = realFetch; }
   t.ok(textOf(plain).includes("Lintcha Core"), "/start still answers as Core");
-  t.ok(fallback.length === 1 && /copy-trading/.test(JSON.stringify(fallback[0])), "disabled: the site deep link gets Core's /start answer instead of silence");
+  t.ok(fallback.length === 2 && fallback[1].kind === "send-photo" && fallback[1].photo === "start" &&
+    /copy-trading/.test(JSON.stringify(fallback[0])), "disabled: the site deep link gets Core's /start text and private banner");
 }
 
 // Claims: a Copy callback is metered to its presser; a foreign callback is not known.
@@ -65,7 +66,8 @@ const env = { BOT_USERNAME: "lintchabot", COPY_GATEWAY_SECRET: SECRET, COPY_APP_
   return Response.json({ ok: true, response: { text: "Lintcha — copy-trading\nhello & <b>", inlineKeyboard: [[{ text: "Open", webAppUrl: ORIGIN + "/copy/" }], [{ text: "Pause", callbackData: "copy.pause" }]] } });
 } } };
 const enabled = await handleUpdate(privateCopy("/copy these words never leave"), { env, kv: fakeKV() });
-t.ok(enabled.length === 1 && enabled[0].kind === "send" && enabled[0].chat === 100, "enabled: one send action to the private chat");
+t.ok(enabled.length === 2 && enabled[0].kind === "send" && enabled[0].chat === 100 &&
+  enabled[1].kind === "send-photo" && enabled[1].photo === "copy", "enabled: Copy text and then its private banner");
 t.ok(enabled[0].escape === true && enabled[0].text.startsWith("Lintcha — copy-trading"), "the reply is marked for escaping and names the mode first");
 t.ok(enabled[0].reply_markup.inline_keyboard[0][0].web_app.url === ORIGIN + "/copy/" && enabled[0].reply_markup.inline_keyboard[1][0].callback_data === "copy.pause", "buttons are the exact Copy origin and a namespaced callback");
 t.ok(received.length === 1 && received[0].url === ORIGIN + "/api/copy/gateway", "the seam posted to the gateway route of the bound service");
@@ -74,7 +76,9 @@ t.ok(envelope.schema === "lintcha.copy.gateway.v1" && envelope.telegramUserId ==
 t.ok(!JSON.stringify(received[0].body).includes("never leave") && !("update" in received[0].body) && /^[0-9a-f]{64}$/.test(received[0].body.signature), "the envelope carries no message text or raw update, and is signed");
 t.ok(!JSON.stringify(received[0].body).toLowerCase().includes("token"), "no token-shaped field crosses the seam");
 const attributed = await handleUpdate(privateCopy("/start copy_site"), { env, kv: fakeKV() });
-t.ok(attributed.length === 1 && JSON.parse(received[1].body.body).referralSource === "SITE" && !JSON.stringify(received[1].body.body).includes("copy_site"), "the site deep link enters Copy with only the bounded SITE attribution");
+t.ok(attributed.length === 2 && attributed[1].photo === "copy" &&
+  JSON.parse(received[1].body.body).referralSource === "SITE" && !JSON.stringify(received[1].body.body).includes("copy_site"),
+  "the site deep link enters Copy with only the bounded SITE attribution and receives the Copy banner");
 const pressed = await handleUpdate(callback("copy.pause"), { env, kv: fakeKV() });
 t.ok(pressed.length === 2 && pressed[0].kind === "answer-callback" && pressed[0].callbackQueryId === "4242" && pressed[1].kind === "send", "a callback is answered and then replied to");
 t.ok(JSON.parse(received[2].body.body).callbackData === "copy.pause", "the callback payload is forwarded by namespace");
@@ -84,7 +88,7 @@ t.ok(grouped.length === 1 && grouped[0].text === GATEWAY_TEXTS.PRIVATE_ONLY && r
 // Copy failure: a fixed line, no throw, Core unaffected.
 const broken = { ...env, COPY_SERVICE: { async fetch() { throw new Error("ECONNRESET"); } } };
 const down = await handleUpdate(privateCopy(), { env: broken, kv: fakeKV() });
-t.ok(down.length === 1 && down[0].text === GATEWAY_TEXTS.UNAVAILABLE, "a Copy outage answers with the fixed unavailable line");
+t.ok(down.length === 1 && down[0].text === GATEWAY_TEXTS.UNAVAILABLE, "a Copy outage answers with the fixed unavailable line without a banner");
 const refusing = { ...env, COPY_SERVICE: { async fetch() { return Response.json({ ok: false, why: "INVALID_GATEWAY_SIGNATURE" }); } } };
 t.ok((await handleUpdate(privateCopy(), { env: refusing, kv: fakeKV() }))[0].text === GATEWAY_TEXTS.UNAVAILABLE, "a Copy refusal is also the fixed line, never a raw error");
 const foreignButtons = { ...env, COPY_SERVICE: { async fetch() { return Response.json({ ok: true, response: { text: "x", inlineKeyboard: [[{ text: "evil", webAppUrl: "https://evil.example/copy/" }]] } }); } } };

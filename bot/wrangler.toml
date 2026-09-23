@@ -38,6 +38,11 @@ preview_urls = false
 #     crypto = "node:crypto"
 compatibility_flags = ["nodejs_compat"]
 
+# Small command banners are uploaded with the bot as binary modules; no site asset deployment is needed.
+[[rules]]
+type = "Data"
+globs = ["**/media/*.png"]
+
 # Names only, never values. On the supported production deploy Wrangler inherits these bindings from the latest
 # staged version and refuses the upload if either one is absent.
 #

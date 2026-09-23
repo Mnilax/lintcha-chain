@@ -161,6 +161,16 @@ t.ok(rejectedCopyAction(6025, { kind: "answer-callback", callbackQueryId: "cb_A-
   "the durable boundary rejects extra callback-answer fields");
 t.ok(rejectedCopyAction(6026, { kind: "answer-callback", callbackQueryId: "x".repeat(257) }),
   "the durable boundary bounds opaque callback query identifiers");
+copyWatch.claimTelegramUpdate(6027, "79", now + 6027);
+const mediaState = copyWatch.storeTelegramResponse(6027, [
+  { kind: "send", chat: 79, text: "Copy commands" },
+  { kind: "send-photo", chat: 79, photo: "copy" }
+]);
+t.ok(mediaState.ok === true && mediaState.actions[1].kind === "send-photo" && mediaState.actions[1].photo === "copy",
+  "the private command banner survives the durable action boundary after its text");
+t.ok(rejectedCopyAction(6028, { kind: "send-photo", chat: 79, photo: "https://evil.example/image.png" }) &&
+  rejectedCopyAction(6029, { kind: "send-photo", chat: 79, photo: "copy", caption: "smuggled" }),
+  "the durable boundary accepts only named bundled banners with no extra fields");
 
 const effectClaim = bucketWatch.claimTelegramUpdate(6011, "80", now + 20);
 const effectMarkA = other.slice(0, -2) + "aa";

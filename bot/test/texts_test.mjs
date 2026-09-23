@@ -69,9 +69,9 @@ const GIVEN = {
     Come back here when you have signed. I check every few seconds.`,
   sentence: `I am proving to the lintcha bot that this wallet is mine. This signature
     moves nothing, approves nothing and spends nothing.`,
-  noToken: `$LINTCHA does not exist yet. When it does, its address will be on the
-    site and this command will answer. Nothing here is a presale and there
-    is no list to join.`
+  noToken: `The official $LINTCHA contract address is pending publication on
+    lintcha.com. This command will use the verified address once it is
+    available. There is no presale or list to join.`
 };
 
 // START carries the borrowed text and then one paragraph of its own, so the borrowed half is compared as a
@@ -94,7 +94,8 @@ t.ok(T.GREETING.includes("\n\n/ca for the contract"), "the greeting keeps its la
 t.ok(T.startText("active") === T.START && T.greetingText("active") === T.GREETING,
   "active status retains the full feed and holder texts");
 t.ok(T.startText("dormant") === T.START_PRETOKEN && T.greetingText("dormant") === T.GREETING_PRETOKEN &&
-  /does not exist yet/.test(T.START_PRETOKEN) && /publish no placeholder/.test(T.GREETING_PRETOKEN) &&
+  /after verification/.test(T.START_PRETOKEN) && /no placeholder values/.test(T.START_PRETOKEN) &&
+  /publish no placeholder/.test(T.GREETING_PRETOKEN) &&
   !/Every buy lands here/.test(T.GREETING_PRETOKEN),
   "pre-token status names only live commands and makes no feed, price or contract claim");
 t.ok(T.startText("unreadable") === T.START_TOKEN_STATE_UNREADABLE &&
