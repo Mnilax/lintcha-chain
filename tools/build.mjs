@@ -295,7 +295,8 @@ function render(tplName, lang, extra) {
     contract_row: contractRow(), token_section: tokenSection(lang), launch_band: launchBand(), repo: REPO, anchor_method: "#s" + NUM.method,
     // the prose that depends on the token's state: one key per state, picked here from the same validated token.json,
     // so an activated page never keeps the pre-launch sentence and a dormant page never claims a live token
-    site_status_key: token.address ? "hero.status.live" : "hero.status.dormant", road_token_key: token.address ? "road.token.live.p" : "road.token.p",
+    site_status_key: token.pons ? "hero.status.live" : token.address ? "hero.status.address" : "hero.status.dormant",
+    road_token_key: token.pons ? "road.token.live.p" : token.address ? "road.token.address.p" : "road.token.p",
     charts: landed("viz") ? charts(index, numbers, T, TO, lang) : "", ornament: landed("viz") ? ornament(T) : "",
     method_norm: landed("method") ? normalization(T, engine.L) : "", method_alias: landed("method") ? alias(T, engine.Links) : "",
     method_skeleton: landed("method") ? skeleton(T, engine.Skeleton) : "", method_index: landed("method") ? indexTable(T, numbers, engine.L, nf) : "",

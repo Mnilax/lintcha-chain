@@ -30,11 +30,10 @@ const permissionRows = Object.fromEntries([...permissionBlock.matchAll(/^  ([a-z
 const inputNames = [...trigger.matchAll(/^      ([a-z_]+):$/gm)].map(match => match[1]);
 const inputBlock = name => new RegExp(`^      ${name}:\\n((?:        [^\\n]+\\n)+)`, "m").exec(trigger)?.[1] || "";
 const prep = between(code, "      - name: Validate and mask the public inputs without printing them", "      - name: Prove and prepare");
-const activation = between(code, "      - name: Prove and prepare the pons-only activation without logging its inputs", "      - name: Recheck the product boundary");
+const activation = between(code, "      - name: Prove and prepare the address or Pons update without logging its inputs", "      - name: Recheck the product boundary");
 const review = between(code, "      - name: Commit only status-derived activation files and open the guarded review", "\n\u0000");
 const statusCase = between(review, '            case "${status_line}" in', "            esac");
 const allowedPaths = [...statusCase.matchAll(/" M ([^"]+)"/g)].map(match => match[1]);
-const requiredPaths = /for required_path in ([^;]+); do/.exec(review)?.[1].trim().split(/\s+/) || [];
 const exactChangedPaths = [
   "README.md",
   "site/token.json"
@@ -46,8 +45,9 @@ ok(same([...trigger.matchAll(/^  ([a-z_]+):$/gm)].map(match => match[1]), ["work
 ok(same(inputNames, ["contract_address", "pons_url"]), "the manual form has exactly the two public inputs");
 for (const name of ["contract_address", "pons_url"]) {
   const block = inputBlock(name);
-  ok(/^        description: \S.+$/m.test(block) && /^        required: true$/m.test(block) && /^        type: string$/m.test(block) && !/^        default:/m.test(block),
-    `${name} is a required string with no stored default`);
+  const required = name === "contract_address" ? "true" : "false";
+  ok(/^        description: \S.+$/m.test(block) && new RegExp(`^        required: ${required}$`, "m").test(block) && /^        type: string$/m.test(block) && !/^        default:/m.test(block),
+    `${name} is a ${required === "true" ? "required" : "optional"} string with no stored default`);
 }
 ok(JSON.stringify(permissionRows) === JSON.stringify({ contents: "write", "pull-requests": "write", actions: "write" }) && count(code, "permissions:") === 1,
   "the token has only the three explicit write scopes and no job override");
@@ -62,7 +62,7 @@ ok(!code.includes("${{ inputs.") && !code.includes("${{ github.event.inputs."), 
 ok(prep.includes("process.env.GITHUB_EVENT_PATH") && prep.includes("event.inputs.contract_address") && prep.includes("event.inputs.pons_url"), "input preparation reads only the event file and both declared values");
 ok(prep.includes('import { tokenConfigOf } from "./lib/config-contract.mjs"') && prep.includes("tokenConfigOf({ address, pons, uniswap: null })") && !prep.includes("1024") && !prep.includes("new URL("), "input validation reuses the shared activation contract without duplicated limits or URL rules");
 ok(prep.includes('replace(/%/g, "%25")') && prep.includes("::add-mask::") && prep.indexOf("::add-mask::") < prep.indexOf("fs.writeFileSync"), "raw and canonical values are command-escaped and masked before leaving validation");
-ok(count(prep, 'mode: 0o600') === 2 && prep.includes('"token-activation-ca.txt"), config.address + "\\n"') && prep.includes('"token-activation-pons.txt"), config.pons + "\\n"') && !prep.includes("GITHUB_OUTPUT"), "only canonical masked inputs enter two fixed private runner-temp files with readable line termination");
+ok(count(prep, 'mode: 0o600') === 2 && prep.includes('"token-activation-ca.txt"), config.address + "\\n"') && prep.includes('"token-activation-pons.txt"), (config.pons || "") + "\\n"') && !prep.includes("GITHUB_OUTPUT"), "only canonical masked inputs enter two fixed private runner-temp files; absent Pons is blank");
 
 const secretExpression = "${{ secrets.LINTCHA_CHAIN_RPC_URL }}";
 ok(/^    environment: launch-refresh$/m.test(code), "the activation job is attached to the protected environment that owns the RPC secret");
@@ -72,7 +72,8 @@ const requireSecretAt = activation.indexOf('if [ -z "${LINTCHA_CHAIN_RPC_URL:-}"
 const invokeAt = activation.indexOf('node tools/activate-token.mjs "${TOKEN_CA}" "${TOKEN_PONS_URL}" > /dev/null');
 ok(requireSecretAt >= 0 && invokeAt > requireSecretAt, "an empty environment secret fails before the guarded activator runs");
 ok(activation.includes('IFS= read -r TOKEN_CA < "${RUNNER_TEMP}/token-activation-ca.txt"') && activation.includes('IFS= read -r TOKEN_PONS_URL < "${RUNNER_TEMP}/token-activation-pons.txt"') && activation.includes("trap cleanup_inputs EXIT"), "the masked inputs are read without printing and removed on every activation exit");
-ok(invokeAt >= 0 && !code.includes("npm run activate-token"), "the activator's stdout and npm's argument echo cannot enter the log");
+ok(invokeAt >= 0 && activation.includes('if [ -n "${TOKEN_PONS_URL}" ]; then') && activation.includes('node tools/activate-token.mjs "${TOKEN_CA}" > /dev/null') && !code.includes("npm run activate-token"),
+  "the activator accepts CA alone or CA plus Pons without logging its stdout or npm arguments");
 ok(!/set\s+-x|printenv|toJSON\s*\(|::debug::|::notice::|upload-artifact/i.test(code) && !/(?:echo|printf)[^\n]*\$\{(?:TOKEN_CA|TOKEN_PONS_URL|LINTCHA_CHAIN_RPC_URL)/.test(code),
   "the workflow has no tracing, environment dump, artifact upload or value-print command");
 
@@ -81,16 +82,17 @@ const vendorAfterAt = code.indexOf("node tools/verify-vendor.mjs", recheckAt);
 const statusAt = code.indexOf("git status --porcelain=v1 --untracked-files=all >");
 ok(recheckAt >= 0 && vendorAfterAt > recheckAt && statusAt > vendorAfterAt, "never digests and the vendor boundary are rechecked before status is trusted");
 ok(same(allowedPaths, exactChangedPaths) && allowedPaths.length === exactChangedPaths.length, "the case guard allows exactly the two activation modifications");
-ok(same(requiredPaths, exactChangedPaths) && requiredPaths.length === exactChangedPaths.length, "both allowed modifications are required, so a no-op or partial build fails");
+ok(review.includes('grep -Fqx " M site/token.json" "${status_file}"') && !review.includes('grep -Fqx " M README.md" "${status_file}"'),
+  "the token document must change while README may stay unchanged on the second pass");
 ok(!statusCase.includes("sitemap") && !statusCase.includes("manifest") && !statusCase.includes("src/i18n"), "token-independent and ignored build outputs cannot enter the token activation commit");
-ok(review.includes("sed 's/^ M //' \"${status_file}\" | sort > \"${paths_file}\"") && review.includes('git add --pathspec-from-file="${paths_file}"') && count(review, "git add ") === 1,
-  "staging paths come only from the verified porcelain output");
+ok(review.includes("sed 's/^ M //' \"${status_file}\" | sort > \"${paths_file}\"") && review.includes('git add -- README.md site/token.json') && count(review, "git add ") === 1,
+  "staging is limited to the two addressed files, with exact staged-to-status comparison");
 ok(review.includes('git diff --cached --name-only | sort > "${staged_file}"') && review.includes('cmp -s "${paths_file}" "${staged_file}"') && review.includes("git diff --quiet"), "the staged set is reproduced exactly and leaves no unstaged change");
 
 ok(code.includes('if [ "${GITHUB_REF}" != "refs/heads/main" ]') && code.includes('if [ "${head_sha}" != "${GITHUB_SHA}" ]'), "dispatch is pinned to main and its exact event revision");
 ok(count(code, "git fetch --no-tags origin main") >= 4 && count(code, "git rev-parse origin/main") >= 4 && review.includes('if [ "$(git rev-parse HEAD)" != "${BASE_SHA}" ]'), "main and local HEAD are guarded before mutation, before push and after review checks");
-ok(review.includes('git commit -m "token: guarded activation"') && review.includes('branch="automation/token-activation-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"'), "commit and branch metadata are fixed and contain no public input");
-ok(review.includes('gh pr create --draft --base main --head "${branch}" --title "token: guarded activation" --body "Manual token activation prepared by the repository guard.'), "the automation opens a fixed-prose draft PR against main");
+ok(review.includes('git commit -m "token: guarded public token update"') && review.includes('branch="automation/token-activation-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"'), "commit and branch metadata are fixed and contain no public input");
+ok(review.includes('gh pr create --draft --base main --head "${branch}" --title "token: guarded public token update" --body "Manual public token update prepared by the repository guard.'), "the automation opens a fixed-prose draft PR against main");
 ok(!/(?:commit -m|--title|--body|branch=)[^\n]*(?:TOKEN_CA|TOKEN_PONS_URL|LINTCHA_CHAIN_RPC_URL|token\.json)/.test(review), "no input, secret or activated file is interpolated into branch, commit or PR metadata");
 
 for (const name of ["test", "vendor"]) {
