@@ -2138,6 +2138,14 @@ const telegramCopyReplyMarkupOf = (value, configuredOrigin) => {
   }
   return { inline_keyboard: inlineKeyboard };
 };
+const telegramChatOf = raw => {
+  if (Number.isSafeInteger(raw) && raw !== 0) return raw;
+  if (typeof raw === "string" && /^-?[1-9][0-9]*$/.test(raw)) {
+    const numeric = Number(raw);
+    if (Number.isSafeInteger(numeric) && numeric !== 0 && String(numeric) === raw) return raw;
+  }
+  return null;
+};
 const telegramActionsOf = (value, copyOrigin = null) => {
   if (!Array.isArray(value) || value.length > MAX_TELEGRAM_RESPONSE_ACTIONS) return null;
   const out = [];
@@ -2155,15 +2163,18 @@ const telegramActionsOf = (value, copyOrigin = null) => {
       out.push({ kind: "answer-callback", callbackQueryId: raw.callbackQueryId });
       continue;
     }
+    if (raw && raw.kind === "send-photo") {
+      if (!exactObjectKeys(raw, ["kind", "chat", "photo"]) ||
+          (raw.photo !== "start" && raw.photo !== "copy" && raw.photo !== "site")) return null;
+      const chat = telegramChatOf(raw.chat);
+      if (chat === null) return null;
+      out.push({ kind: "send-photo", chat, photo: raw.photo });
+      continue;
+    }
     if (!raw || typeof raw !== "object" || Array.isArray(raw) || raw.kind !== "send" ||
         !Object.keys(raw).every(key => ["kind", "chat", "text", "quiet", "preview", "replyTo", "escape", "reply_markup"].includes(key)) ||
         typeof raw.text !== "string" || !raw.text.length || raw.text.length > TELEGRAM_TEXT_LIMIT) return null;
-    let chat = null;
-    if (Number.isSafeInteger(raw.chat) && raw.chat !== 0) chat = raw.chat;
-    else if (typeof raw.chat === "string" && /^-?[1-9][0-9]*$/.test(raw.chat)) {
-      const numeric = Number(raw.chat);
-      if (Number.isSafeInteger(numeric) && numeric !== 0 && String(numeric) === raw.chat) chat = raw.chat;
-    }
+    const chat = telegramChatOf(raw.chat);
     if (chat === null || (raw.quiet !== undefined && typeof raw.quiet !== "boolean") ||
         (raw.preview !== undefined && typeof raw.preview !== "boolean") ||
         (raw.replyTo !== undefined && (!Number.isSafeInteger(raw.replyTo) || raw.replyTo <= 0)) ||

@@ -83,14 +83,16 @@ export function inlineActionOf(value) {
 /** One bounded Bot API call, retaining enough refusal detail for inline-query expiry to be terminal. */
 async function botApiCallResult(env, method, body) {
   const token = env && env.TELEGRAM_BOT_TOKEN;
-  if (!token || typeof method !== "string" || !plainObject(body)) return { state: "refused" };
+  const multipart = body instanceof FormData;
+  if (!token || typeof method !== "string" || (!plainObject(body) && !multipart)) return { state: "refused" };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TELEGRAM_TIMEOUT_MS);
   try {
     const r = await fetch(API + token + "/" + method, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      // FormData supplies its own boundary; setting a JSON header here would break Telegram's upload.
+      ...(multipart ? {} : { headers: { "content-type": "application/json" } }),
+      body: multipart ? body : JSON.stringify(body),
       signal: controller.signal
     });
     if (controller.signal.aborted) { cancelBody(r); return { state: "uncertain" }; }
@@ -132,6 +134,23 @@ export async function sendMessageResult(env, chatId, text, options = {}) {
   if (options.escape === true) body.text = esc(text);
   if (options.reply_markup && typeof options.reply_markup === "object") body.reply_markup = options.reply_markup;
   return (await botApiCallResult(env, "sendMessage", body)).state;
+}
+
+/** A decorative, captionless banner for a direct command response. Text and buttons are sent first. */
+export async function sendPhotoResult(env, chatId, photo) {
+  if (!env || !env.TELEGRAM_BOT_TOKEN || !chatId || !["start", "copy", "site"].includes(photo)) return "refused";
+  let bytes;
+  try {
+    // Wrangler uploads these PNGs as Data modules. Node's pure router tests cannot import PNGs, so they
+    // exercise the durable action separately and simply omit the optional upload.
+    bytes = (photo === "start" ? await import("./media/start.png") :
+      photo === "copy" ? await import("./media/copy.png") : await import("./media/site.png")).default;
+  } catch { return "refused"; }
+  if (!(bytes instanceof ArrayBuffer) || !bytes.byteLength) return "refused";
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  form.append("photo", new Blob([bytes], { type: "image/png" }), photo + ".png");
+  return (await botApiCallResult(env, "sendPhoto", form)).state;
 }
 
 /**

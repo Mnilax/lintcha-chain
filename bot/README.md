@@ -63,11 +63,11 @@ for the address to disagree with the site.
 
 While `address` is null:
 
-    /ca /price /me /verify /stats        say the token does not exist yet
+    /ca /price /me /verify /stats        wait for a verified address to be published
     the feed                             does not start, and no alarm is set at all
 
 A site that cannot be read is a third state with its own sentence. It is never collapsed
-into "there is no token", because that would be telling somebody a fact about the token
+into "the address is unpublished", because that would be telling somebody a fact about the token
 when what actually happened was a network fault.
 
 ## Setting it up
@@ -179,7 +179,7 @@ when what actually happened was a network fault.
 
    When `site/token.json` is the complete three-null document, connect the bot only with the explicit pre-token
    command below. `/start` and `/site` answer; `/ca`, `/price`, `/stats` and token-dependent holder commands state
-   that the token does not exist yet, and the feed starts no alarm and sends nothing. `/forget` remains available
+   that no verified address is published yet, and the feed starts no alarm and sends nothing. `/forget` remains available
    because removing stored state must not depend on token activation. This is a live information bot, not a token
    activation or a placeholder launch.
 

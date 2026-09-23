@@ -72,7 +72,7 @@ const START_PRETOKEN_AS_GIVEN = [
   "",
   "/site — the site and repository",
   "",
-  "$LINTCHA does not exist yet. When one verified address appears on the site, /ca, /price, /stats and holder verification switch on. Until then they say so and publish no placeholder. There is no presale and no list to join.",
+  "Official $LINTCHA contract details will appear on lintcha.com after verification. /ca, /price, /stats and holder verification use that published address; until then, they show no placeholder values. There is no presale or list to join.",
   "",
   "Lintcha Core, the read-only half, never messages you first, asks for a key, seed or spending approval, holds funds or trades."
 ].join("\n");
@@ -142,7 +142,7 @@ export const SENTENCE_BEFORE_MARK = "I am proving to the lintcha bot that this w
 export const SENTENCE_AFTER_MARK = ". This signature moves nothing, approves nothing and spends nothing.";
 export const sentenceFor = mark => SENTENCE_BEFORE_MARK + String(mark) + SENTENCE_AFTER_MARK;
 
-export const NO_TOKEN_YET = "$LINTCHA does not exist yet. When it does, its address will be on the site and this command will answer. Nothing here is a presale and there is no list to join.";
+export const NO_TOKEN_YET = "The official $LINTCHA contract address is pending publication on lintcha.com. This command will use the verified address once it is available. There is no presale or list to join.";
 
 // ---------------------------------------------------------------- the rest, which section eight does not fix
 

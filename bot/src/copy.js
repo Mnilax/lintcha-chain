@@ -7,7 +7,7 @@
 // a signed minimal identity envelope out, a validated text-plus-namespaced-buttons reply back. The bot token
 // never leaves this Worker, and the raw Telegram update never enters Copy.
 
-import { routeCopyUpdate, drainCopyOutbox } from "./copy-gateway.js";
+import { routeCopyUpdate, drainCopyOutbox, GATEWAY_TEXTS } from "./copy-gateway.js";
 import { botUsernameOf } from "./config.js";
 
 const COPY_TIMEOUT_MS = 8000;
@@ -70,7 +70,15 @@ export async function copyActionsFor(update, env, nowSeconds = Math.floor(Date.n
   if (!config || !routed.response) return [];                                            // Copy is not wired up: silence, like an unknown command
   const actions = [];
   if (update && update.callback_query && typeof update.callback_query.id === "string") actions.push({ kind: "answer-callback", callbackQueryId: update.callback_query.id });
-  if (routed.chatId !== null && routed.chatId !== undefined) actions.push({ kind: "send", chat: routed.chatId, text: routed.response.text, reply_markup: routed.response.reply_markup, escape: true });
+  if (routed.chatId !== null && routed.chatId !== undefined) {
+    actions.push({ kind: "send", chat: routed.chatId, text: routed.response.text, reply_markup: routed.response.reply_markup, escape: true });
+    const msg = update && update.message;
+    if (routed.response.text !== GATEWAY_TEXTS.UNAVAILABLE && msg && msg.chat && msg.chat.type === "private" &&
+        (/^\/copy(?:@[A-Za-z0-9_]+)?(?:\s|$)/i.test(String(msg.text || "")) ||
+         /^\/start(?:@[A-Za-z0-9_]+)?\s+copy_site(?:\s|$)/i.test(String(msg.text || "")))) {
+      actions.push({ kind: "send-photo", chat: routed.chatId, photo: "copy" });
+    }
+  }
   return actions;
 }
 
