@@ -45,9 +45,7 @@
   <img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-d4fc50?labelColor=08090a&style=flat-square">
 </p>
 
-<!-- the token line, when there is a token: uncomment and paste the contract
-<p align="center"><b>$LINTCHA</b> · <code>0x...</code></p>
--->
+<p align="center"><b>$LINTCHA</b> · <code>0x2bf095bb7d885f6013de6d51aecebbf64d065991</code></p>
 
 > [!IMPORTANT]
 > Copy-trading is internally isolated from read-only Lintcha Core. Auto-BUY remains disabled until the delegated-wallet, provider, simulation, contract-review and activation gates pass. Funds stay in the user's user-owned wallet; seed and private key never enter Telegram or the Lintcha backend. SELL is manual only.
