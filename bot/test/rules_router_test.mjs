@@ -358,16 +358,16 @@ await putSession(s.kv, OWNER_A, HOLDER_A);
 await putSession(s.kv, OWNER_B, HOLDER_B);
 await say(s.deps, "/rule string SOLANA", OWNER_A);
 await say(s.deps, "/rule string MOON", OWNER_B);
-t.ok(textOf(await say(s.deps, "/forget", OWNER_A)) === T.FORGOTTEN, "full forget confirms both stores without consulting token state");
+t.ok(textOf(await say(s.deps, "/forget", OWNER_A)).startsWith(T.FORGOTTEN), "full forget confirms all stores without consulting token state");
 t.ok(await s.kv.get("session:" + OWNER_A) === null && s.watch.rules.list(OWNER_A).length === 0, "it deletes the address session and every rule for that owner");
 t.ok(await s.kv.get("session:" + OWNER_B) === HOLDER_B && s.watch.rules.list(OWNER_B).length === 1, "it leaves the other owner's session and rules untouched");
-t.ok(textOf(await say(s.deps, "/forget", OWNER_A)) === T.FORGOTTEN, "repeating full forget remains the same idempotent request");
+t.ok(textOf(await say(s.deps, "/forget", OWNER_A)).startsWith(T.FORGOTTEN), "repeating full forget remains the same idempotent request");
 
 const deleteRejected = { async delete() { throw new Error("unconfirmed"); } };
 const rulesOk = { async forget() { return { ok: true }; } };
 const rulesNo = { async forget() { return null; } };
-t.ok(textOf(await say({ env: {}, kv: fakeKV(), watch: rulesNo }, "/forget")) === T.FORGET_RULES_UNCONFIRMED, "an address-only acknowledgement names unconfirmed rules");
-t.ok(textOf(await say({ env: {}, kv: deleteRejected, watch: rulesOk }, "/forget")) === T.FORGET_SESSION_UNCONFIRMED, "a rules-only acknowledgement names the unconfirmed address deletion");
-t.ok(textOf(await say({ env: {}, kv: deleteRejected, watch: rulesNo }, "/forget")) === T.FORGET_UNCONFIRMED, "two missing acknowledgements are not rewritten as success");
+t.ok(textOf(await say({ env: {}, kv: fakeKV(), watch: rulesNo }, "/forget")).startsWith(T.FORGET_RULES_UNCONFIRMED), "an address-only acknowledgement names unconfirmed rules");
+t.ok(textOf(await say({ env: {}, kv: deleteRejected, watch: rulesOk }, "/forget")).startsWith(T.FORGET_SESSION_UNCONFIRMED), "a rules-only acknowledgement names the unconfirmed address deletion");
+t.ok(textOf(await say({ env: {}, kv: deleteRejected, watch: rulesNo }, "/forget")).startsWith(T.FORGET_UNCONFIRMED), "two missing acknowledgements are not rewritten as success");
 
 t.done();

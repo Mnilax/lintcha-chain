@@ -33,6 +33,7 @@ import { handleUpdate, commandOf, ourBotJoined, KNOWN_COMMANDS, COPY_COMMANDS } 
 import { answerCallbackQueryResult, answerInlineQueryResult, sendMessage, sendMessageResult, sendPhotoResult } from "./telegram.js";
 import { copyRoute } from "./copy-gateway.js";
 import { copyConfigOf, drainCopyOutboxFor } from "./copy.js";
+import { bareWatchAddress } from "./wallet-watch.js";
 import { inlineQueryOf } from "./inline.js";
 import { checkHold } from "./verify.js";
 import { readToken } from "./chain.js";
@@ -114,7 +115,8 @@ export function telegramCommandClaimOf(update, botUsername = null, { copy = fals
     return { known: true, owner, meteredOwner: null, metered: false, service: true };
   }
   const command = commandOf(msg.text, botUsername);
-  if (!command || !(KNOWN_COMMANDS.includes(command) || (copy && COPY_COMMANDS.includes(command)))) return { known: false, owner: null, meteredOwner: null, metered: false };
+  const privateSourceAddress = msg.chat.type === "private" && bareWatchAddress(msg.text);
+  if (!privateSourceAddress && (!command || !(KNOWN_COMMANDS.includes(command) || (copy && COPY_COMMANDS.includes(command))))) return { known: false, owner: null, meteredOwner: null, metered: false };
   const id = msg.from ? telegramUpdateIdOf(msg.from.id) : null;
   const owner = id === null ? null : String(id);
   // /forget is the deletion path promised to work independently of the rest of the service. It is still

@@ -160,11 +160,12 @@ const copyEnv = {
 const copyUpdate = { update_id: 1101, message: { chat: { id: 11, type: "private" }, from: { id: 11 }, text: "/copy" } };
 const beforeCopyAttempt = net.attempted.length;
 r = await worker.fetch(post("/api/telegram", copyUpdate, { "X-Telegram-Bot-Api-Secret-Token": STAND_WEBHOOK_SECRET }), copyEnv, ctx);
-const copyTelegramBody = net.attempted.at(-1);
-t.ok(r.status === 200 && net.attempted.length === beforeCopyAttempt + 1 && copyTelegramBody.text === "Lintcha Copy &amp; trading" &&
+const copyTelegramBody = net.attempted[beforeCopyAttempt];
+t.ok(r.status === 200 && net.attempted.length === beforeCopyAttempt + 2 && copyTelegramBody.text === "Lintcha Copy &amp; trading" &&
   copyTelegramBody.reply_markup.inline_keyboard[0][0].web_app.url === "https://lintcha.com/copy/" &&
-  copyTelegramBody.reply_markup.inline_keyboard[1][0].callback_data === "copy.pause",
-  "a production-shape /copy update reaches Telegram with escaped text and its exact validated keyboard");
+  copyTelegramBody.reply_markup.inline_keyboard[1][0].callback_data === "copy.pause" &&
+  String(net.attempted[beforeCopyAttempt + 1].text || "").includes("BUY trade alerts are not active yet"),
+  "a production-shape /copy update reaches Telegram with escaped text, its keyboard and an honest watchlist hint");
 const copyCallback = { update_id: 1102, callback_query: { id: "cb_A-42", data: "copy.pause", from: { id: 11 }, message: { chat: { id: 11, type: "private" } } } };
 const beforeCopyCallback = net.attempted.length;
 r = await worker.fetch(post("/api/telegram", copyCallback, { "X-Telegram-Bot-Api-Secret-Token": STAND_WEBHOOK_SECRET }), copyEnv, ctx);
@@ -442,7 +443,7 @@ r = await worker.fetch(post("/api/telegram", forgetUpdate, { "X-Telegram-Bot-Api
 await Promise.all(waited);
 t.ok(r.status === 200 && await forgetEnv.SESSIONS.get("session:4343") === null, "production /forget asks the bound session store to delete");
 t.ok(nonceWatch.rules.list("4343").length === 0, "and its internal Watch request removes every saved rule for that owner");
-t.ok(String(net.sent[net.sent.length - 1].text || "") === T.FORGOTTEN, "the production path reports only the two acknowledgements it received");
+t.ok(String(net.sent[net.sent.length - 1].text || "").startsWith(T.FORGOTTEN) && String(net.sent[net.sent.length - 1].text || "").includes("watchlist deletion was accepted"), "the production path reports the acknowledged session, rules and watched-source deletions");
 
 // ---------------------------------------------------------------- the method and the other paths
 r = await worker.fetch(new Request("https://lintcha.com/api/telegram", { method: "GET" }), env(), ctx);

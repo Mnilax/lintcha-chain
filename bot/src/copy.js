@@ -77,6 +77,8 @@ export async function copyActionsFor(update, env, nowSeconds = Math.floor(Date.n
         (/^\/copy(?:@[A-Za-z0-9_]+)?(?:\s|$)/i.test(String(msg.text || "")) ||
          /^\/start(?:@[A-Za-z0-9_]+)?\s+copy_site(?:\s|$)/i.test(String(msg.text || "")))) {
       actions.push({ kind: "send-photo", chat: routed.chatId, photo: "copy" });
+      actions.push({ kind: "send", chat: routed.chatId,
+        text: "Send a public wallet address to save it; /watches to view. BUY trade alerts are not active yet. Saved addresses expire up to 30 days after the last change." });
     }
   }
   return actions;
