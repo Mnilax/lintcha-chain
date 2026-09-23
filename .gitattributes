@@ -1,3 +1,10 @@
 * text=auto eol=lf
 *.woff2 binary
 *.png binary
+
+# Deterministic output from tools/build.mjs; source lives in src/templates and src/i18n-src.
+site/index.html linguist-generated
+site/es/index.html linguist-generated
+site/pt/index.html linguist-generated
+site/app/index.html linguist-generated
+site/404.html linguist-generated

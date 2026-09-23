@@ -37,11 +37,6 @@ const allowedPaths = [...statusCase.matchAll(/" M ([^"]+)"/g)].map(match => matc
 const requiredPaths = /for required_path in ([^;]+); do/.exec(review)?.[1].trim().split(/\s+/) || [];
 const exactChangedPaths = [
   "README.md",
-  "site/404.html",
-  "site/app/index.html",
-  "site/es/index.html",
-  "site/index.html",
-  "site/pt/index.html",
   "site/token.json"
 ];
 
@@ -85,8 +80,8 @@ const recheckAt = code.indexOf("node tests/chain_token_states.mjs");
 const vendorAfterAt = code.indexOf("node tools/verify-vendor.mjs", recheckAt);
 const statusAt = code.indexOf("git status --porcelain=v1 --untracked-files=all >");
 ok(recheckAt >= 0 && vendorAfterAt > recheckAt && statusAt > vendorAfterAt, "never digests and the vendor boundary are rechecked before status is trusted");
-ok(same(allowedPaths, exactChangedPaths) && allowedPaths.length === exactChangedPaths.length, "the case guard allows exactly the seven activation modifications");
-ok(same(requiredPaths, exactChangedPaths) && requiredPaths.length === exactChangedPaths.length, "all seven allowed modifications are required, so a no-op or partial build fails");
+ok(same(allowedPaths, exactChangedPaths) && allowedPaths.length === exactChangedPaths.length, "the case guard allows exactly the two activation modifications");
+ok(same(requiredPaths, exactChangedPaths) && requiredPaths.length === exactChangedPaths.length, "both allowed modifications are required, so a no-op or partial build fails");
 ok(!statusCase.includes("sitemap") && !statusCase.includes("manifest") && !statusCase.includes("src/i18n"), "token-independent and ignored build outputs cannot enter the token activation commit");
 ok(review.includes("sed 's/^ M //' \"${status_file}\" | sort > \"${paths_file}\"") && review.includes('git add --pathspec-from-file="${paths_file}"') && count(review, "git add ") === 1,
   "staging paths come only from the verified porcelain output");

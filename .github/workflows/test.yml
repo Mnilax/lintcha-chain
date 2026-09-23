@@ -52,7 +52,11 @@ jobs:
       - name: Check the deterministic build
         run: |
           npm run build
-          git diff --exit-code -- site/index.html site/app/index.html site/es/index.html site/pt/index.html site/404.html site/sitemap.xml site/launch-manifest.json
+          sha256sum site/index.html site/app/index.html site/es/index.html site/pt/index.html site/404.html > "${RUNNER_TEMP}/site-html-first.sha256"
+          npm run build
+          sha256sum site/index.html site/app/index.html site/es/index.html site/pt/index.html site/404.html > "${RUNNER_TEMP}/site-html-second.sha256"
+          cmp "${RUNNER_TEMP}/site-html-first.sha256" "${RUNNER_TEMP}/site-html-second.sha256"
+          git diff --exit-code -- site/sitemap.xml site/launch-manifest.json
 
       - name: Check the rendered page contract
         run: node tests/chain_browser.mjs site --pages "/,/es/,/pt/,/live/,/deployer/,/hold/,/hold/?t=0123456789abcdef0123456789abcdef"

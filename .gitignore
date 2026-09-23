@@ -16,6 +16,11 @@ bot/.wrangler/
 src/i18n/en.json
 src/i18n/es.json
 src/i18n/pt.json
+site/index.html
+site/es/index.html
+site/pt/index.html
+site/app/index.html
+site/404.html
 *.dc.html
 STEP*.md
 *_REPORT.md

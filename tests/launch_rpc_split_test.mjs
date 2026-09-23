@@ -193,17 +193,12 @@ try {
   const publicationArtifacts = [
     "site/launch-index.json",
     "site/launch-numbers.json",
-    "site/launch-manifest.json",
-    "site/index.html",
-    "site/app/index.html",
-    "site/es/index.html",
-    "site/pt/index.html",
-    "site/404.html"
+    "site/launch-manifest.json"
   ];
   const allowlist = /if grep -v -x -E '([^']+)'/.exec(workflow)?.[1] || "";
   const staged = /git add ([^\r\n]+)/.exec(workflow)?.[1].trim().split(/\s+/) || [];
-  check(allowlist === String.raw` M site/(launch-(index|numbers|manifest)\.json|404\.html|(app/|es/|pt/)?index\.html)`, "the refresh status allowlist names exactly the eight publication artifacts including the Mini App");
-  check(JSON.stringify([...staged].sort()) === JSON.stringify([...publicationArtifacts].sort()), "the refresh stages exactly the same eight publication artifacts");
+  check(allowlist === String.raw` M site/launch-(index|numbers|manifest)\.json`, "the refresh status allowlist names exactly the three tracked publication artifacts");
+  check(JSON.stringify([...staged].sort()) === JSON.stringify([...publicationArtifacts].sort()), "the refresh stages exactly the same three tracked publication artifacts");
 } finally {
   await proxy.close();
   await archive.close();

@@ -95,7 +95,7 @@ when what actually happened was a network fault.
 2. **The room's chat id** in `ROOM_CHAT_ID`. Until it is set the feed still records buys
    and posts nothing, which is the right way round: no chat id must never mean no records.
 
-   Add `@lintchabot` to the public [lintcha room](https://t.me/lintcha) as an ordinary member,
+   Add `@lintchabot` to the configured buy-tape group as an ordinary member,
    and confirm in Telegram itself that the target is a group or supergroup (not a channel) and
    that ordinary members, including the bot, may post. The webhook subscribes to `message`,
    `edited_message`, `inline_query` and `callback_query` (Copy buttons); a channel is not a supported room.

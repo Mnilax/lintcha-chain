@@ -142,14 +142,14 @@ jobs:
           fi
           while IFS= read -r status_line; do
             case "${status_line}" in
-              " M README.md"|" M site/token.json"|" M site/index.html"|" M site/app/index.html"|" M site/es/index.html"|" M site/pt/index.html"|" M site/404.html") ;;
+              " M README.md"|" M site/token.json") ;;
               *)
                 echo "abort: activation changed a path outside its exact authored and generated allowlist"
                 exit 1
                 ;;
             esac
           done < "${status_file}"
-          for required_path in README.md site/token.json site/index.html site/app/index.html site/es/index.html site/pt/index.html site/404.html; do
+          for required_path in README.md site/token.json; do
             if ! grep -Fqx " M ${required_path}" "${status_file}"; then
               echo "abort: activation did not modify every required authored and rendered path"
               exit 1
@@ -176,7 +176,7 @@ jobs:
 
           branch="automation/token-activation-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git push origin "HEAD:refs/heads/${branch}" > /dev/null
-          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "token: guarded activation" --body "Manual token activation prepared by the repository guard. This draft contains only the public activation document, README line and deterministic localized build outputs. It becomes ready only after the explicitly dispatched test and vendor workflows pass for its unchanged head while main remains unchanged.")
+          pr_url=$(gh pr create --draft --base main --head "${branch}" --title "token: guarded activation" --body "Manual token activation prepared by the repository guard. This draft contains only the public activation document and README line. The localized pages are rebuilt from source. It becomes ready only after the explicitly dispatched test and vendor workflows pass for its unchanged head while main remains unchanged.")
 
           gh workflow run test.yml --ref "${branch}" > /dev/null
           gh workflow run vendor.yml --ref "${branch}" > /dev/null
