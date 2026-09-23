@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const html = fs.readFileSync(path.join(root, "site", "app", "index.html"), "utf8");
 const js = fs.readFileSync(path.join(root, "site", "app", "app.js"), "utf8");
+const publishedToken = JSON.parse(fs.readFileSync(path.join(root, "site", "token.json"), "utf8"));
 const headers = fs.readFileSync(path.join(root, "site", "_headers"), "utf8");
 const sitemap = fs.readFileSync(path.join(root, "site", "sitemap.xml"), "utf8");
 let checks = 0, failures = 0;
@@ -32,7 +33,14 @@ ok(!/<(?:iframe|object|embed)\b/i.test(html), "the Mini App embeds no external s
 const resourceUrls = [...html.matchAll(/<(?:script|link|img)\b[^>]*(?:src|href)="([^"]+)"/gi)].map(match => match[1]);
 ok(resourceUrls.length > 0 && resourceUrls.every(url => url.startsWith("/")), "every static dependency is same-origin");
 ok(/script-src 'self'/.test(headers) && /connect-src 'self'/.test(headers) && !/telegram\.org/.test(headers), "the strict same-origin CSP is unchanged");
-ok(!/data-token-address|data-copy-address/.test(html) && /The token is not published yet\./.test(html), "the dormant build exposes no empty contract slot or token action");
+if (!publishedToken.address) {
+  ok(!/data-token-address|data-copy-address/.test(html) && /The token is not published yet\./.test(html), "the dormant build exposes no empty contract slot or token action");
+} else {
+  const tokenButtons = html.match(/<div class="token-btns">([\s\S]*?)<\/div>/)?.[1] ?? "";
+  ok(count(html, new RegExp(publishedToken.address, "gi")) === 1 && /data-token-address/.test(html) && /data-copy-address/.test(html) && !/The token is not published yet\./.test(html), "the published contract appears once with a copy control");
+  ok(publishedToken.pons ? tokenButtons.includes(`href="${publishedToken.pons}"`) : !/href=/.test(tokenButtons), "the pons action appears only with a canonical pons URL");
+  if (publishedToken.uniswap) ok(tokenButtons.includes(`href="${publishedToken.uniswap}"`), "the optional Uniswap action uses its configured URL");
+}
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "chain-app-"));
 const tokenFile = path.join(temp, "token.json");
