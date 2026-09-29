@@ -1,9 +1,11 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { RpcError } from "./rpc-pool.mjs";
 import { assertDelegationAllows, UnconfiguredDelegatedExecutor } from "./delegated-execution.mjs";
+import { assertConfiguredLimits, readFinalizedConfiguredLimits } from "./delegation-activation.mjs";
 
 const HASH = /^0x[0-9a-fA-F]{64}$/;
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+const POLICY_CONTENT_SHA256 = /^[0-9a-f]{64}$/;
 const ALLOWANCE_SELECTOR = "0xdd62ed3e";
 const AUTO_BUY_SELECTOR = "0xa59ac6dd";
 
@@ -35,6 +37,7 @@ function assertPublicQuote(quote, now) {
   for (const key of ["amountIn", "expectedOutput", "minimumOutput"]) {
     try { if (BigInt(quote[key]) < 0n) throw new Error(); } catch { throw new Error(`INVALID_QUOTE_${key.toUpperCase()}`); }
   }
+
   if (!Number.isSafeInteger(quote.expiresAt) || quote.expiresAt <= now) throw new Error("STALE_QUOTE");
   return Object.freeze({
     id: quote.id, direction: quote.direction, targetToken: quote.targetToken.toLowerCase(),
@@ -105,7 +108,7 @@ export class MemoryIntentStore {
 export class LintchaCopyService {
   constructor({
     policyGate, simulator, rpcPool, auditLog, intentStore = new MemoryIntentStore(), confirmationSecret,
-    delegationStore = null, delegatedExecutor = new UnconfiguredDelegatedExecutor(), autoBuyEnabled = false, delegatedSubmissionEnabled = false, autoBuyExecutorAddress = null,
+    delegationStore = null, delegatedExecutor = new UnconfiguredDelegatedExecutor(), autoBuyEnabled = false, delegatedSubmissionEnabled = false, autoBuyExecutorAddress = null, autoBuyChainId = null,
     clock = () => Math.floor(Date.now() / 1000), submissionGraceSeconds = 600, dropDeadlineSeconds = 1800,
     maxReconcileAttempts = 120, requireSafeInclusion = true,
   }) {
@@ -119,12 +122,146 @@ export class LintchaCopyService {
     this.autoBuyEnabled = autoBuyEnabled;
     this.delegatedSubmissionEnabled = delegatedSubmissionEnabled;
     this.autoBuyExecutorAddress = autoBuyExecutorAddress ? assertAddress(autoBuyExecutorAddress, "AUTO_BUY_EXECUTOR") : null;
+    this.autoBuyChainId = autoBuyChainId ?? policyGate.config.chains[0];
+    if (!Number.isSafeInteger(this.autoBuyChainId) || !policyGate.config.chains.includes(this.autoBuyChainId)) throw new Error("INVALID_AUTO_BUY_CHAIN");
     this.tokens = new ConfirmationTokenCodec(confirmationSecret);
     this.clock = clock;
     this.submissionGraceSeconds = submissionGraceSeconds;
     this.dropDeadlineSeconds = dropDeadlineSeconds;
     this.maxReconcileAttempts = maxReconcileAttempts;
     this.requireSafeInclusion = requireSafeInclusion;
+  }
+
+  /** Preflight proves Telegram ownership and an otherwise signer-empty Privy wallet before consent is requested. */
+  async prepareAutomaticBuyDelegation({ userId, walletAddress }) {
+    if (!this.autoBuyEnabled || !this.delegatedSubmissionEnabled || !this.autoBuyExecutorAddress) throw new Error("AUTO_BUY_DISABLED");
+    if (!this.delegationStore) throw new Error("DELEGATION_STORE_REQUIRED");
+    const telegramUserId = String(userId);
+    const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
+    const existing = await this.delegationStore.get?.(telegramUserId, publicWalletAddress);
+    if (existing?.status === "REVOKED") throw new Error("DELEGATION_REMOVAL_PENDING");
+    if (await this.delegationStore.getActive(telegramUserId, publicWalletAddress)) throw new Error("ACTIVE_DELEGATION_EXISTS");
+    const verified = await this.delegatedExecutor.verifyWalletPreflight({ telegramUserId, walletAddress: publicWalletAddress });
+    if (verified.eligible !== true || verified.walletAddress !== publicWalletAddress || verified.chainId !== this.autoBuyChainId) throw new Error("DELEGATION_PREFLIGHT_FAILED");
+    await this.auditLog.append("AUTO_BUY_DELEGATION_PREFLIGHT", { userId: telegramUserId, walletAddress: publicWalletAddress });
+    return Object.freeze({ eligible: true, walletAddress: publicWalletAddress });
+  }
+
+  /** Two-provider finalized wrapper proof performed before any Privy signer is attached. */
+  async verifyAutomaticBuyConfiguration({ userId, walletAddress, limits }) {
+    if (!this.autoBuyEnabled || !this.delegatedSubmissionEnabled || !this.autoBuyExecutorAddress) throw new Error("AUTO_BUY_DISABLED");
+    if (!this.delegationStore) throw new Error("DELEGATION_STORE_REQUIRED");
+    const telegramUserId = String(userId);
+    const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
+    const existing = await this.delegationStore.get?.(telegramUserId, publicWalletAddress);
+    if (existing?.status === "REVOKED") throw new Error("DELEGATION_REMOVAL_PENDING");
+    if (await this.delegationStore.getActive(telegramUserId, publicWalletAddress)) throw new Error("ACTIVE_DELEGATION_EXISTS");
+    const readback = await readFinalizedConfiguredLimits({ rpcPool: this.rpcPool, wrapperAddress: this.autoBuyExecutorAddress, walletAddress: publicWalletAddress });
+    assertConfiguredLimits(readback.limits, limits, this.clock());
+    await this.auditLog.append("AUTO_BUY_CONFIGURATION_VERIFIED", { userId: telegramUserId, walletAddress: publicWalletAddress, finalizedBlock: readback.blockNumber });
+    return Object.freeze({ ready: true, walletAddress: publicWalletAddress, finalizedBlock: readback.blockNumber });
+  }
+
+  /** Activates only after Privy ownership/policy proof and two-provider finalized on-chain limit read-back. */
+  async activateAutomaticBuyDelegation({ userId, walletAddress, limits, activationId }) {
+    if (!this.autoBuyEnabled || !this.delegatedSubmissionEnabled || !this.autoBuyExecutorAddress) throw new Error("AUTO_BUY_DISABLED");
+    if (!this.delegationStore) throw new Error("DELEGATION_STORE_REQUIRED");
+    const telegramUserId = String(userId);
+    const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
+    if (!/^[0-9a-f]{32}$/.test(activationId || "")) throw new Error("INVALID_ACTIVATION_TOKEN");
+    const existing = await this.delegationStore.get?.(telegramUserId, publicWalletAddress);
+    if (existing?.status === "REVOKED") throw new Error("DELEGATION_REMOVAL_PENDING");
+    if (await this.delegationStore.getActive(telegramUserId, publicWalletAddress)) throw new Error("ACTIVE_DELEGATION_EXISTS");
+    const verified = await this.delegatedExecutor.verifyDelegation({ telegramUserId, walletAddress: publicWalletAddress });
+    if (verified.walletAddress !== publicWalletAddress || verified.chainId !== this.autoBuyChainId || !POLICY_CONTENT_SHA256.test(verified.policyContentSha256 || "")) throw new Error("DELEGATION_VERIFICATION_FAILED");
+    const pending = {
+      userId: telegramUserId, walletAddress: publicWalletAddress, architecture: verified.architecture, authorizationRef: `${verified.authorizationRef}:${activationId}`,
+      status: "REVOKED", chainId: verified.chainId, routers: [this.autoBuyExecutorAddress], selectors: [AUTO_BUY_SELECTOR],
+      ...limits,
+    };
+    try {
+      const readback = await readFinalizedConfiguredLimits({ rpcPool: this.rpcPool, wrapperAddress: this.autoBuyExecutorAddress, walletAddress: publicWalletAddress });
+      assertConfiguredLimits(readback.limits, limits, this.clock());
+      const delegation = await this.delegationStore.put({ ...pending, status: "ACTIVE" });
+      await this.auditLog.append("AUTO_BUY_DELEGATION_ACTIVATED", { userId: telegramUserId, walletAddress: publicWalletAddress, architecture: delegation.architecture, expiresAt: delegation.expiresAt, finalizedBlock: readback.blockNumber, policyContentSha256: verified.policyContentSha256 });
+      return Object.freeze({ delegation, finalizedBlock: readback.blockNumber });
+    } catch (error) {
+      try {
+        await this.delegationStore.put(pending);
+        await this.auditLog.append("AUTO_BUY_SIGNER_REMOVAL_PENDING", { userId: telegramUserId, walletAddress: publicWalletAddress, reason: "ACTIVATION_FAILED_AFTER_SIGNER_VERIFICATION" });
+      } catch { /* The original activation failure remains authoritative; manual recovery is required if persistence also failed. */ }
+      throw error;
+    }
+  }
+
+  /** Persist a fail-closed cleanup epoch when signer attachment succeeded but activation did not complete. */
+  async recoverAutomaticBuyRemoval({ userId, walletAddress, limits, activationId }) {
+    if (!this.delegationStore || !this.autoBuyExecutorAddress) throw new Error("DELEGATION_STORE_REQUIRED");
+    const telegramUserId = String(userId);
+    const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
+    const existing = await this.delegationStore.get?.(telegramUserId, publicWalletAddress);
+    if (existing) {
+      const result = await this.deactivateAutomaticBuyDelegation({ userId: telegramUserId, walletAddress: publicWalletAddress });
+      return Object.freeze({ ...result, recovered: true });
+    }
+    if (!/^[0-9a-f]{32}$/.test(activationId || "")) throw new Error("INVALID_ACTIVATION_TOKEN");
+    const verified = await this.delegatedExecutor.verifyDelegation({ telegramUserId, walletAddress: publicWalletAddress });
+    if (verified.walletAddress !== publicWalletAddress || verified.chainId !== this.autoBuyChainId || !POLICY_CONTENT_SHA256.test(verified.policyContentSha256 || "")) throw new Error("DELEGATION_VERIFICATION_FAILED");
+    const pending = await this.delegationStore.put({
+      userId: telegramUserId, walletAddress: publicWalletAddress, architecture: verified.architecture, authorizationRef: `${verified.authorizationRef}:${activationId}`,
+      status: "REVOKED", chainId: verified.chainId, routers: [this.autoBuyExecutorAddress], selectors: [AUTO_BUY_SELECTOR], ...limits,
+    });
+    let executorBlocked = false;
+    try {
+      await this.delegatedExecutor.deactivate({ telegramUserId, walletAddress: publicWalletAddress, authorizationRef: pending.authorizationRef });
+      executorBlocked = true;
+    } catch { /* The REVOKED service record remains the authoritative local kill switch. */ }
+    await this.auditLog.append("AUTO_BUY_SIGNER_REMOVAL_PENDING", { userId: telegramUserId, walletAddress: publicWalletAddress, reason: "ACTIVATION_ROLLBACK", executorBlocked, policyContentSha256: verified.policyContentSha256 });
+    return Object.freeze({ walletAddress: publicWalletAddress, active: false, executorBlocked, signerRemovalPending: true, wrapperAddress: this.autoBuyExecutorAddress, chainId: verified.chainId, recovered: true });
+  }
+
+  /** Fresh executor proof that this exact epoch has only the configured Lintcha signer and policy. */
+  async verifyAutomaticBuyRemovalReadiness({ userId, walletAddress }) {
+    if (!this.delegationStore) throw new Error("DELEGATION_STORE_REQUIRED");
+    const telegramUserId = String(userId);
+    const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
+    const delegation = await this.delegationStore.get?.(telegramUserId, publicWalletAddress);
+    if (!delegation || !["ACTIVE", "REVOKED"].includes(delegation.status) || !delegation.authorizationRef) throw new Error("DELEGATION_REMOVAL_NOT_READY");
+    const result = await this.delegatedExecutor.verifyRemovalReadiness({ telegramUserId, walletAddress: publicWalletAddress, authorizationRef: delegation.authorizationRef });
+    if (result.ready !== true || result.walletAddress !== publicWalletAddress || result.authorizationRef !== delegation.authorizationRef || result.chainId !== delegation.chainId) throw new Error("DELEGATION_REMOVAL_NOT_READY");
+    await this.auditLog.append("AUTO_BUY_SIGNER_REMOVAL_READY", { userId: telegramUserId, walletAddress: publicWalletAddress });
+    return Object.freeze({ ready: true, walletAddress: publicWalletAddress, chainId: delegation.chainId });
+  }
+
+  /** Local execution is disabled first. Privy signer removal and the user's on-chain pause remain client-authorized. */
+  async deactivateAutomaticBuyDelegation({ userId, walletAddress }) {
+    if (!this.delegationStore) throw new Error("DELEGATION_STORE_REQUIRED");
+    const telegramUserId = String(userId);
+    const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
+    const active = await this.delegationStore.getActive(telegramUserId, publicWalletAddress);
+    const existing = active || await this.delegationStore.get?.(telegramUserId, publicWalletAddress);
+    await this.delegationStore.revoke(telegramUserId, publicWalletAddress);
+    let executorBlocked = false;
+    if (existing?.authorizationRef) {
+      try {
+        await this.delegatedExecutor.deactivate({ telegramUserId, walletAddress: publicWalletAddress, authorizationRef: existing.authorizationRef });
+        executorBlocked = true;
+      } catch { /* The local kill switch remains authoritative even while remote cleanup is pending. */ }
+    }
+    await this.auditLog.append("AUTO_BUY_DELEGATION_DEACTIVATED", { userId: telegramUserId, walletAddress: publicWalletAddress, executorBlocked, signerRemovalPending: true });
+    return Object.freeze({ walletAddress: publicWalletAddress, active: false, executorBlocked, signerRemovalPending: true, wrapperAddress: existing?.routers?.[0] || this.autoBuyExecutorAddress, chainId: existing?.chainId || this.autoBuyChainId });
+  }
+
+  async verifyAutomaticBuyRevocation({ userId, walletAddress }) {
+    const telegramUserId = String(userId);
+    const publicWalletAddress = assertAddress(walletAddress, "WALLET_ADDRESS");
+    const delegation = await this.delegationStore?.get?.(telegramUserId, publicWalletAddress);
+    if (!delegation?.authorizationRef) throw new Error("DELEGATION_REVOCATION_NOT_VERIFIED");
+    const result = await this.delegatedExecutor.verifyRevocation({ telegramUserId, walletAddress: publicWalletAddress, authorizationRef: delegation.authorizationRef });
+    if (result.walletAddress !== publicWalletAddress || result.revoked !== true) throw new Error("DELEGATION_REVOCATION_NOT_VERIFIED");
+    await this.delegationStore.completeRemoval?.(telegramUserId, publicWalletAddress);
+    await this.auditLog.append("AUTO_BUY_SIGNER_REVOCATION_VERIFIED", { userId: telegramUserId, walletAddress: publicWalletAddress });
+    return Object.freeze({ walletAddress: publicWalletAddress, revoked: true });
   }
 
   /** Automatic execution is BUY-only and possible only through a bounded, active public delegation record. */
@@ -166,7 +303,7 @@ export class LintchaCopyService {
       let submission;
       try {
         submission = await this.delegatedExecutor.submit({
-          intentId: id, userId: String(userId), walletAddress: publicWalletAddress, authorizationRef: delegation.authorizationRef,
+          intentId: id, telegramUserId: String(userId), walletAddress: publicWalletAddress, authorizationRef: delegation.authorizationRef,
           transaction: unsignedTransaction, quoteId: publicQuote.id, expiresAt: row.expiresAt,
         });
         if (!HASH.test(submission?.transactionHash || "")) throw new Error("DELEGATED_SUBMISSION_UNCERTAIN");

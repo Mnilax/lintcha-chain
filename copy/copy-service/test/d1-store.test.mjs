@@ -54,7 +54,9 @@ test("D1 audit sink resumes the hash chain; replay store is single-use until exp
 
   const replays = new D1ReplayStore(db);
   assert.equal(await replays.claim("u1", 100, 50), true);
+  assert.equal(await replays.has("u1", 50), true);
   assert.equal(await replays.claim("u1", 100, 50), false);
+  assert.equal(await replays.has("u1", 100), false);
   assert.equal(await replays.claim("u1", 200, 150), true);
 
   const users = new D1UserStore(db, () => 7);
@@ -79,6 +81,9 @@ test("D1 audit sink resumes the hash chain; replay store is single-use until exp
   assert.equal((await delegations.getActive("42", WALLET)).authorizationRef, "auth:d1:test:42");
   await delegations.revoke("42", WALLET);
   assert.equal(await delegations.getActive("42", WALLET), null);
+  assert.equal((await delegations.get("42", WALLET)).status, "REVOKED");
+  await delegations.completeRemoval("42", WALLET);
+  assert.equal(await delegations.get("42", WALLET), null);
 
   const outbox = new D1OutboxStore(db, () => 7);
   assert.equal((await outbox.enqueue({ telegramUserId: "42", privateChatId: "99", text: "hi", dedupeKey: "k" })).id, "1");

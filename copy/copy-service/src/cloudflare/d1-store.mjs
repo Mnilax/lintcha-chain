@@ -89,6 +89,10 @@ export class D1ReplayStore {
     const result = await this.db.prepare("INSERT OR IGNORE INTO copy_gateway_replays (replay_key, expires_at) VALUES (?, ?)").bind(String(key), expiresAt).run();
     return result.meta.changes === 1;
   }
+  async has(key, nowSeconds) {
+    const row = await this.db.prepare("SELECT 1 AS present FROM copy_gateway_replays WHERE replay_key = ? AND expires_at > ?").bind(String(key), nowSeconds).first();
+    return Boolean(row?.present);
+  }
 }
 
 export class D1UserStore {
@@ -149,12 +153,14 @@ export class D1DelegationStore {
       .bind(row.userId, row.walletAddress, row.architecture, row.authorizationRef, row.status, row.chainId, JSON.stringify(row.routers), JSON.stringify(row.selectors), row.maxTransactionWei, row.maxDailySpendWei, row.maxSlippageBps, row.expiresAt, row.createdAt, row.updatedAt).run();
     return row;
   }
+  async get(userId, walletAddress) { return this.#map(await this.db.prepare("SELECT * FROM copy_delegations WHERE telegram_user_id = ? AND public_address = ?").bind(String(userId), String(walletAddress).toLowerCase()).first()); }
   async getActive(userId, walletAddress) {
     const row = this.#map(await this.db.prepare("SELECT * FROM copy_delegations WHERE telegram_user_id = ? AND public_address = ? AND status = 'ACTIVE'").bind(String(userId), String(walletAddress).toLowerCase()).first());
     if (!row || row.expiresAt <= this.clock()) return null;
     return row;
   }
   async revoke(userId, walletAddress) { await this.db.prepare("UPDATE copy_delegations SET status = 'REVOKED', updated_at = ? WHERE telegram_user_id = ? AND public_address = ?").bind(this.clock(), String(userId), String(walletAddress).toLowerCase()).run(); }
+  async completeRemoval(userId, walletAddress) { await this.db.prepare("DELETE FROM copy_delegations WHERE telegram_user_id = ? AND public_address = ? AND status = 'REVOKED'").bind(String(userId), String(walletAddress).toLowerCase()).run(); }
 }
 
 export class D1OutboxStore {

@@ -32,7 +32,7 @@
   ·
   <a href="https://t.me/lintchabot?start=copy_site">Telegram Bot</a>
   ·
-  <a href="https://t.me/lintcha">Telegram room</a>
+  <a href="https://t.me/lintchaRH">Telegram channel</a>
 </p>
 
 <p align="center">

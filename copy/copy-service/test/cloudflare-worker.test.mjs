@@ -6,6 +6,7 @@ import { buildRuntime } from "../src/cloudflare/runtime.mjs";
 import { signServiceRequest } from "../src/http.mjs";
 import { signGatewayEnvelope } from "../../copy-gateway/src/gateway.mjs";
 import { telegramDataCheckString } from "../src/telegram-init-data.mjs";
+import { DelegationActivationCodec } from "../src/delegation-activation.mjs";
 import { fakeD1 } from "./fake-d1.mjs";
 import { BLOCK_HASH, HASH, ROUTER, TOKEN, WALLET, input, word } from "./helpers.mjs";
 
@@ -69,6 +70,8 @@ test("worker refuses to start with a bot token or without its own bindings, and 
   const poisoned = await worker.fetch(api("health"), { ...env, TELEGRAM_BOT_TOKEN: "123:abc" });
   assert.equal(poisoned.status, 503);
   assert.equal((await poisoned.json()).why, "COPY_SERVICE_MUST_NOT_RECEIVE_BOT_TOKEN");
+  assert.equal((await worker.fetch(api("health"), { ...env, COPY_BOT_TOKEN: "123:abc" })).status, 503);
+  assert.equal((await worker.fetch(api("health"), { ...env, USER_PRIVATE_KEY: "forbidden" })).status, 503);
   assert.equal((await (await worker.fetch(api("health"), { ...env, COPY_DB: undefined })).json()).why, "COPY_DB_BINDING_REQUIRED");
   assert.equal((await (await worker.fetch(api("health"), { ...env, COPY_GATEWAY_SECRET: "short" })).json()).why, "COPY_GATEWAY_SECRET_REQUIRED");
   await assert.rejects(buildRuntime({ ...env, COPY_ENVIRONMENT: "production", COPY_RPC_SECONDARY_URL: "" }), /TWO_RPC_ENDPOINTS_REQUIRED/);
@@ -78,6 +81,10 @@ test("worker refuses to start with a bot token or without its own bindings, and 
   assert.equal(body.includes("SECRET-KEY"), false);
   assert.equal(JSON.parse(body).globallyPaused, true);
   assert.equal((await worker.fetch(new Request(`${ORIGIN}/copy/`), env)).status, 404);
+  const executorBinding = { async fetch() { return Response.json({ blocked: true }); } };
+  const runtime = await buildRuntime({ ...env, COPY_DELEGATED_EXECUTOR: executorBinding }, { fetchImpl: fakeFetch });
+  assert.equal(runtime.config.delegatedSubmissionEnabled, false);
+  assert.equal(runtime.localService.delegatedExecutor.binding, executorBinding);
 });
 
 test("worker runs confirm-each BUY through D1 and the per-user Durable Object, and the cron reconciles", async () => {
@@ -140,6 +147,59 @@ test("Durable Object serializes concurrent operations for one user", async () =>
     assert.equal(capped.length, 2);
     const reserved = (await env.COPY_DB.prepare("SELECT COUNT(*) AS n FROM copy_daily_spend_reservations WHERE state = 'RESERVED'").first()).n;
     assert.equal(reserved, 3);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("worker routes configuration verification and signer cleanup through the per-user Durable Object", async () => {
+  const keys = await telegramKeys();
+  const now = Math.floor(Date.now() / 1000);
+  const limits = { maxTransactionWei: "100", maxDailySpendWei: "500", maxSlippageBps: 100, expiresAt: now + 3600 };
+  const authorizationRef = "privy-wallet:wallet12345678";
+  const executorBinding = {
+    async fetch(url, init) {
+      const payload = JSON.parse(init.body);
+      if (String(url).endsWith("/verify-delegation")) return Response.json({
+        architecture: "PRIVY_TEE", walletAddress: WALLET, authorizationRef, chainId: 4663, policyContentSha256: "a".repeat(64),
+      });
+      if (String(url).endsWith("/wallets/deactivate")) return Response.json({ blocked: true });
+      if (String(url).endsWith("/verify-removal-readiness")) return Response.json({
+        ready: true, walletAddress: WALLET, authorizationRef: payload.authorizationRef, chainId: 4663,
+      });
+      return Response.json({ ok: false }, { status: 404 });
+    },
+  };
+  const { env, instances } = fakeEnv(keys, {
+    COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER,
+    COPY_ALLOW_SELECTORS: JSON.stringify(["0x12345678", "0x095ea7b3", "0xa59ac6dd"]),
+    COPY_PRIVY_APP_ID: "app_12345678", COPY_PRIVY_AUTHORIZATION_SIGNER_ID: "signer_12345678", COPY_PRIVY_POLICY_ID: "policy_12345678",
+    COPY_DELEGATED_EXECUTOR: executorBinding,
+  });
+  const readback = `0x${word(limits.maxTransactionWei)}${word(limits.maxDailySpendWei)}${word(limits.maxSlippageBps)}${word(limits.expiresAt)}${word(0)}`;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const rpcRequest = JSON.parse(init.body);
+    if (rpcRequest.method === "eth_call" && String(rpcRequest.params?.[0]?.data).startsWith("0x20d7bec1")) {
+      return Response.json({ jsonrpc: "2.0", id: rpcRequest.id, result: readback });
+    }
+    return fakeFetch(url, init);
+  };
+  try {
+    const headers = { origin: ORIGIN, "x-telegram-init-data": await initData(keys.pair, "42") };
+    assert.equal((await worker.fetch(post("wallet", { publicAddress: WALLET }, headers), env)).status, 200);
+    const activationToken = new DelegationActivationCodec(Buffer.from("7".repeat(64), "hex"))
+      .issue({ userId: "42", walletAddress: WALLET, limits }, now);
+    const verified = await worker.fetch(post("delegations/verify-configuration", { walletAddress: WALLET, activationToken }, headers), env);
+    assert.equal(verified.status, 200);
+    assert.equal((await verified.json()).ready, true);
+    const recovered = await worker.fetch(post("delegations/recover-removal", { walletAddress: WALLET, activationToken }, headers), env);
+    assert.equal(recovered.status, 200);
+    assert.equal((await recovered.json()).executorBlocked, true);
+    const readiness = await worker.fetch(post("delegations/removal-readiness", { walletAddress: WALLET }, headers), env);
+    assert.equal(readiness.status, 200);
+    assert.equal((await readiness.json()).ready, true);
+    assert.equal(instances.has("copy-user:42"), true);
   } finally {
     globalThis.fetch = realFetch;
   }

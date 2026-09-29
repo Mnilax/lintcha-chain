@@ -15,6 +15,8 @@ export const COPY_TEXTS = Object.freeze({
   NEVER_SEED: "Never send a seed phrase or private key in Telegram. Lintcha never asks for one in chat.",
   SELL_TELEGRAM_REFUSED: "SELL was not submitted. Telegram cannot confirm a SELL; review and confirm only inside the Lintcha secure sheet.",
   AUTO_SETUP: "Auto-copy is not active for this wallet yet. Open the secure sheet to review limits and create a bounded, revocable permission. Telegram cannot create it.",
+  AUTO_REMOVAL_PENDING: "Auto-BUY execution is off locally. Wallet pause and exact Lintcha signer removal are still pending; finish cleanup in the secure sheet.",
+  IGNORED: "Ignored. Nothing was signed or submitted. This review stays untouched and expires on its own; open the secure sheet if you change your mind.",
   STALE: "This control is no longer valid. Open /copy again.",
   GLOBAL_PAUSED: "Lintcha copy-trading is paused for everyone right now. Nothing is signed or submitted.",
   REVIEW_BUY: "A source BUY matched your Lintcha rule. Review the fresh simulation and confirm in the secure sheet, or ignore this message. Nothing happens without your wallet confirmation.",
@@ -45,10 +47,32 @@ export class CopyTelegramSurface {
     return {
       text: settingsText(user, this.killSwitches.globallyPaused),
       inlineKeyboard: [
-        [{ text: user.mode === "NOTIFY_ONLY" ? "• Notifications" : "Notifications", callbackData: "copy.mode.notify" }, { text: user.mode === "AUTO_BUY" ? "• Auto-copy BUY" : "Auto-copy BUY", callbackData: "copy.mode.auto_buy" }],
+        [{ text: user.mode === "NOTIFY_ONLY" ? "• Notifications" : "Notifications", callbackData: "copy.mode.notify" }, { text: user.mode === "CONFIRM_EACH" ? "• Confirm each" : "Confirm each", callbackData: "copy.mode.confirm_each" }, { text: user.mode === "AUTO_BUY" ? "• Auto-copy BUY" : "Auto-copy BUY", callbackData: "copy.mode.auto_buy" }],
         [{ text: paused ? "Resume" : "Pause", callbackData: paused ? "copy.resume" : "copy.pause" }, { text: "Status", callbackData: "copy.status" }],
         [{ text: "Open Lintcha secure sheet", webAppUrl: this.appUrl }],
       ],
+    };
+  }
+
+  async #leaveAutoBuy(user, mode) {
+    let cleanupPending = false;
+    if (this.delegationStore) {
+      for (const wallet of await this.userStore.wallets(user.telegramUserId)) {
+        const row = await this.delegationStore.get?.(user.telegramUserId, wallet.publicAddress);
+        if (row?.status === "ACTIVE") {
+          if (!this.service?.deactivateAutomaticBuyDelegation) throw new Error("AUTO_BUY_DEACTIVATION_UNAVAILABLE");
+          await this.service.deactivateAutomaticBuyDelegation({ userId: user.telegramUserId, walletAddress: wallet.publicAddress });
+          cleanupPending = true;
+        } else if (row?.status === "REVOKED") cleanupPending = true;
+      }
+    }
+    const updated = await this.userStore.upsert({ telegramUserId: user.telegramUserId, mode });
+    const response = this.#settings(updated);
+    if (!cleanupPending) return response;
+    const url = new URL(this.appUrl); url.searchParams.set("cleanup", "auto");
+    return {
+      text: `${response.text}\n\n${COPY_TEXTS.AUTO_REMOVAL_PENDING}`,
+      inlineKeyboard: [[{ text: "Finish auto-BUY cleanup", webAppUrl: url.toString() }], ...response.inlineKeyboard],
     };
   }
 
@@ -58,21 +82,22 @@ export class CopyTelegramSurface {
     if (envelope.referralSource) await this.userStore.recordReferral({ telegramUserId: user.telegramUserId, source: envelope.referralSource });
     if (envelope.route === "COPY_COMMAND") return this.#settings(user);
     const data = envelope.callbackData || "";
-    if (data === "copy.mode.notify") return this.#settings(await this.userStore.upsert({ telegramUserId: user.telegramUserId, mode: "NOTIFY_ONLY" }));
-    if (data === "copy.mode.confirm_each") return this.#settings(await this.userStore.upsert({ telegramUserId: user.telegramUserId, mode: "CONFIRM_EACH" }));
+    if (data === "copy.mode.notify") return this.#leaveAutoBuy(user, "NOTIFY_ONLY");
+    if (data === "copy.mode.confirm_each") return this.#leaveAutoBuy(user, "CONFIRM_EACH");
     if (data === "copy.mode.auto_buy") {
       const wallets = await this.userStore.wallets(user.telegramUserId);
       let ready = false;
       if (this.autoBuyAvailable && this.delegationStore) for (const wallet of wallets) if (await this.delegationStore.getActive(user.telegramUserId, wallet.publicAddress)) { ready = true; break; }
       if (ready) return this.#settings(await this.userStore.upsert({ telegramUserId: user.telegramUserId, mode: "AUTO_BUY" }));
       const url = new URL(this.appUrl); url.searchParams.set("setup", "auto");
-      return { text: `${COPY_TEXTS.HEADER}\n${COPY_TEXTS.AUTO_SETUP}`, inlineKeyboard: [[{ text: "Set up auto-copy safely", webAppUrl: url.toString() }]] };
+      // The settings rows stay below the setup button so this answer is never a dead end.
+      return { text: `${COPY_TEXTS.HEADER}\n${COPY_TEXTS.AUTO_SETUP}`, inlineKeyboard: [[{ text: "Set up auto-copy safely", webAppUrl: url.toString() }], ...this.#settings(user).inlineKeyboard] };
     }
     if (data === "copy.pause") return this.#settings(await this.userStore.upsert({ telegramUserId: user.telegramUserId, paused: true }));
     if (data === "copy.resume") return this.#settings(await this.userStore.upsert({ telegramUserId: user.telegramUserId, paused: false }));
     if (data === "copy.status") return this.#settings(user);
     if (data.startsWith("sell.confirm.")) return { text: `${COPY_TEXTS.HEADER}\n${COPY_TEXTS.SELL_TELEGRAM_REFUSED}` };
-    if (data === "sell.cancel" || data === "trade.cancel") return { text: `${COPY_TEXTS.HEADER}\nCancelled. No transaction was submitted.` };
+    if (data === "sell.cancel" || data === "trade.cancel") return { text: `${COPY_TEXTS.HEADER}\n${COPY_TEXTS.IGNORED}` };
     const review = /^(trade|sell)\.review\.([0-9a-f]{64})$/.exec(data);
     if (review) {
       const intentId = review[2];

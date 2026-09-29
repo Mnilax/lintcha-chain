@@ -11,6 +11,7 @@ import { TelegramInitDataVerifier, telegramDataCheckString } from "../src/telegr
 import { routeCopyUpdate, drainCopyOutbox } from "../../copy-gateway/src/gateway.mjs";
 import { ConfirmEachSheetController, ExternalEip1193WalletAdapter } from "../../secure-sheet-crypto/src/confirm-each.mjs";
 import { HASH, NOW, ROUTER, TOKEN, WALLET, approvalInput, autoBuyInput, fixture, input, sellTradeInput } from "./helpers.mjs";
+import { DelegationActivationCodec } from "../src/delegation-activation.mjs";
 
 const subtle = webcrypto.subtle;
 const ORIGIN = "https://lintcha.com";
@@ -34,15 +35,19 @@ async function initDataFor(pair, userId, authDate = NOW) {
 async function stack(fixtureOptions = {}, configEnv = {}, runtimeOptions = {}) {
   const keys = await telegramKeys();
   const current = fixture(fixtureOptions);
-  const config = loadCopyConfig({ COPY_APP_ORIGIN: ORIGIN, COPY_ENVIRONMENT: "preproduction", ...configEnv });
+  const config = loadCopyConfig({ COPY_APP_ORIGIN: ORIGIN, COPY_ENVIRONMENT: "preproduction", COPY_PRIVY_APP_ID: "app_lintcha_1", COPY_PRIVY_AUTHORIZATION_SIGNER_ID: "signer_lintcha_1", COPY_PRIVY_POLICY_ID: "policy_buy_only_1", ...configEnv });
   const clock = () => current.service.clock();
   const userStore = new MemoryUserStore(clock);
   const outbox = new MemoryOutboxStore(clock);
   const replayStore = new MemoryReplayStore();
   const delegationStore = current.service.delegationStore;
+  if (runtimeOptions.delegationVerifier) {
+    current.service.delegatedExecutor.verifyWalletPreflight = runtimeOptions.delegationVerifier.verifyWalletPreflight.bind(runtimeOptions.delegationVerifier);
+    current.service.delegatedExecutor.verifyDelegation = runtimeOptions.delegationVerifier.verifyDelegation.bind(runtimeOptions.delegationVerifier);
+  }
   const surface = new CopyTelegramSurface({ userStore, delegationStore, killSwitches: current.killSwitches, appOrigin: ORIGIN, appPath: "/copy/", service: current.service, autoBuyAvailable: config.autoBuyEnabled });
   const handler = createCopyHttpHandler({
-    config, service: current.service, surface, userStore, delegationStore, delegationVerifier: runtimeOptions.delegationVerifier || null, outbox, killSwitches: current.killSwitches, clock,
+    config, service: current.service, surface, userStore, delegationStore, outbox, killSwitches: current.killSwitches, clock,
     gatewayVerifier: new GatewayRequestVerifier({ secret: GATEWAY_SECRET, replayStore }),
     serviceVerifier: {
       outbox: new SignedServiceRequestVerifier({ secret: GATEWAY_SECRET, schema: "lintcha.copy.outbox.v1", replayStore }),
@@ -52,6 +57,8 @@ async function stack(fixtureOptions = {}, configEnv = {}, runtimeOptions = {}) {
     },
     adminVerifier: new SignedServiceRequestVerifier({ secret: ADMIN_SECRET, schema: "lintcha.copy.admin.v1", replayStore }),
     initDataVerifier: new TelegramInitDataVerifier({ botId: BOT_ID, publicKeyHex: keys.publicKeyHex, subtle }),
+    delegationActivation: new DelegationActivationCodec(Buffer.alloc(32, 7), { random: () => Buffer.alloc(16, 8) }),
+    activationReplayStore: replayStore,
   });
   const call = (path, init = {}) => handler(new Request(`${ORIGIN}/api/copy/${path}`, init));
   const post = (path, body, headers = {}) => call(path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
@@ -68,31 +75,109 @@ async function stack(fixtureOptions = {}, configEnv = {}, runtimeOptions = {}) {
 
 test("Mini App activation stores only server-verified public delegation metadata and deactivation disables auto-BUY", async () => {
   const delegations = new MemoryDelegationStore(() => NOW);
-  const verified = [];
+  const preflight = [], verified = [];
+  const encodedLimits = `0x${BigInt(500).toString(16).padStart(64, "0")}${BigInt(1500).toString(16).padStart(64, "0")}${BigInt(50).toString(16).padStart(64, "0")}${BigInt(NOW + 3600).toString(16).padStart(64, "0")}${"0".repeat(64)}`;
   const s = await stack(
-    { service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { return { transactionHash: HASH }; } } } },
+    { firstOverrides: { eth_call: encodedLimits }, secondOverrides: { eth_call: encodedLimits }, service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { return { transactionHash: HASH }; }, async deactivate() { return { blocked: true }; } } } },
     { COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER, COPY_ALLOW_ROUTERS: JSON.stringify([ROUTER]), COPY_ALLOW_SELECTORS: JSON.stringify(["0xa59ac6dd"]), COPY_MAX_TRANSACTION_WEI: "1000", COPY_MAX_DAILY_SPEND_WEI: "3000", COPY_MAX_SLIPPAGE_BPS: "100" },
-    { delegationVerifier: { async verifyDelegation(input) { verified.push(input); return { architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", walletAddress: input.walletAddress, chainId: 4663 }; } } },
+    { delegationVerifier: {
+      async verifyWalletPreflight(input) { preflight.push(input); return { eligible: true, walletAddress: input.walletAddress, chainId: 4663 }; },
+      async verifyDelegation(input) { verified.push(input); return { architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", walletAddress: input.walletAddress, chainId: 4663, policyContentSha256: "c".repeat(64) }; },
+    } },
   );
   const headers = await s.client("42");
   await s.post("wallet", { publicAddress: WALLET, walletKind: "EXTERNAL" }, headers);
   const body = { walletAddress: WALLET, maxTransactionWei: "500", maxDailySpendWei: "1500", maxSlippageBps: 50, expiresAt: NOW + 3600 };
-  const activated = await (await s.post("delegations/activate", body, headers)).json();
+  const prepared = await (await s.post("delegations/prepare", body, headers)).json();
+  assert.equal(prepared.transaction.to, ROUTER);
+  assert.equal(prepared.transaction.data.slice(0, 10), "0xdc63f7f4");
+  const configuration = await (await s.post("delegations/verify-configuration", { walletAddress: WALLET, activationToken: prepared.activationToken }, headers)).json();
+  assert.equal(configuration.ready, true);
+  assert.equal((await s.post("delegations/verify-configuration", { walletAddress: WALLET, activationToken: prepared.activationToken }, headers)).status, 409);
+  const activationResponse = await s.post("delegations/activate", { walletAddress: WALLET, activationToken: prepared.activationToken }, headers);
+  const activated = await activationResponse.json();
   assert.equal(activated.active, true);
   assert.equal(activated.delegation.architecture, "PRIVY_TEE");
+  assert.equal(s.sink.records.find((row) => row.type === "AUTO_BUY_DELEGATION_ACTIVATED").payload.policyContentSha256, "c".repeat(64));
   assert.equal((await s.userStore.get("42")).mode, "AUTO_BUY");
-  assert.deepEqual(verified, [{ walletAddress: WALLET }]);
+  assert.deepEqual(verified, [{ telegramUserId: "42", walletAddress: WALLET }]);
+  assert.deepEqual(preflight, [{ telegramUserId: "42", walletAddress: WALLET }]);
   assert.equal(JSON.stringify(activated).includes("authorizationRef"), false);
   const active = await delegations.getActive("42", WALLET);
+  assert.match(active.authorizationRef, /^privy-wallet:wallet_fixture_1234:[0-9a-f]{32}$/);
   assert.equal(active.selectors[0], "0xa59ac6dd");
   assert.equal(active.routers[0], ROUTER);
   assert.equal(active.maxTransactionWei, "500");
-  assert.equal((await s.post("delegations/activate", { ...body, maxTransactionWei: "1001" }, headers)).status, 400);
-  assert.equal((await s.post("delegations/activate", { ...body, privateKey: "never" }, headers)).status, 400);
+  assert.equal((await s.post("delegations/prepare", { ...body, maxTransactionWei: "1001" }, headers)).status, 400);
+  assert.equal((await s.post("delegations/activate", { walletAddress: WALLET, activationToken: prepared.activationToken }, headers)).status, 409);
+  assert.equal((await s.post("delegations/activate", { walletAddress: WALLET, activationToken: prepared.activationToken, privateKey: "never" }, headers)).status, 400);
   const deactivated = await (await s.post("delegations/deactivate", { walletAddress: WALLET }, headers)).json();
   assert.equal(deactivated.active, false);
+  assert.equal(deactivated.pauseTransaction.data.slice(0, 10), "0xb990b559");
   assert.equal(await delegations.getActive("42", WALLET), null);
   assert.equal((await s.userStore.get("42")).mode, "NOTIFY_ONLY");
+  const pending = await (await s.call("me", { headers })).json();
+  assert.deepEqual(pending.pendingRemovals, [{ walletAddress: WALLET, wrapperAddress: ROUTER, chainId: 4663, status: "PENDING_REMOVAL" }]);
+  assert.equal(JSON.stringify(pending.pendingRemovals).includes("authorizationRef"), false);
+  const repeatedShutdown = await (await s.post("delegations/deactivate", { walletAddress: WALLET }, headers)).json();
+  assert.equal(repeatedShutdown.executorBlocked, true);
+  s.service.delegatedExecutor.verifyRemovalReadiness = async ({ walletAddress, authorizationRef }) => ({ ready: true, walletAddress, authorizationRef, chainId: 4663 });
+  const readiness = await (await s.post("delegations/removal-readiness", { walletAddress: WALLET }, headers)).json();
+  assert.deepEqual(readiness, { ok: true, ready: true, walletAddress: WALLET, chainId: 4663 });
+  s.service.delegatedExecutor.verifyRevocation = async ({ walletAddress }) => ({ walletAddress, revoked: true });
+  const finalized = await (await s.post("delegations/verify-revocation", { walletAddress: WALLET }, headers)).json();
+  assert.equal(finalized.revoked, true);
+  assert.deepEqual((await (await s.call("me", { headers })).json()).pendingRemovals, []);
+  assert.equal(await delegations.get("42", WALLET), null);
+});
+
+test("local deactivation remains available when auto-BUY feature flags and executor are off", async () => {
+  const delegations = new MemoryDelegationStore(() => NOW);
+  await delegations.put({ userId: "42", walletAddress: WALLET, architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", status: "ACTIVE", chainId: 4663, routers: [ROUTER], selectors: ["0xa59ac6dd"], maxTransactionWei: "500", maxDailySpendWei: "1500", maxSlippageBps: 50, expiresAt: NOW + 3600 });
+  const s = await stack({ service: { delegationStore: delegations } });
+  const headers = await s.client("42");
+  await s.post("wallet", { publicAddress: WALLET, walletKind: "EXTERNAL" }, headers);
+  await s.userStore.upsert({ telegramUserId: "42", mode: "AUTO_BUY" });
+  const response = await s.post("delegations/deactivate", { walletAddress: WALLET }, headers);
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.active, false);
+  assert.equal(body.executorBlocked, false);
+  assert.equal(await delegations.getActive("42", WALLET), null);
+  assert.equal((await s.userStore.get("42")).mode, "NOTIFY_ONLY");
+  assert.deepEqual((await (await s.call("me", { headers })).json()).pendingRemovals, [{ walletAddress: WALLET, wrapperAddress: ROUTER, chainId: 4663, status: "PENDING_REMOVAL" }]);
+});
+
+test("failed activation can fresh-verify its signer epoch and persist cleanup across reload", async () => {
+  const delegations = new MemoryDelegationStore(() => NOW);
+  const encodedLimits = `0x${BigInt(500).toString(16).padStart(64, "0")}${BigInt(1500).toString(16).padStart(64, "0")}${BigInt(50).toString(16).padStart(64, "0")}${BigInt(NOW + 3600).toString(16).padStart(64, "0")}${"0".repeat(64)}`;
+  let verificationAttempts = 0;
+  const s = await stack(
+    { firstOverrides: { eth_call: encodedLimits }, secondOverrides: { eth_call: encodedLimits }, service: { delegationStore: delegations, autoBuyEnabled: true, delegatedSubmissionEnabled: true, delegatedExecutor: { async submit() { return { transactionHash: HASH }; }, async deactivate() { return { blocked: true }; } } } },
+    { COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER, COPY_ALLOW_ROUTERS: JSON.stringify([ROUTER]), COPY_ALLOW_SELECTORS: JSON.stringify(["0xa59ac6dd"]), COPY_MAX_TRANSACTION_WEI: "1000", COPY_MAX_DAILY_SPEND_WEI: "3000", COPY_MAX_SLIPPAGE_BPS: "100" },
+    { delegationVerifier: {
+      async verifyWalletPreflight(input) { return { eligible: true, walletAddress: input.walletAddress, chainId: 4663 }; },
+      async verifyDelegation(input) {
+        verificationAttempts += 1;
+        if (verificationAttempts === 1) throw new Error("DELEGATION_VERIFICATION_FAILED");
+        return { architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", walletAddress: input.walletAddress, chainId: 4663, policyContentSha256: "c".repeat(64) };
+      },
+    } },
+  );
+  const headers = await s.client("42");
+  await s.post("wallet", { publicAddress: WALLET, walletKind: "EXTERNAL" }, headers);
+  const requested = { walletAddress: WALLET, maxTransactionWei: "500", maxDailySpendWei: "1500", maxSlippageBps: 50, expiresAt: NOW + 3600 };
+  const prepared = await (await s.post("delegations/prepare", requested, headers)).json();
+  assert.equal((await s.post("delegations/verify-configuration", { walletAddress: WALLET, activationToken: prepared.activationToken }, headers)).status, 200);
+  assert.equal((await s.post("delegations/activate", { walletAddress: WALLET, activationToken: prepared.activationToken }, headers)).status, 409);
+  assert.equal(await delegations.get("42", WALLET), null);
+  const recovered = await (await s.post("delegations/recover-removal", { walletAddress: WALLET, activationToken: prepared.activationToken }, headers)).json();
+  assert.equal(recovered.signerRemovalPending, true);
+  assert.equal(recovered.pauseTransaction.data.slice(0, 10), "0xb990b559");
+  assert.equal(verificationAttempts, 2);
+  const afterReload = await (await s.call("me", { headers })).json();
+  assert.deepEqual(afterReload.pendingRemovals, [{ walletAddress: WALLET, wrapperAddress: ROUTER, chainId: 4663, status: "PENDING_REMOVAL" }]);
+  assert.equal((await s.post("delegations/prepare", requested, headers)).status, 409);
 });
 
 test("end-to-end bounded auto-BUY activates only after delegation and submits once", async () => {
@@ -289,4 +374,45 @@ test("rate limit and duplicate clicks from the Mini App fail closed without touc
   let status = 200;
   for (let index = 0; index < 40 && status !== 429; index += 1) status = (await s.call("me", { headers })).status;
   assert.equal(status, 429);
+});
+
+test("every Telegram control answers with something readable and never leaves a dead end", async () => {
+  const s = await stack();
+  s.killSwitches.resumeGlobal();
+  const settingsKeyboard = (response) => response.reply_markup.inline_keyboard;
+
+  const opened = await s.telegram(s.privateMessage("/copy"), s.nextUpdate());
+  const rows = settingsKeyboard(opened.response);
+  assert.deepEqual(rows[0].map((button) => button.text.replace("• ", "")), ["Notifications", "Confirm each", "Auto-copy BUY"]);
+  assert.deepEqual(rows[1].map((button) => button.text), ["Resume", "Status"]);
+  assert.equal(rows.at(-1)[0].web_app.url, `${ORIGIN}/copy/`);
+
+  // Each control answers, and each answer still carries the controls, so a person is never stuck in a leaf.
+  for (const data of ["copy.mode.notify", "copy.mode.confirm_each", "copy.pause", "copy.resume", "copy.status"]) {
+    const pressed = await s.telegram(s.callback(data), s.nextUpdate());
+    assert.match(pressed.response.text, /^Lintcha — copy-trading/, data);
+    assert.match(pressed.response.text, /Mode: |Status: /, data);
+    assert.ok(settingsKeyboard(pressed.response).length >= 3, data);
+  }
+
+  // Auto-copy BUY is not available while the flags are off: it explains, offers setup, and keeps the modes.
+  const auto = await s.telegram(s.callback("copy.mode.auto_buy"), s.nextUpdate());
+  assert.match(auto.response.text, /Auto-copy is not active for this wallet yet/);
+  assert.equal(settingsKeyboard(auto.response)[0][0].web_app.url, `${ORIGIN}/copy/?setup=auto`);
+  assert.ok(settingsKeyboard(auto.response).length >= 4, "the mode rows stay reachable from the setup answer");
+  assert.equal((await (await s.call("me", { headers: await s.client("42") })).json()).user.mode !== "AUTO_BUY", true);
+
+  // Ignoring a review changes nothing server-side, and the answer says exactly that.
+  const ignored = await s.telegram(s.callback("trade.cancel"), s.nextUpdate());
+  assert.match(ignored.response.text, /Ignored\. Nothing was signed or submitted\./);
+  assert.match(ignored.response.text, /expires on its own/);
+
+  // Telegram can never confirm a SELL, and an unknown control is answered rather than ignored.
+  const sell = await s.telegram(s.callback(`sell.confirm.${"a".repeat(64)}`), s.nextUpdate());
+  assert.match(sell.response.text, /Telegram cannot confirm a SELL/);
+  const stale = await s.telegram(s.callback("copy.something_removed"), s.nextUpdate());
+  assert.match(stale.response.text, /no longer valid\. Open \/copy again/);
+
+  const group = await s.telegram({ message: { text: "/copy", chat: { id: -5, type: "supergroup" }, from: { id: 42 } } }, s.nextUpdate());
+  assert.match(group.response.text, /only in a private chat/);
 });

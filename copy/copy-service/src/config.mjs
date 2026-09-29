@@ -1,4 +1,5 @@
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+const RESOURCE_ID = /^[a-zA-Z0-9_-]{8,160}$/;
 
 function flag(value, fallback = false) {
   if (value === undefined || value === "") return fallback;
@@ -44,10 +45,14 @@ export function loadCopyConfig(env = {}) {
   const autoBuyEnabled = flag(env.COPY_AUTO_BUY_ENABLED ?? env.COPY_AUTO_COPY_ENABLED, false);
   const delegatedSubmissionEnabled = flag(env.COPY_DELEGATED_SUBMISSION_ENABLED, false);
   const autoBuyExecutorAddress = env.COPY_AUTO_BUY_EXECUTOR_ADDRESS ? String(env.COPY_AUTO_BUY_EXECUTOR_ADDRESS).toLowerCase() : null;
+  const privyAppId = env.COPY_PRIVY_APP_ID || null;
+  const privySignerId = env.COPY_PRIVY_AUTHORIZATION_SIGNER_ID || null;
+  const privyPolicyId = env.COPY_PRIVY_POLICY_ID || null;
   const delegationMaxTtlSeconds = integer(env.COPY_DELEGATION_MAX_TTL_SECONDS, 604800, "DELEGATION_MAX_TTL_SECONDS");
   if (broadcastEnabled) throw new Error("SERVER_BROADCAST_FORBIDDEN");
   if (autoBuyEnabled !== delegatedSubmissionEnabled) throw new Error("AUTO_BUY_FLAGS_MUST_MATCH");
   if (autoBuyEnabled && (!autoBuyExecutorAddress || !ADDRESS.test(autoBuyExecutorAddress))) throw new Error("AUTO_BUY_EXECUTOR_REQUIRED");
+  if (autoBuyEnabled && (![privyAppId, privySignerId, privyPolicyId].every((value) => RESOURCE_ID.test(value || "")))) throw new Error("AUTO_BUY_PUBLIC_PRIVY_CONFIG_REQUIRED");
   if (mode === "production" && endpoints.some((item) => !item.url)) throw new Error("TWO_RPC_ENDPOINTS_REQUIRED");
   const appPath = env.COPY_APP_PATH || "/copy/";
   if (!/^\/copy(?:\/|$)/.test(appPath)) throw new Error("COPY_ROUTE_MUST_BE_ISOLATED");
@@ -70,6 +75,7 @@ export function loadCopyConfig(env = {}) {
     autoBuyEnabled,
     delegatedSubmissionEnabled,
     autoBuyExecutorAddress,
+    autoBuySetup: autoBuyEnabled ? Object.freeze({ privyAppId, signerId: privySignerId, policyId: privyPolicyId, wrapperAddress: autoBuyExecutorAddress, chainId }) : null,
     delegationMaxTtlSeconds,
     startsGloballyPaused: flag(env.COPY_GLOBAL_KILL_SWITCH, true),
     rpc: Object.freeze({
@@ -110,6 +116,7 @@ export function publicConfig(config) {
     autoBuyEnabled: config.autoBuyEnabled,
     delegatedSubmissionEnabled: config.delegatedSubmissionEnabled,
     autoBuyExecutorAddress: config.autoBuyExecutorAddress,
+    autoBuySetup: config.autoBuySetup,
     delegationMaxTtlSeconds: config.delegationMaxTtlSeconds,
   });
 }

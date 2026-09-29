@@ -20,5 +20,6 @@ EXECUTOR_MAX_TRANSACTION_WEI = "0"
 EXECUTOR_MAX_TTL_SECONDS = "120"
 
 # Secrets staged only in this Worker: PRIVY_APP_ID, PRIVY_APP_SECRET, PRIVY_AUTHORIZATION_PRIVATE_KEY.
-# Public resource ids pinned here as encrypted configuration: PRIVY_AUTHORIZATION_SIGNER_ID, PRIVY_POLICY_ID.
+# Public resource ids and the reviewed canonical policy fingerprint pinned here as encrypted configuration:
+# PRIVY_AUTHORIZATION_SIGNER_ID, PRIVY_POLICY_ID, PRIVY_POLICY_OWNER_ID, PRIVY_POLICY_CONTENT_SHA256.
 # Forbidden here: Telegram bot/webhook secrets, user seed/private key, Copy RPC URLs.

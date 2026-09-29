@@ -11,8 +11,9 @@ import { CopyTelegramSurface } from "../telegram-surface.mjs";
 import { TelegramInitDataVerifier } from "../telegram-init-data.mjs";
 import { D1AuditSink, D1DelegationStore, D1IntentStore, D1KillSwitchStore, D1OutboxStore, D1ReplayStore, D1SpendLedger, D1UserStore } from "./d1-store.mjs";
 import { createCoordinatedService } from "./coordinator.mjs";
+import { DelegationActivationCodec } from "../delegation-activation.mjs";
 
-const FORBIDDEN_ENV = /^(?:BOT_TOKEN|TELEGRAM_BOT_TOKEN|TELEGRAM_WEBHOOK_SECRET|SEED|MNEMONIC|PRIVATE_KEY|WALLET_VAULT)$/i;
+const FORBIDDEN_ENV = /(?:^|_)(?:BOT_TOKEN|TELEGRAM_BOT_TOKEN|TELEGRAM_WEBHOOK_SECRET|SEED|MNEMONIC|PRIVATE_KEY|WALLET_VAULT)(?:$|_)/i;
 
 function secret(env, name, minBytes = 32) {
   const value = env[name];
@@ -51,12 +52,14 @@ export async function buildRuntime(env, { coordinated = true, fetchImpl = global
   const policyGate = new ExecutionPolicyGate({ config: config.policy, killSwitches, spendLedger: new D1SpendLedger(db) });
   const auditLog = await HashChainedAuditLog.resume({ sink: new D1AuditSink(db), clock: () => Date.now() });
   const delegationStore = new D1DelegationStore(db, clock);
-  const delegatedExecutor = config.delegatedSubmissionEnabled ? new ServiceBindingDelegatedExecutor(env.COPY_DELEGATED_EXECUTOR) : new UnconfiguredDelegatedExecutor();
+  // Keep the private binding usable for emergency wallet deactivation even after activation/submission flags are off.
+  // No submit path can run while those flags are false, but stale authorizations can still be blocked and verified.
+  const delegatedExecutor = env.COPY_DELEGATED_EXECUTOR ? new ServiceBindingDelegatedExecutor(env.COPY_DELEGATED_EXECUTOR) : new UnconfiguredDelegatedExecutor();
   const localService = new LintchaCopyService({
     policyGate, simulator: new SimulationQuorum({ rpcPool, maxGasEstimateSkewBps: config.rpc.maxGasEstimateSkewBps }), rpcPool,
     auditLog, intentStore: new D1IntentStore(db), confirmationSecret, clock, delegationStore,
     delegatedExecutor,
-    autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled, autoBuyExecutorAddress: config.autoBuyExecutorAddress,
+    autoBuyEnabled: config.autoBuyEnabled, delegatedSubmissionEnabled: config.delegatedSubmissionEnabled, autoBuyExecutorAddress: config.autoBuyExecutorAddress, autoBuyChainId: config.chainId,
   });
   const service = coordinated
     ? createCoordinatedService({ localService, clock, stubFor: (userId) => env.COPY_USER.get(env.COPY_USER.idFromName(`copy-user:${userId}`)) })
@@ -66,7 +69,7 @@ export async function buildRuntime(env, { coordinated = true, fetchImpl = global
   const replayStore = new D1ReplayStore(db);
   const surface = new CopyTelegramSurface({ userStore, delegationStore, killSwitches, appOrigin: config.appOrigin, appPath: config.appPath, service, autoBuyAvailable: config.autoBuyEnabled });
   const handler = createCopyHttpHandler({
-    config, service, surface, userStore, delegationStore, delegationVerifier: delegatedExecutor, outbox, killSwitches, clock,
+    config, service, surface, userStore, delegationStore, outbox, killSwitches, clock,
     gatewayVerifier: new GatewayRequestVerifier({ secret: gatewaySecret, replayStore }),
     serviceVerifier: {
       outbox: new SignedServiceRequestVerifier({ secret: gatewaySecret, schema: "lintcha.copy.outbox.v1", replayStore }),
@@ -75,6 +78,8 @@ export async function buildRuntime(env, { coordinated = true, fetchImpl = global
       autoBuy: new SignedServiceRequestVerifier({ secret: gatewaySecret, schema: "lintcha.copy.auto-buy.v1", replayStore }),
     },
     adminVerifier: adminSecret ? new SignedServiceRequestVerifier({ secret: adminSecret, schema: "lintcha.copy.admin.v1", replayStore }) : null,
+    delegationActivation: new DelegationActivationCodec(confirmationSecret),
+    activationReplayStore: replayStore,
     // A key override exists for local/preproduction test rigs only; production always uses Telegram's published key.
     initDataVerifier: new TelegramInitDataVerifier({ botId: env.COPY_TELEGRAM_BOT_ID, environment: env.COPY_TELEGRAM_ENV || "production", publicKeyHex: config.mode !== "production" && env.COPY_TELEGRAM_PUBLIC_KEY_HEX ? env.COPY_TELEGRAM_PUBLIC_KEY_HEX : null }),
     persistKillSwitches: (snapshot, meta) => killSwitchStore.persist(snapshot, meta),

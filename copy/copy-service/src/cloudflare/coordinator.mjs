@@ -5,7 +5,9 @@
  * at any moment without losing anything. Reads bypass the object.
  */
 export const COORDINATED_OPERATIONS = Object.freeze(new Set([
-  "createConfirmEachIntent", "executeAutomaticBuy", "beginSecureSheetConfirmation", "recordClientSubmission", "cancelIntent", "reconcile", "expireIntent",
+  "createConfirmEachIntent", "executeAutomaticBuy", "prepareAutomaticBuyDelegation", "verifyAutomaticBuyConfiguration", "activateAutomaticBuyDelegation",
+  "recoverAutomaticBuyRemoval", "deactivateAutomaticBuyDelegation", "verifyAutomaticBuyRemovalReadiness", "verifyAutomaticBuyRevocation",
+  "beginSecureSheetConfirmation", "recordClientSubmission", "cancelIntent", "reconcile", "expireIntent",
 ]));
 
 function userIdOf(op, args) {
@@ -35,6 +37,13 @@ export function createCoordinatedService({ localService, stubFor, clock = () => 
     policyGate: localService.policyGate,
     createConfirmEachIntent: (args) => forward(userIdOf("createConfirmEachIntent", args), "createConfirmEachIntent", args),
     executeAutomaticBuy: (args) => forward(userIdOf("executeAutomaticBuy", args), "executeAutomaticBuy", args),
+    prepareAutomaticBuyDelegation: (args) => forward(userIdOf("prepareAutomaticBuyDelegation", args), "prepareAutomaticBuyDelegation", args),
+    verifyAutomaticBuyConfiguration: (args) => forward(userIdOf("verifyAutomaticBuyConfiguration", args), "verifyAutomaticBuyConfiguration", args),
+    activateAutomaticBuyDelegation: (args) => forward(userIdOf("activateAutomaticBuyDelegation", args), "activateAutomaticBuyDelegation", args),
+    recoverAutomaticBuyRemoval: (args) => forward(userIdOf("recoverAutomaticBuyRemoval", args), "recoverAutomaticBuyRemoval", args),
+    deactivateAutomaticBuyDelegation: (args) => forward(userIdOf("deactivateAutomaticBuyDelegation", args), "deactivateAutomaticBuyDelegation", args),
+    verifyAutomaticBuyRemovalReadiness: (args) => forward(userIdOf("verifyAutomaticBuyRemovalReadiness", args), "verifyAutomaticBuyRemovalReadiness", args),
+    verifyAutomaticBuyRevocation: (args) => forward(userIdOf("verifyAutomaticBuyRevocation", args), "verifyAutomaticBuyRevocation", args),
     beginSecureSheetConfirmation: (args) => forward(userIdOf("beginSecureSheetConfirmation", args), "beginSecureSheetConfirmation", args),
     recordClientSubmission: (args) => forward(userIdOf("recordClientSubmission", args), "recordClientSubmission", args),
     cancelIntent: (args) => forward(userIdOf("cancelIntent", args), "cancelIntent", args),

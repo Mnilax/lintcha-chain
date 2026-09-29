@@ -120,9 +120,10 @@ export class ConfirmEachSheetController {
   }
 
   /**
-   * One confirm-each pass: open → review → separate confirm → wallet submit → report hash. A cancel before confirm
-   * tells the server so the reservation is released; a wallet rejection after confirm is reported as CANCELLED too,
-   * because nothing was submitted. Only a public hash ever goes back to the server.
+   * One confirm-each pass: open → review → separate confirm → wallet submit → report hash. Cancel never opens the
+   * wallet and never submits a transaction: it calls the server's cancel route so the pending review is closed and
+   * its reservation released. A wallet rejection after confirm is reported as CANCELLED too, because nothing was
+   * submitted. Only a public hash ever goes back to the server.
    */
   async execute({ token, userId, revision, walletAddress, storageKey = null }) {
     let intent;

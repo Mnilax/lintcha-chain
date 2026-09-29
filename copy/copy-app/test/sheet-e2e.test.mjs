@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto, randomBytes } from "node:crypto";
 import { boot } from "../copy/copy-app.js";
+import { configureCalldata } from "../copy/auto-buy-onboarding.mjs";
 import { loadCopyConfig } from "../../copy-service/src/config.mjs";
 import { GatewayRequestVerifier, MemoryReplayStore } from "../../copy-service/src/gateway-auth.mjs";
 import { SignedServiceRequestVerifier, createCopyHttpHandler, signServiceRequest } from "../../copy-service/src/http.mjs";
@@ -19,8 +20,12 @@ const SECRET = "g".repeat(40);
 const BOT_ID = "7342037359";
 
 function element(tag = "div") {
-  const el = { tag, textContent: "", disabled: false, hidden: false, children: [], listeners: {}, dataset: {}, className: "", onclick: null,
-    classList: { toggle(name, force) { if (name === "hidden") el.hidden = force; } },
+  const el = { tag, textContent: "", value: "", disabled: false, hidden: false, children: [], listeners: {}, dataset: {}, className: "", onclick: null,
+    classList: {
+      toggle(name, force) { if (name === "hidden") el.hidden = force; },
+      add(name) { if (name === "hidden") el.hidden = true; },
+      remove(name) { if (name === "hidden") el.hidden = false; },
+    },
     addEventListener(type, fn) { el.listeners[type] = fn; },
     append(...nodes) { el.children.push(...nodes); },
     click() { return (el.onclick || el.listeners.click)?.(); } };
@@ -104,4 +109,84 @@ test("without Telegram init data the sheet shows the unauthenticated state and c
   await boot({ document: doc, windowLike: { location: { hash: "", origin: ORIGIN, href: `${ORIGIN}/copy/` } }, fetchImpl: () => { calls += 1; } });
   assert.equal(visible(), "unauthenticated");
   assert.equal(calls, 0);
+});
+
+test("auto-BUY setup is wired only to the identity-matched first-party embedded wallet", async () => {
+  const wrapperAddress = `0x${"7".repeat(40)}`;
+  const transactionHash = `0x${"a".repeat(64)}`;
+  const finalizedHash = `0x${"b".repeat(64)}`;
+  const now = 1_700_000_000;
+  const setup = { privyAppId: "privy_app_123", signerId: "signer_12345678", policyId: "policy_12345678", wrapperAddress, chainId: 4663 };
+  const events = [];
+  let active = false;
+  let registered = false;
+  let preparedLimits;
+  const word = (value) => BigInt(value).toString(16).padStart(64, "0");
+  const embeddedProvider = {
+    async request(request) {
+      events.push(request.method);
+      if (request.method === "eth_accounts") return [WALLET];
+      if (request.method === "eth_chainId") return "0x1237";
+      if (request.method === "eth_sendTransaction") return transactionHash;
+      if (request.method === "eth_getTransactionReceipt") return { status: "0x1", blockNumber: "0x64", from: WALLET, to: wrapperAddress };
+      if (request.method === "eth_getBlockByNumber") return { number: "0x64", hash: finalizedHash };
+      if (request.method === "eth_call") return `0x${word(preparedLimits.maxTransactionWei)}${word(preparedLimits.maxDailySpendWei)}${word(preparedLimits.maxSlippageBps)}${word(preparedLimits.expiresAt)}${word(0)}`;
+      throw new Error("UNEXPECTED_EMBEDDED_PROVIDER_METHOD");
+    },
+  };
+  const lintchaPrivy = {
+    publicConfig: setup,
+    async getWallet() { return { walletAddress: WALLET, telegramUserId: "42", provider: embeddedProvider }; },
+    async addSigners(input) { events.push(["addSigners", input]); return { address: input.address }; },
+    async getSignerState() { return { walletAddress: WALLET, additionalSigners: [{ signerId: setup.signerId, policyIds: [setup.policyId] }] }; },
+    async removeSigners(input) { events.push(["removeSigners", input]); },
+  };
+  const { doc, get } = fakeDocument();
+  const windowLike = {
+    location: { hash: "#tgWebAppData=user%3D%257B%2522id%2522%253A42%257D", origin: ORIGIN, href: `${ORIGIN}/copy/` },
+    lintchaPrivy,
+    ethereum: { request() { throw new Error("GENERIC_PROVIDER_MUST_NOT_BE_USED_FOR_AUTO_BUY"); } },
+  };
+  const fetchImpl = async (url, init) => {
+    const route = new URL(url).pathname.replace("/api/copy/", "");
+    const body = init.body ? JSON.parse(init.body) : null;
+    events.push([route, body]);
+    let response;
+    if (route === "me") response = {
+      ok: true, user: { mode: active ? "AUTO_BUY" : "NOTIFY_ONLY", paused: false }, globallyPaused: false,
+      autoBuyAvailable: true, autoBuySetup: setup, chainId: 4663,
+      wallets: registered ? [{ publicAddress: WALLET, walletKind: "EXTERNAL" }] : [],
+      activeDelegations: active ? [{ walletAddress: WALLET, architecture: "PRIVY", chainId: 4663, wrapperAddress, expiresAt: preparedLimits.expiresAt }] : [],
+      intents: [],
+    };
+    else if (route === "wallet") { registered = true; response = { ok: true }; }
+    else if (route === "delegations/prepare") {
+      const { walletAddress, ...limits } = body;
+      assert.equal(walletAddress, WALLET);
+      preparedLimits = limits;
+      response = { ok: true, activationToken: "activation_body_12345678.activation_signature_12345678", limits, transaction: { chainId: 4663, to: wrapperAddress, value: "0", data: configureCalldata(limits) } };
+    } else if (route === "delegations/verify-configuration") {
+      assert.deepEqual(Object.keys(body).sort(), ["activationToken", "walletAddress"]);
+      response = { ok: true, ready: true, walletAddress: WALLET, finalizedBlock: 100 };
+    } else if (route === "delegations/activate") {
+      assert.deepEqual(Object.keys(body).sort(), ["activationToken", "walletAddress"]);
+      active = true;
+      response = { ok: true, active: true };
+    } else throw new Error(`UNEXPECTED_ROUTE_${route}`);
+    return { status: 200, async json() { return response; } };
+  };
+
+  await boot({ document: doc, windowLike, fetchImpl, clock: () => now });
+  assert.equal(get("[data-auto-buy-setup]").hidden, false);
+  assert.equal(get("[data-action=activate-auto-buy]").disabled, false);
+  get("[data-auto-buy-input=max-trade]").value = "0.005";
+  get("[data-auto-buy-input=daily-cap]").value = "0.02";
+  get("[data-auto-buy-input=slippage]").value = "1";
+  get("[data-auto-buy-input=duration]").value = "24";
+  await get("[data-action=activate-auto-buy]").click();
+  assert.equal(active, true);
+  assert.match(get("[data-auto-buy-status]").textContent, /Auto-BUY is active/);
+  assert.equal(events.some((entry) => entry === "eth_sendTransaction"), true);
+  assert.deepEqual(events.find((entry) => Array.isArray(entry) && entry[0] === "addSigners")[1], { address: WALLET, signers: [{ signerId: setup.signerId, policyIds: [setup.policyId] }] });
+  assert.equal(events.some((entry) => entry === "GENERIC_PROVIDER_MUST_NOT_BE_USED_FOR_AUTO_BUY"), false);
 });

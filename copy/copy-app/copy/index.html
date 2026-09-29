@@ -18,22 +18,51 @@
     <span class="module-boundary">Copy-trading is an opt-in mode inside Lintcha. Lintcha Core remains read-only. Keys stay local; manual SELL and delegation changes require your wallet.</span>
   </header>
 
+  <!-- The only exit from this view used to be the module script. When it does not arrive (wrong route, cold
+       Worker, blocked or cached script, offline tab) the rescue below appears on CSS timing alone, so the sheet
+       never strands anyone on a loading line. If the script boots, the view is switched long before 3.5s. -->
   <section data-view="loading">
     <p class="notice">Reading your Telegram identity from this Mini App…</p>
+    <div class="boot-fallback" data-boot-fallback>
+      <p class="small">This is taking longer than it should. Either the sheet did not finish loading, or it was opened outside Telegram. Nothing was signed or submitted.</p>
+      <div class="actions">
+        <a class="button primary" href="https://t.me/lintchabot?start=copy_site" rel="noopener">Open @lintchabot</a>
+        <a class="button" href="/">Back to lintcha.com</a>
+      </div>
+    </div>
   </section>
 
-  <section data-view="unauthenticated" class="hidden">
+  <noscript>
+    <h1>JavaScript is off</h1>
+    <p class="notice">The secure sheet shows you the exact transaction before your wallet opens, and that needs JavaScript. Nothing is signed without it.</p>
+    <div class="actions">
+      <a class="button primary" href="https://t.me/lintchabot?start=copy_site" rel="noopener">Open @lintchabot</a>
+      <a class="button" href="/">Back to lintcha.com</a>
+    </div>
+  </noscript>
+
+  <section data-view="unauthenticated" class="hidden" hidden>
     <h1>Open from Telegram</h1>
     <p class="notice">This sheet works only when opened from a private chat with @lintchabot. No Telegram identity was found in this page.</p>
+    <div class="actions">
+      <a class="button primary" href="https://t.me/lintchabot?start=copy_site" rel="noopener">Open @lintchabot</a>
+      <a class="button" href="/">Back to lintcha.com</a>
+    </div>
   </section>
 
-  <section data-view="error" class="hidden">
+  <section data-view="error" class="hidden" hidden>
     <h1>Stopped</h1>
+    <p data-error-message>Something went wrong.</p>
     <p class="error" data-error></p>
-    <p class="small">Nothing was signed or submitted. Open /copy in Telegram again to retry.</p>
+    <p class="small">Nothing was signed or submitted. No transaction left this page.</p>
+    <div class="actions">
+      <button type="button" data-action="retry">Try again</button>
+      <a class="button" href="https://t.me/lintchabot?start=copy_site" rel="noopener">Open @lintchabot</a>
+      <a class="button" href="/">Back to lintcha.com</a>
+    </div>
   </section>
 
-  <section data-view="home" class="hidden">
+  <section data-view="home" class="hidden" hidden>
     <h1>Your Lintcha trading</h1>
     <p><span class="small">Mode:</span> <span data-mode></span> · <span class="small">Status:</span> <span data-status></span></p>
     <p class="small" data-home-note>Change mode or pause from the /copy message in Telegram.</p>
@@ -45,12 +74,32 @@
     <p class="small" data-wallet-note>Connecting shares only your public address. Seed phrases and private keys never enter this page or the server.</p>
     <h2>Auto-BUY permission</h2>
     <p class="notice" data-delegation>Not active.</p>
+    <div class="auto-buy-controls hidden" data-auto-buy-controls>
+      <fieldset class="auto-buy-setup hidden" data-auto-buy-setup>
+        <legend>Bounded auto-BUY limits</legend>
+        <p class="small">These limits are written to your executor wrapper before the first-party embedded wallet signer is attached. The wallet shows the exact transaction.</p>
+        <div class="setup-grid">
+          <label><span>Max per BUY (ETH)</span><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" data-auto-buy-input="max-trade" placeholder="0.005"></label>
+          <label><span>Daily cap (ETH)</span><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" data-auto-buy-input="daily-cap" placeholder="0.02"></label>
+          <label><span>Max slippage (%)</span><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" data-auto-buy-input="slippage" placeholder="1.00"></label>
+          <label><span>Permission duration (hours)</span><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" data-auto-buy-input="duration" placeholder="24"></label>
+        </div>
+        <div class="actions"><button type="button" class="primary" data-action="activate-auto-buy" disabled>Activate auto-BUY in wallet</button></div>
+      </fieldset>
+      <div class="auto-buy-deactivation hidden" data-auto-buy-deactivation>
+        <p class="small">Stop locally first, then pause the wrapper and remove its signer permission. This remains available if new auto-BUY activation is disabled.</p>
+        <div class="actions"><button type="button" data-action="deactivate-auto-buy" disabled>Deactivate auto-BUY</button></div>
+      </div>
+      <p class="small" data-auto-buy-setup-note></p>
+      <p class="small setup-status" aria-live="polite" data-auto-buy-status></p>
+      <p class="error hidden" aria-live="assertive" data-auto-buy-error></p>
+    </div>
     <h2>Open reviews</h2>
     <ul class="intents" data-intents></ul>
     <p class="notice hidden" data-no-intents>Nothing is waiting for your confirmation.</p>
   </section>
 
-  <section data-view="review" class="hidden">
+  <section data-view="review" class="hidden" hidden>
     <h1>Review before your wallet opens</h1>
     <div class="review">
       <p class="direction" data-review-direction></p>
@@ -60,15 +109,16 @@
     <p class="small">SELL is manual: approval and trade are two separate wallet confirmations.</p>
     <div class="confirm-box">
       <p><strong>Separate confirmation.</strong> Confirming here opens your wallet with exactly this transaction. Your wallet asks you again. Either step can be cancelled.</p>
+      <p class="small">Cancel does not open the wallet and does not submit a transaction. It only closes the pending review and releases it on the Lintcha backend.</p>
       <div class="actions">
         <button type="button" class="primary" data-action="confirm">Confirm and open wallet</button>
-        <button type="button" data-action="cancel">Cancel — submit nothing</button>
+        <button type="button" data-action="cancel">Cancel review</button>
       </div>
       <p class="small" data-expiry></p>
     </div>
   </section>
 
-  <section data-view="result" class="hidden">
+  <section data-view="result" class="hidden" hidden>
     <h1 data-result-title></h1>
     <p data-result-text></p>
     <p class="small" data-result-hash></p>

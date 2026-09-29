@@ -10,12 +10,14 @@ export const COPY_CALLBACK = /^(?:copy|trade|sell)\.[a-z0-9._-]{1,96}$/;
  */
 export class MemoryReplayStore {
   constructor() { this.seen = new Map(); }
+  #prune(nowSeconds) { for (const [key, until] of this.seen) if (until <= nowSeconds) this.seen.delete(key); }
   async claim(updateId, expiresAt, nowSeconds) {
-    for (const [key, until] of this.seen) if (until <= nowSeconds) this.seen.delete(key);
+    this.#prune(nowSeconds);
     if (this.seen.has(updateId)) return false;
     this.seen.set(updateId, expiresAt);
     return true;
   }
+  async has(updateId, nowSeconds) { this.#prune(nowSeconds); return this.seen.has(updateId); }
 }
 
 export class GatewayRequestVerifier {

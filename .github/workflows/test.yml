@@ -43,6 +43,11 @@ jobs:
       - name: Install the pinned Worker toolchain
         run: npm ci --prefix bot
 
+      - name: Dry-run bundle both isolated Copy Workers
+        run: |
+          node bot/node_modules/wrangler/bin/wrangler.js deploy --dry-run --config copy/copy-service/wrangler.toml --outdir build/wrangler-copy
+          node bot/node_modules/wrangler/bin/wrangler.js deploy --dry-run --config copy/delegated-executor/wrangler.toml --outdir build/wrangler-executor
+
       - name: Bundle the API worker strictly
         run: npm run bundle --prefix bot
 

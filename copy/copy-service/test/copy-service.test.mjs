@@ -6,10 +6,11 @@ import { HashChainedAuditLog, MemoryAuditSink, publicAuditPayload } from "../src
 import { RpcPool } from "../src/rpc-pool.mjs";
 import { KillSwitches } from "../src/policy.mjs";
 import { GatewayRequestVerifier } from "../src/gateway-auth.mjs";
-import { MemoryDelegationStore } from "../src/delegated-execution.mjs";
+import { MemoryDelegationStore, ServiceBindingDelegatedExecutor } from "../src/delegated-execution.mjs";
 import { BLOCK_HASH, HASH, NOW, ROUTER, TOKEN, WALLET, approvalInput, autoBuyInput, fixture, input, openAndSubmit, provider, revert, sellTradeInput, word } from "./helpers.mjs";
 
 test("config is isolated, credential-free capable, and never exposes RPC URLs", () => {
+  const publicPrivy = { COPY_PRIVY_APP_ID: "app_lintcha_1", COPY_PRIVY_AUTHORIZATION_SIGNER_ID: "signer_lintcha_1", COPY_PRIVY_POLICY_ID: "policy_buy_only_1" };
   const config = loadCopyConfig({ COPY_ALLOW_CHAINS: "[4663]", COPY_APP_ORIGIN: "http://localhost:8788" });
   assert.equal(config.dbNamespace, "lintcha_copy");
   assert.equal(config.rpc.ready, false);
@@ -19,11 +20,22 @@ test("config is isolated, credential-free capable, and never exposes RPC URLs", 
   assert.throws(() => loadCopyConfig({ TELEGRAM_BOT_TOKEN: "x" }), /MUST_NOT_RECEIVE/);
   assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true" }), /AUTO_BUY_FLAGS_MUST_MATCH/);
   assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true" }), /AUTO_BUY_EXECUTOR_REQUIRED/);
-  assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER }), /AUTO_BUY_POLICY_NOT_PINNED/);
-  const auto = loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER, COPY_ALLOW_ROUTERS: JSON.stringify([ROUTER]), COPY_ALLOW_SELECTORS: JSON.stringify(["0xa59ac6dd"]) });
+  assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER }), /AUTO_BUY_PUBLIC_PRIVY_CONFIG_REQUIRED/);
+  assert.throws(() => loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER, ...publicPrivy }), /AUTO_BUY_POLICY_NOT_PINNED/);
+  const auto = loadCopyConfig({ COPY_AUTO_BUY_ENABLED: "true", COPY_DELEGATED_SUBMISSION_ENABLED: "true", COPY_AUTO_BUY_EXECUTOR_ADDRESS: ROUTER, COPY_ALLOW_ROUTERS: JSON.stringify([ROUTER]), COPY_ALLOW_SELECTORS: JSON.stringify(["0xa59ac6dd"]), ...publicPrivy });
   assert.equal(publicConfig(auto).autoBuyEnabled, true);
   assert.equal(publicConfig(auto).delegatedSubmissionEnabled, true);
+  assert.equal(publicConfig(auto).autoBuySetup.policyId, "policy_buy_only_1");
   assert.throws(() => loadCopyConfig({ COPY_BROADCAST_ENABLED: "true" }), /SERVER_BROADCAST_FORBIDDEN/);
+});
+
+test("executor binding preserves the verified Privy policy hash and rejects an absent or malformed hash", async () => {
+  const payload = { telegramUserId: "42", walletAddress: WALLET };
+  const body = { architecture: "PRIVY_TEE", authorizationRef: "privy-wallet:wallet_fixture_1234", walletAddress: WALLET, chainId: 4663, policyContentSha256: "c".repeat(64) };
+  const valid = new ServiceBindingDelegatedExecutor({ fetch: async () => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }) });
+  assert.equal((await valid.verifyDelegation(payload)).policyContentSha256, "c".repeat(64));
+  const invalid = new ServiceBindingDelegatedExecutor({ fetch: async () => new Response(JSON.stringify({ ...body, policyContentSha256: "bad" }), { status: 200, headers: { "content-type": "application/json" } }) });
+  await assert.rejects(invalid.verifyDelegation(payload), /DELEGATION_VERIFICATION_FAILED/);
 });
 
 test("auto-BUY requires a bounded delegation, submits once and never turns SELL automatic", async () => {

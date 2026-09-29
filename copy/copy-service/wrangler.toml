@@ -27,6 +27,12 @@ database_id = "995a5ac8-033f-4806-ae00-aff25025482b"
 name = "COPY_USER"
 class_name = "CopyUserCoordinator"
 
+# Private Worker-to-Worker boundary. Both auto-BUY flags remain false until the wrapper, Privy policy and
+# executor are independently reviewed and staged with their own kill switches still paused.
+[[services]]
+binding = "COPY_DELEGATED_EXECUTOR"
+service = "lintcha-copy-executor"
+
 [[migrations]]
 tag = "copy-v1"
 new_sqlite_classes = ["CopyUserCoordinator"]
@@ -51,10 +57,15 @@ COPY_GLOBAL_KILL_SWITCH = "true"
 COPY_BROADCAST_ENABLED = "false"
 COPY_AUTO_BUY_ENABLED = "false"
 COPY_DELEGATED_SUBMISSION_ENABLED = "false"
+COPY_AUTO_BUY_EXECUTOR_ADDRESS = ""
+COPY_DELEGATION_MAX_TTL_SECONDS = "604800"
+COPY_PRIVY_APP_ID = ""
+COPY_PRIVY_AUTHORIZATION_SIGNER_ID = ""
+COPY_PRIVY_POLICY_ID = ""
 COPY_ALLOW_CHAINS = "[4663]"
 COPY_ALLOW_ROUTERS = "[\"0x52067dce3cfec3621b88d4de3cc77374f8a44494\"]"
 COPY_ALLOW_SPENDERS = "[\"0x52067dce3cfec3621b88d4de3cc77374f8a44494\"]"
-COPY_ALLOW_SELECTORS = "[\"0x59a87bc1\",\"0xd04c6983\",\"0x095ea7b3\"]"
+COPY_ALLOW_SELECTORS = "[\"0x59a87bc1\",\"0xd04c6983\",\"0x095ea7b3\",\"0xa59ac6dd\"]"
 COPY_MAX_TRANSACTION_WEI = "0"
 COPY_MAX_DAILY_SPEND_WEI = "0"
 COPY_MAX_SLIPPAGE_BPS = "0"

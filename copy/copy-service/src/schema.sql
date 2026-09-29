@@ -41,6 +41,9 @@ CREATE TABLE IF NOT EXISTS copy_delegations (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (telegram_user_id, public_address)
 );
+-- One Privy embedded wallet cannot power two Telegram identities at the same time. Revoked/expired history
+-- remains available, while the active ownership binding is globally unique.
+CREATE UNIQUE INDEX IF NOT EXISTS copy_delegations_one_active_owner ON copy_delegations(public_address) WHERE status = 'ACTIVE';
 
 -- First-party acquisition attribution from Telegram deep links. The Telegram user id is already the Copy account
 -- key; no browser fingerprint, cookie, IP address, raw initData or third-party analytics identifier is stored.

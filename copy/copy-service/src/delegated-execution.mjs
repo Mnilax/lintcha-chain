@@ -1,5 +1,6 @@
 const ADDRESS = /^0x[0-9a-f]{40}$/;
 const HASH = /^0x[0-9a-f]{64}$/;
+const POLICY_CONTENT_SHA256 = /^[0-9a-f]{64}$/;
 
 function lowerList(values, test, code) {
   if (!Array.isArray(values) || values.length === 0) throw new Error(code);
@@ -17,7 +18,7 @@ export function validateDelegation(input, now = Math.floor(Date.now() / 1000)) {
   const walletAddress = String(input.walletAddress || "").toLowerCase();
   if (!ADDRESS.test(walletAddress)) throw new Error("INVALID_DELEGATION_WALLET");
   if (!["PRIVY_TEE", "EIP7702_SESSION", "ERC4337_SESSION"].includes(input.architecture)) throw new Error("UNSUPPORTED_DELEGATION_ARCHITECTURE");
-  if (!/^[a-zA-Z0-9:_-]{8,160}$/.test(input.authorizationRef || "")) throw new Error("INVALID_DELEGATION_REFERENCE");
+  if (!/^[a-zA-Z0-9:_-]{8,192}$/.test(input.authorizationRef || "")) throw new Error("INVALID_DELEGATION_REFERENCE");
   if (!Number.isSafeInteger(input.chainId)) throw new Error("INVALID_DELEGATION_CHAIN");
   if (!Number.isSafeInteger(input.expiresAt) || input.expiresAt <= now) throw new Error("DELEGATION_EXPIRED");
   if (!Number.isSafeInteger(input.maxSlippageBps) || input.maxSlippageBps < 0) throw new Error("INVALID_DELEGATION_SLIPPAGE");
@@ -49,14 +50,24 @@ export function assertDelegationAllows(delegation, { userId, walletAddress, tran
 
 export class MemoryDelegationStore {
   constructor(clock = () => Math.floor(Date.now() / 1000)) { this.rows = new Map(); this.clock = clock; }
-  async put(input) { const row = validateDelegation(input, this.clock()); this.rows.set(`${row.userId}:${row.walletAddress}`, { ...row }); return structuredClone(row); }
+  async put(input) {
+    const row = validateDelegation(input, this.clock());
+    for (const existing of this.rows.values()) if (existing.walletAddress === row.walletAddress && existing.userId !== row.userId && existing.status === "ACTIVE" && existing.expiresAt > this.clock()) throw new Error("DELEGATION_WALLET_ALREADY_ACTIVE");
+    this.rows.set(`${row.userId}:${row.walletAddress}`, { ...row }); return structuredClone(row);
+  }
+  async get(userId, walletAddress) { const row = this.rows.get(`${String(userId)}:${String(walletAddress).toLowerCase()}`); return row ? structuredClone(row) : null; }
   async getActive(userId, walletAddress) { const row = this.rows.get(`${String(userId)}:${String(walletAddress).toLowerCase()}`); return row?.status === "ACTIVE" && row.expiresAt > this.clock() ? structuredClone(row) : null; }
   async revoke(userId, walletAddress) { const row = this.rows.get(`${String(userId)}:${String(walletAddress).toLowerCase()}`); if (row) { row.status = "REVOKED"; row.updatedAt = this.clock(); } }
+  async completeRemoval(userId, walletAddress) { this.rows.delete(`${String(userId)}:${String(walletAddress).toLowerCase()}`); }
 }
 
 export class UnconfiguredDelegatedExecutor {
   async submit() { throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED"); }
+  async verifyWalletPreflight() { throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED"); }
   async verifyDelegation() { throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED"); }
+  async verifyRemovalReadiness() { throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED"); }
+  async deactivate() { throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED"); }
+  async verifyRevocation() { throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED"); }
 }
 
 /** Calls a separately controlled signer/broadcaster. Copy sends only public transaction data and an opaque authorization reference. */
@@ -77,7 +88,39 @@ export class ServiceBindingDelegatedExecutor {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok || body?.architecture !== "PRIVY_TEE" || !ADDRESS.test(body?.walletAddress || "") || !/^privy-wallet:[a-zA-Z0-9_-]{8,128}$/.test(body?.authorizationRef || "") || !Number.isSafeInteger(body?.chainId)) throw new Error("DELEGATION_VERIFICATION_FAILED");
-    return Object.freeze({ architecture: body.architecture, walletAddress: body.walletAddress, authorizationRef: body.authorizationRef, chainId: body.chainId });
+    if (!response.ok || body?.architecture !== "PRIVY_TEE" || !ADDRESS.test(body?.walletAddress || "") || !/^privy-wallet:[a-zA-Z0-9_-]{8,128}$/.test(body?.authorizationRef || "") || !Number.isSafeInteger(body?.chainId) || !POLICY_CONTENT_SHA256.test(body?.policyContentSha256 || "")) throw new Error("DELEGATION_VERIFICATION_FAILED");
+    return Object.freeze({ architecture: body.architecture, walletAddress: body.walletAddress, authorizationRef: body.authorizationRef, chainId: body.chainId, policyContentSha256: body.policyContentSha256 });
+  }
+  async verifyWalletPreflight(payload) {
+    if (!this.binding?.fetch) throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED");
+    const response = await this.binding.fetch("https://delegated-executor/verify-wallet-preflight", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !ADDRESS.test(body?.walletAddress || "") || !Number.isSafeInteger(body?.chainId) || body?.eligible !== true) throw new Error("DELEGATION_PREFLIGHT_FAILED");
+    return Object.freeze({ eligible: true, walletAddress: body.walletAddress.toLowerCase(), chainId: body.chainId });
+  }
+  async verifyRemovalReadiness(payload) {
+    if (!this.binding?.fetch) throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED");
+    const response = await this.binding.fetch("https://delegated-executor/verify-removal-readiness", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+    const body = await response.json().catch(() => null);
+    if (
+      !response.ok || body?.ready !== true || !ADDRESS.test(body?.walletAddress || "")
+      || body.walletAddress.toLowerCase() !== String(payload.walletAddress).toLowerCase()
+      || body.authorizationRef !== payload.authorizationRef || !Number.isSafeInteger(body.chainId)
+    ) throw new Error("DELEGATION_REMOVAL_NOT_READY");
+    return Object.freeze({ ready: true, walletAddress: body.walletAddress.toLowerCase(), authorizationRef: body.authorizationRef, chainId: body.chainId });
+  }
+  async deactivate(payload) {
+    if (!this.binding?.fetch) throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED");
+    const response = await this.binding.fetch("https://delegated-executor/wallets/deactivate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.blocked !== true) throw new Error("DELEGATED_EXECUTOR_DEACTIVATION_PENDING");
+    return Object.freeze({ blocked: true });
+  }
+  async verifyRevocation(payload) {
+    if (!this.binding?.fetch) throw new Error("DELEGATED_EXECUTOR_NOT_CONFIGURED");
+    const response = await this.binding.fetch("https://delegated-executor/verify-revocation", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.revoked !== true || !ADDRESS.test(body?.walletAddress || "")) throw new Error("DELEGATION_REVOCATION_NOT_VERIFIED");
+    return Object.freeze({ revoked: true, walletAddress: body.walletAddress.toLowerCase() });
   }
 }

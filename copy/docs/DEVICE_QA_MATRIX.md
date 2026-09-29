@@ -11,7 +11,7 @@ Preconditions: Copy Worker deployed with `COPY_GLOBAL_KILL_SWITCH=true` then res
 | 5 | Telegram Web | wallet on wrong chain | same | `WALLET_CHAIN_MISMATCH` shown; no `wallet_addEthereumChain`; nothing sent |
 | 6 | Telegram Web | wallet with a different account | same | `WALLET_ACCOUNT_MISMATCH`; nothing sent |
 | 7 | any | reject in wallet | confirm → reject | CANCELLED (USER_REJECTED_IN_WALLET); intent cancelled server-side; reservation released |
-| 8 | any | cancel in sheet | review → Cancel | CANCELLED; wallet never opened |
+| 8 | any | cancel in sheet | review → Cancel | CANCELLED; wallet never opened and no transaction submitted; the pending review is released on the backend (its reservation is freed) |
 | 9 | any | double tap Confirm | review → tap twice fast | one wallet prompt; second tap no-op (revision) |
 | 10 | any | reopen an old review link | after CONFIRMED/EXPIRED | "closed (STATE)" line; no sheet action |
 | 11 | any | expiry | wait past TTL | EXPIRED; reservation released; Telegram line says closed |
